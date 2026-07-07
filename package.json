@@ -1,0 +1,8 @@
+{
+  "name": "mneme-plugin",
+  "private": true,
+  "description": "Distribution repo for the mneme Claude Code plugin. Holds hand-written packaging; the compiled server binary is produced by the mneme code repo and gitignored.",
+  "scripts": {
+    "test": "node scripts/validate-manifests.mjs"
+  }
+}

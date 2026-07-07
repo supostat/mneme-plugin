@@ -1,0 +1,13 @@
+{
+  "name": "mneme",
+  "description": "Installable mneme MCP server for Claude Code: persistent cross-project memory (remember / recall with staging), shipped as a self-contained compiled binary.",
+  "author": {
+    "name": "Igor Pugachev",
+    "email": "i.pugachev@gmail.com"
+  },
+  "mcpServers": {
+    "mneme": {
+      "command": "${CLAUDE_PLUGIN_ROOT}/bin/mneme"
+    }
+  }
+}

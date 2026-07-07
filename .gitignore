@@ -1,0 +1,28 @@
+# Generated binary — produced by scripts/build-plugin.ts in the mneme CODE repo.
+# ~92 MB, reproducible from source, never committed.
+bin/
+
+# dev-workflow / engram runtime + session data (machine-local, not distribution)
+.engram/
+
+# dev-workflow tooling (machine-specific settings + synced/version-locked skills)
+.claude/
+
+# Local MCP registration — absolute developer paths, does not register mneme
+.mcp.json
+
+# Editor-local settings
+.vscode/
+
+# Secrets
+.env
+.env.*
+
+# OS / editor cruft
+.DS_Store
+*.swp
+*.swo
+*~
+CLAUDE.md
+docs
+.dev-vault

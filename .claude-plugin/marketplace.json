@@ -1,0 +1,15 @@
+{
+  "name": "mneme-marketplace",
+  "owner": {
+    "name": "Igor Pugachev",
+    "email": "i.pugachev@gmail.com"
+  },
+  "plugins": [
+    {
+      "name": "mneme",
+      "source": "./",
+      "description": "Persistent cross-project memory for Claude Code, packaged as a plugin.",
+      "category": "productivity"
+    }
+  ]
+}
