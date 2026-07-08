@@ -7,16 +7,11 @@ disable-model-invocation: true
 
 # /mneme:arch — Architecture analysis and decision support
 
-Read-only analysis of an architecture question. Researches the codebase and recalled
-memory, proposes 2-3 solutions with trade-offs, recommends one. Does NOT modify code.
+Read-only analysis of an architecture question. Draws on recalled mneme memory and the
+codebase, proposes 2-3 solutions with trade-offs, recommends one. Does NOT modify code.
 
-> **STUB — Phase 3 install-proof.** This skill exists to prove the plugin is picked up
-> as `/mneme:arch`. The procedure below is transplanted from the reference `arch` mode;
-> its engram/vault addresses are **not yet rewired** to mneme. Every `TODO(mneme)` marks
-> an address a later phase must migrate: engram `memory_search`/`memory_judge` → mneme
-> `recall` (the judge step is removed — mneme has no judge tool); `memory_store` → mneme
-> `remember` (staged); `.dev-vault/*` files → mneme context anchors such as `CLAUDE.md`
-> and `docs/`.
+Context comes from mneme (`recall`) plus generic repository anchors (`CLAUDE.md`, `docs/`,
+`README`) — this skill depends on no project-specific layout.
 
 ## Arguments
 
@@ -44,25 +39,24 @@ Staging a memory via `remember` is the one permitted side effect, and only on us
 
 ### Step 0: Recall prior memory — MANDATORY
 
-Before researching the codebase:
-1. TODO(mneme): recall relevant memory with `mcp__plugin_mneme_mneme__recall`, querying the
-   architecture question (key concepts, modules, technologies). Replaces engram `memory_search`.
-2. TODO(mneme): the engram `memory_judge` scoring step is REMOVED — mneme has no judge tool.
-   Use recalled memory directly to inform the options in Step 4; rejected-approach memories are
-   especially valuable.
-3. TODO(mneme): if recall surfaces an antipattern, every proposed option MUST state whether it
-   triggers that antipattern. Silent ignore = protocol violation.
+Before researching the codebase, call `mcp__plugin_mneme_mneme__recall` with the architecture
+question (key concepts, modules, technologies).
+
+1. There is NO scoring/judge step — mneme has no judge tool. Use recalled notes directly to
+   inform the options in Step 4; rejected-approach and decision notes are especially valuable.
+2. If recall surfaces an antipattern note, every proposed option MUST state whether it triggers
+   that antipattern. Silent ignore = protocol violation.
+3. Recall augments, it never gates. An empty result or a "degraded mode" notice (no stored
+   vectors yet) is normal on a cold store — proceed to Step 1 and note that memory was empty.
 
 ### Step 1: Load context
 
-MUST read the project's architecture context.
-TODO(mneme): rewire these engram/vault addresses to mneme anchors —
-- `.dev-vault/stack.md` — available technologies
-- `.dev-vault/conventions.md` — established patterns
-- `.dev-vault/knowledge.md` — existing architecture, gotchas
-- `.dev-vault/gameplan.md` — current phase, priorities
+MUST read the project's architecture context from anchors that exist in any repository,
+degrading gracefully when one is absent:
 
-Target anchors in mneme (`CLAUDE.md`, `docs/`, recalled memory) are finalized in the migration phase.
+- `CLAUDE.md` (repo root and any nested ones) — conventions, constraints, instructions
+- `README` / `docs/` — architecture, stack, and design notes, if present
+- the notes recalled in Step 0
 
 ### Step 2: Research codebase
 
@@ -70,8 +64,7 @@ Target anchors in mneme (`CLAUDE.md`, `docs/`, recalled memory) are finalized in
 2. Read the relevant files (max 15).
 3. Map the current architecture around the question area.
 4. Identify existing patterns that apply.
-5. TODO(mneme): check recorded architecture decisions (engram `.dev-vault/architecture/` →
-   mneme-recalled ADRs) for related prior choices.
+5. Weigh related prior decisions surfaced by recall (Step 0) against the current question.
 
 ### Step 3: Analyze from 3 perspectives
 
@@ -97,7 +90,7 @@ Display as plain markdown (NOT inside a code fence):
 
 ## ARCH: <question short form>
 
-**Context** — Project · Branch · Phase · related files analyzed · existing patterns · related ADRs
+**Context** — Project · Branch · files analyzed · existing patterns · recalled memory (decisions / antipatterns, or "none — memory empty")
 
 ### Option A: <name>
 <summary> · **How** · **Pros** · **Cons** · **Conventions** (matches / deviates) · **Effort** · **Risk**
@@ -110,14 +103,15 @@ Display as plain markdown (NOT inside a code fence):
 ### RECOMMENDATION
 **Option <A/B/C>: <name>** — justification + concrete next steps.
 
-TODO(mneme): offer to persist the decision via `mcp__plugin_mneme_mneme__remember` (staged),
-replacing the engram `memory_store` / `/vault:adr` handoff.
+After the recommendation, offer to persist the decision via `mcp__plugin_mneme_mneme__remember`
+(type `decision`, staged for human review) — only if the user asks. Staging queues the note; the
+human accepts it separately. Never publish automatically.
 
 ## Rules
 
 - **Read-only w.r.t. the codebase** — NEVER create or modify a file. VIOLATION = ABORT.
 - **MUST propose 2-3 options** — not 1, not 5+.
-- **Evidence-based** — every claim references a specific file or recalled memory. No "generally speaking".
+- **Evidence-based** — every claim references a specific file or recalled note. No "generally speaking".
 - **Concrete** — name files and modules, not "consider separating concerns".
 - **Convention-aware** — flag and justify any deviation from established patterns.
 - **No code** — describe what to do; implementation is the coder's job.
