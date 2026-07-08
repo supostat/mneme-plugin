@@ -7,7 +7,7 @@
   "plugins": [
     {
       "name": "mneme",
-      "source": "./",
+      "source": "./plugin",
       "description": "Persistent cross-project memory for Claude Code, packaged as a plugin.",
       "category": "productivity"
     }

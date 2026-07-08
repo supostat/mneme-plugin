@@ -1,5 +1,5 @@
 # Generated binary — produced by scripts/build-plugin.ts in the mneme CODE repo.
-# ~92 MB, reproducible from source, never committed.
+# ~62 MB, reproducible from source, never committed.
 bin/
 
 # dev-workflow / engram runtime + session data (machine-local, not distribution)

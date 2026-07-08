@@ -5,13 +5,13 @@ allowed-tools: [Read, Grep, mcp__plugin_mneme_mneme__recall, mcp__plugin_mneme_m
 disable-model-invocation: true
 ---
 
-# /mneme:arch — Architecture analysis and decision support
+# /arch — Architecture analysis and decision support
 
 Read-only analysis of an architecture question. Researches the codebase and recalled
 memory, proposes 2-3 solutions with trade-offs, recommends one. Does NOT modify code.
 
 > **STUB — Phase 3 install-proof.** This skill exists to prove the plugin is picked up
-> as `/mneme:arch`. The procedure below is transplanted from the reference `arch` mode;
+> as `/arch`. The procedure below is transplanted from the reference `arch` mode;
 > its engram/vault addresses are **not yet rewired** to mneme. Every `TODO(mneme)` marks
 > an address a later phase must migrate: engram `memory_search`/`memory_judge` → mneme
 > `recall` (the judge step is removed — mneme has no judge tool); `memory_store` → mneme
@@ -20,12 +20,12 @@ memory, proposes 2-3 solutions with trade-offs, recommends one. Does NOT modify 
 
 ## Arguments
 
-`/mneme:arch "<question>"` — architecture question or decision to analyze.
+`/arch "<question>"` — architecture question or decision to analyze.
 
 Examples:
-- `/mneme:arch "how should the auth module be structured?"`
-- `/mneme:arch "should this service be split in two?"`
-- `/mneme:arch "REST vs gRPC for the internal API?"`
+- `/arch "how should the auth module be structured?"`
+- `/arch "should this service be split in two?"`
+- `/arch "REST vs gRPC for the internal API?"`
 
 ## Permissions (VIOLATION = ABORT)
 

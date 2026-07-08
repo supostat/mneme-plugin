@@ -9,6 +9,7 @@ const errors = [];
 const KEBAB_CASE = /^[a-z0-9]+(-[a-z0-9]+)*$/;
 const ABSOLUTE_PATH_LEAK = /\/(Users|home|root)\b/;
 const REQUIRED_SKILL_KEYS = ['name', 'description', 'allowed-tools'];
+const FORBIDDEN_IN_BUNDLE = ['.dev-vault', '.claude', '.mcp.json', '.engram', 'docs', 'CLAUDE.md', '.env', '.git'];
 
 function loadManifest(relativePath) {
   let raw;
@@ -85,8 +86,8 @@ function validateCrossReferences(pluginManifest, marketplaceManifest) {
   if (!pluginManifest || !marketplaceManifest || !Array.isArray(marketplaceManifest.plugins)) return;
   const rootPluginName = pluginManifest.name;
   marketplaceManifest.plugins.forEach((plugin, index) => {
-    if (plugin?.source === './' && plugin?.name !== rootPluginName) {
-      errors.push(`marketplace.json: plugins[${index}].source "./" points at this repo, but its name "${plugin?.name}" does not match plugin.json name "${rootPluginName}"`);
+    if (plugin?.source?.startsWith('./') && plugin?.name !== rootPluginName) {
+      errors.push(`marketplace.json: plugins[${index}].source "${plugin?.source}" points at this repo, but its name "${plugin?.name}" does not match plugin.json name "${rootPluginName}"`);
     }
   });
 }
@@ -112,26 +113,61 @@ function validateSkillFile(relativePath) {
       errors.push(`${relativePath}: frontmatter is missing required key "${key}"`);
     }
   }
+  assertSkillNameMatchesDirectory(relativePath, frontmatter[1]);
+}
+
+function assertSkillNameMatchesDirectory(relativePath, frontmatterBody) {
+  const declaredNameMatch = frontmatterBody.match(/^name:\s*(.+)$/m);
+  const directoryMatch = relativePath.match(/^plugin\/skills\/([^/]+)\/SKILL\.md$/);
+  if (!declaredNameMatch || !directoryMatch) return;
+  const declaredName = declaredNameMatch[1].trim().replace(/^["']|["']$/g, '');
+  const directoryName = directoryMatch[1];
+  if (declaredName !== directoryName) {
+    errors.push(`${relativePath}: frontmatter name "${declaredName}" should match the skill directory "${directoryName}"`);
+  }
 }
 
 function validateSkills() {
   let entries;
   try {
-    entries = readdirSync(resolve(repoRoot, 'skills'), { withFileTypes: true });
+    entries = readdirSync(resolve(repoRoot, 'plugin/skills'), { withFileTypes: true });
   } catch {
+    errors.push('plugin/skills: directory not found — the plugin must ship at least one skill');
     return;
   }
-  for (const entry of entries) {
-    if (entry.isDirectory()) validateSkillFile(`skills/${entry.name}/SKILL.md`);
+  const skillDirectories = entries.filter((entry) => entry.isDirectory());
+  if (skillDirectories.length === 0) {
+    errors.push('plugin/skills: no skill subdirectories found');
+    return;
+  }
+  for (const skillDirectory of skillDirectories) {
+    validateSkillFile(`plugin/skills/${skillDirectory.name}/SKILL.md`);
   }
 }
 
-const pluginManifest = loadManifest('.claude-plugin/plugin.json');
+function validateBundleHygiene() {
+  let entries;
+  try {
+    entries = readdirSync(resolve(repoRoot, 'plugin'), { withFileTypes: true });
+  } catch {
+    errors.push('plugin/: bundle directory not found');
+    return;
+  }
+  const names = new Set(entries.map((entry) => entry.name));
+  for (const forbidden of FORBIDDEN_IN_BUNDLE) {
+    if (names.has(forbidden)) {
+      errors.push(`plugin/${forbidden}: repo-internal path must NOT sit inside the shipped bundle (marketplace source "./plugin" copies everything under plugin/)`);
+    }
+  }
+}
+
+const pluginManifest = loadManifest('plugin/.claude-plugin/plugin.json');
 const marketplaceManifest = loadManifest('.claude-plugin/marketplace.json');
 validatePlugin(pluginManifest);
 validateMarketplace(marketplaceManifest);
 validateCrossReferences(pluginManifest, marketplaceManifest);
 validateSkills();
+validateBundleHygiene();
 
 if (errors.length > 0) {
   console.error('Manifest validation FAILED:');
