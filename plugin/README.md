@@ -33,7 +33,7 @@ plugin/              # ← the installable bundle; the marketplace source points
   .claude-plugin/
     plugin.json      # declares the mneme MCP server
   skills/
-    arch/SKILL.md    # /arch — architecture-mode skill (STUB: proves plugin pickup)
+    mneme__arch/SKILL.md  # /mneme:arch — architecture-mode skill (STUB: proves plugin pickup)
   commands/          # reserved, empty
   hooks/             # reserved, empty
   bin/mneme          # compiled server — generated, gitignored, NOT in this repo
@@ -89,7 +89,7 @@ mneme@mneme-marketplace` installs the `mneme` plugin from it. After install, the
 server starts from the plugin — verify with `/mcp`: the `mneme` server lists its five tools
 (`remember`, `recall`, `staging_list`, `staging_resolve`, `stats`), exposed under
 plugin-namespaced names (`mcp__plugin_mneme_mneme__remember`, `…__recall`, …). The bundled
-`/arch` skill is picked up on install too (currently a stub that proves plugin-skill
+`/mneme:arch` skill is picked up on install too (currently a stub that proves plugin-skill
 pickup; its architecture logic is transplanted in later work).
 
 ## Update
@@ -115,13 +115,13 @@ an absolute path, plus per-project copies of the arch skill — the plugin repla
   versioned. You can tell the server comes from the plugin, not a local `.mcp.json`: its tools
   appear as `mcp__plugin_mneme_mneme__*` (a local `.mcp.json` registration would expose them
   as `mcp__mneme__*`).
-- **Skill** — delete the per-project arch copies; the plugin ships it as `/arch`,
+- **Skill** — delete the per-project arch copies; the plugin ships it as `/mneme:arch`,
   updated centrally via `/plugin update`.
 
 ## Status
 
 Manifests are valid, the compiled server is produced by the code repo's build-script, and
 `plugin/.claude-plugin/plugin.json` declares `version` `0.1.0` (stamped from the code repo). The
-repo ships the `/arch` skill stub and the install/update/migration docs above.
+repo ships the `/mneme:arch` skill stub and the install/update/migration docs above.
 Installing the plugin and confirming the server and skill are picked up in-session is the
 final, hands-on step of this phase.

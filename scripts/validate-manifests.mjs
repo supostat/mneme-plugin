@@ -122,8 +122,11 @@ function assertSkillNameMatchesDirectory(relativePath, frontmatterBody) {
   if (!declaredNameMatch || !directoryMatch) return;
   const declaredName = declaredNameMatch[1].trim().replace(/^["']|["']$/g, '');
   const directoryName = directoryMatch[1];
-  if (declaredName !== directoryName) {
-    errors.push(`${relativePath}: frontmatter name "${declaredName}" should match the skill directory "${directoryName}"`);
+  // Claude Code invokes a plugin skill by its frontmatter `name` verbatim, so a colon
+  // produces a namespaced command (name "mneme:arch" → /mneme:arch). A colon is illegal
+  // in a directory name, so the directory encodes the same identity with "__" per colon.
+  if (declaredName.replace(/:/g, '__') !== directoryName) {
+    errors.push(`${relativePath}: frontmatter name "${declaredName}" must match the skill directory "${directoryName}" (each ":" in the name maps to "__" in the directory)`);
   }
 }
 
