@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-import { readFileSync } from 'node:fs';
+import { readFileSync, readdirSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -8,6 +8,7 @@ const errors = [];
 
 const KEBAB_CASE = /^[a-z0-9]+(-[a-z0-9]+)*$/;
 const ABSOLUTE_PATH_LEAK = /\/(Users|home|root)\b/;
+const REQUIRED_SKILL_KEYS = ['name', 'description', 'allowed-tools'];
 
 function loadManifest(relativePath) {
   let raw;
@@ -90,11 +91,47 @@ function validateCrossReferences(pluginManifest, marketplaceManifest) {
   });
 }
 
+function validateSkillFile(relativePath) {
+  let raw;
+  try {
+    raw = readFileSync(resolve(repoRoot, relativePath), 'utf8');
+  } catch {
+    errors.push(`${relativePath}: file not found`);
+    return;
+  }
+  if (ABSOLUTE_PATH_LEAK.test(raw)) {
+    errors.push(`${relativePath}: contains an absolute filesystem path (/Users, /home or /root) — a distributed skill must stay portable`);
+  }
+  const frontmatter = raw.match(/^---\n([\s\S]*?)\n---/);
+  if (!frontmatter) {
+    errors.push(`${relativePath}: missing a --- delimited YAML frontmatter block at the top`);
+    return;
+  }
+  for (const key of REQUIRED_SKILL_KEYS) {
+    if (!new RegExp(`^${key}:`, 'm').test(frontmatter[1])) {
+      errors.push(`${relativePath}: frontmatter is missing required key "${key}"`);
+    }
+  }
+}
+
+function validateSkills() {
+  let entries;
+  try {
+    entries = readdirSync(resolve(repoRoot, 'skills'), { withFileTypes: true });
+  } catch {
+    return;
+  }
+  for (const entry of entries) {
+    if (entry.isDirectory()) validateSkillFile(`skills/${entry.name}/SKILL.md`);
+  }
+}
+
 const pluginManifest = loadManifest('.claude-plugin/plugin.json');
 const marketplaceManifest = loadManifest('.claude-plugin/marketplace.json');
 validatePlugin(pluginManifest);
 validateMarketplace(marketplaceManifest);
 validateCrossReferences(pluginManifest, marketplaceManifest);
+validateSkills();
 
 if (errors.length > 0) {
   console.error('Manifest validation FAILED:');
@@ -102,4 +139,4 @@ if (errors.length > 0) {
   process.exit(1);
 }
 
-console.log('Manifest validation passed: plugin.json and marketplace.json are valid and portable.');
+console.log('Manifest validation passed: plugin.json, marketplace.json and skills are valid and portable.');
