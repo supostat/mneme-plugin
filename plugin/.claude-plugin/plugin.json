@@ -6,7 +6,7 @@
     "email": "i.pugachev@gmail.com"
   },
   "mcpServers": {
-    "mneme": {
+    "memory": {
       "command": "${CLAUDE_PLUGIN_ROOT}/bin/mneme"
     }
   },

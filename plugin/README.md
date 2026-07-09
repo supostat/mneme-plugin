@@ -88,7 +88,7 @@ From a Claude Code session, install the plugin from its self-marketplace (this r
 mneme@mneme-marketplace` installs the `mneme` plugin from it. After install, the mneme MCP
 server starts from the plugin — verify with `/mcp`: the `mneme` server lists its five tools
 (`remember`, `recall`, `staging_list`, `staging_resolve`, `stats`), exposed under
-plugin-namespaced names (`mcp__plugin_mneme_mneme__remember`, `…__recall`, …). The bundled
+plugin-namespaced names (`mcp__plugin_mneme_memory__remember`, `…__recall`, …). The bundled
 `/mneme:arch` skill is picked up on install too — a read-only architecture-analysis skill
 anchored on mneme `recall` and generic repo docs (`CLAUDE.md`, `docs/`, `README`).
 
@@ -113,7 +113,7 @@ an absolute path, plus per-project copies of the arch skill — the plugin repla
 - **MCP server** — remove the `mneme` entry from that project's `.mcp.json` and install the
   plugin instead. The plugin's server is portable (`${CLAUDE_PLUGIN_ROOT}/bin/mneme`) and
   versioned. You can tell the server comes from the plugin, not a local `.mcp.json`: its tools
-  appear as `mcp__plugin_mneme_mneme__*` (a local `.mcp.json` registration would expose them
+  appear as `mcp__plugin_mneme_memory__*` (a local `.mcp.json` registration would expose them
   as `mcp__mneme__*`).
 - **Skill** — delete the per-project arch copies; the plugin ships it as `/mneme:arch`,
   updated centrally via `/plugin update`.

@@ -1,7 +1,7 @@
 ---
 name: mneme:arch
 description: Read-only architecture analysis — 2-3 solutions with trade-offs, one recommended. Use when designing a component or scoping a refactor.
-allowed-tools: [Read, Grep, mcp__plugin_mneme_mneme__recall, mcp__plugin_mneme_mneme__remember]
+allowed-tools: [Read, Grep, mcp__plugin_mneme_memory__recall, mcp__plugin_mneme_memory__remember]
 disable-model-invocation: true
 ---
 
@@ -27,8 +27,8 @@ Examples:
 - Read files: YES
 - Write / Edit files: FORBIDDEN — this skill analyzes, it never changes code
 - Bash: FORBIDDEN
-- Memory recall (`mcp__plugin_mneme_mneme__recall`): YES
-- Memory remember (`mcp__plugin_mneme_mneme__remember`): permitted ONLY to STAGE a decision
+- Memory recall (`mcp__plugin_mneme_memory__recall`): YES
+- Memory remember (`mcp__plugin_mneme_memory__remember`): permitted ONLY to STAGE a decision
   the user explicitly asked to persist — never automatically, and it stages for review, it
   does not publish
 
@@ -39,7 +39,7 @@ Staging a memory via `remember` is the one permitted side effect, and only on us
 
 ### Step 0: Recall prior memory — MANDATORY
 
-Before researching the codebase, call `mcp__plugin_mneme_mneme__recall` with the architecture
+Before researching the codebase, call `mcp__plugin_mneme_memory__recall` with the architecture
 question (key concepts, modules, technologies).
 
 1. There is NO scoring/judge step — mneme has no judge tool. Use recalled notes directly to
@@ -103,7 +103,7 @@ Display as plain markdown (NOT inside a code fence):
 ### RECOMMENDATION
 **Option <A/B/C>: <name>** — justification + concrete next steps.
 
-After the recommendation, offer to persist the decision via `mcp__plugin_mneme_mneme__remember`
+After the recommendation, offer to persist the decision via `mcp__plugin_mneme_memory__remember`
 (type `decision`, staged for human review) — only if the user asks. Staging queues the note; the
 human accepts it separately. Never publish automatically.
 
