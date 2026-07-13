@@ -34,6 +34,7 @@ plugin/              # ← the installable bundle; the marketplace source points
     plugin.json      # declares the mneme MCP server
   skills/
     mneme__arch/SKILL.md  # /mneme:arch — read-only architecture-analysis skill
+    mneme__dev/SKILL.md   # /mneme:dev  — thin workflow-dispatcher skill
   commands/          # reserved, empty
   hooks/             # reserved, empty
   bin/mneme          # compiled server — generated, gitignored, NOT in this repo
@@ -86,11 +87,14 @@ From a Claude Code session, install the plugin from its self-marketplace (this r
 
 `marketplace add ./` registers this repo as a local marketplace; `install
 mneme@mneme-marketplace` installs the `mneme` plugin from it. After install, the mneme MCP
-server starts from the plugin — verify with `/mcp`: the `mneme` server lists its five tools
-(`remember`, `recall`, `staging_list`, `staging_resolve`, `stats`), exposed under
-plugin-namespaced names (`mcp__plugin_mneme_memory__remember`, `…__recall`, …). The bundled
-`/mneme:arch` skill is picked up on install too — a read-only architecture-analysis skill
-anchored on mneme `recall` and generic repo docs (`CLAUDE.md`, `docs/`, `README`).
+server starts from the plugin — verify with `/mcp`: the `mneme` server lists its seven tools
+(`remember`, `recall`, `staging_list`, `staging_resolve`, `stats`, plus the workflow pair
+`workflow_start` and `workflow_step`), exposed under plugin-namespaced names
+(`mcp__plugin_mneme_memory__remember`, `…__recall`, …). Two bundled skills are picked up on
+install too: `/mneme:arch` — a read-only architecture-analysis skill anchored on mneme `recall`
+and generic repo docs (`CLAUDE.md`, `docs/`, `README`) — and `/mneme:dev`, a thin dispatcher
+that drives the workflow engine (`workflow_start` once, then a `workflow_step` loop over the
+engine's directives).
 
 ## Update
 
@@ -122,6 +126,6 @@ an absolute path, plus per-project copies of the arch skill — the plugin repla
 
 Manifests are valid, the compiled server is produced by the code repo's build-script, and
 `plugin/.claude-plugin/plugin.json` declares `version` `0.1.0` (stamped from the code repo). The
-repo ships the `/mneme:arch` skill and the install/update/migration docs above.
+repo ships the `/mneme:arch` and `/mneme:dev` skills and the install/update/migration docs above.
 Installing the plugin and confirming the server and skill are picked up in-session is the
 final, hands-on step of this phase.
