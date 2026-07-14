@@ -43,6 +43,37 @@ A run with NO argument means RESUME an existing run on the current branch — se
 - `recall` / `remember` / any other memory tool: FORBIDDEN — the engine runs recall itself and
   stages harvested artifacts itself; this skill never calls a memory tool directly.
 
+## NEVER-DELEGATE-EXECUTE-STEP (VIOLATION = ABORT)
+
+The `execute_step` branch's work is done by the MAIN agent, in the MAIN context — it is NEVER
+delegated to a subagent (Agent / Task tool). The engine spawns no subagents and defines no
+agent-roles; the directive's `agent-role` is a HINT for HOW the main agent works, never a dispatch
+instruction.
+
+Why the main agent, mechanically — the engine's ONLY memory channel into the phase work is the
+`Recall bundle for phase "<id>"` block, and it is delivered into the MAIN agent's context.
+Delegating `execute_step` inserts a lossy hop the design does not have:
+
+- the subagent never sees the bundle — it gets only what the main agent chooses to forward, which is
+  a SELECTION, PARAPHRASED, not the verbatim notes (dogfood-2: 3 of 8 notes forwarded, the other 5
+  silently dropped);
+- the engine's recall → work → harvest memory channel is zeroed on that hop, so harvested artifacts
+  no longer trace back to what recall actually surfaced.
+
+So: read the bundle in the MAIN context and DO the work here. A pure edit / test / grep phase has no
+reason to delegate at all.
+
+### Exception — verbatim-bundle-exception (framing-safety ONLY)
+
+There is exactly ONE known legitimate reason to delegate: framing-safety. When a directive PAYLOAD
+carries LITERAL tool-invocation delimiter tokens (the closing tags that frame a tool call), rendering
+them in the main context can break the main agent's own tool-call frames; a subagent isolates them.
+
+When — and only when — that forces delegation, forward the recall bundle to the subagent WHOLE AND
+VERBATIM: every note, byte for byte, no discarding, no summary, no paraphrase. Selecting or
+paraphrasing the bundle before handing it off is ITSELF a VIOLATION — it reintroduces exactly the
+lossy hop this rule exists to prevent.
+
 ## Procedure
 
 ### Response envelope — parse every response the same way
@@ -235,6 +266,6 @@ yes/no OR-question. The ESCALATED prompt lists concrete numbered choices.
 - HARVEST ANCHORS repo-relative AND git-tracked; NEVER auto-publish — staging accept is human.
 - The skill does NOT decide sequencing / gates / retry, does NOT run done-when commands, does NOT
   call recall / remember, does NOT encode step semantics (single-step), and does NOT create
-  agent-role definitions — the engine spawns no subagents; `execute_step` work is done by the MAIN
-  agent.
+  agent-role definitions — see `## NEVER-DELEGATE-EXECUTE-STEP` for why `execute_step` work stays in
+  the MAIN agent (single source of truth).
 - LANGUAGE: English body + literal English protocol tokens; RUSSIAN runtime user-facing output.
