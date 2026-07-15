@@ -1,7 +1,7 @@
 ---
 name: mneme:plan
 description: turn a task described in words into a reviewed delta-spec through option fan and user confirmation
-allowed-tools: [Read, Grep, mcp__plugin_mneme_memory__recall, Write]
+allowed-tools: [Read, Grep, mcp__plugin_mneme_memory__recall, mcp__plugin_mneme_memory__remember, Write]
 disable-model-invocation: true
 ---
 
@@ -44,12 +44,16 @@ task.
   VIOLATION.
 - Edit files / Bash / any code change: FORBIDDEN — plan plans, it never implements. It does not
   write code, does not call `/mneme:dev`, does not run migrate. Its artifact ENDS at the spec.
-- `remember` / any other memory tool: FORBIDDEN — plan reads memory, it never stages or publishes.
+- `mcp__plugin_mneme_memory__remember`: YES, but ONLY in Step 7 to STAGE the choice decision AFTER
+  the Step 6 approval and Write — it QUEUES a note for review, it never publishes; a human accepts it
+  via `staging_list` / `staging_resolve`. `remember` before approval, or ANY other memory tool
+  (recall excepted, per above), is FORBIDDEN.
 
 ## Procedure
 
-Six steps, two hard stops. Steps 1-3 run in one turn and END at Step 4. Step 5 runs after the
-user's choice and ENDS at Step 6. The Write happens only after Step 6 approval.
+Seven steps, two hard stops. Steps 1-3 run in one turn and END at Step 4. Step 5 runs after the
+user's choice and ENDS at Step 6. The Write happens only after Step 6 approval; Step 7 then STAGES
+the choice as a decision note (it queues for human accept — it does not publish).
 
 ### Step 1: Take the task
 
@@ -108,8 +112,18 @@ Show the DRAFT spec in the chat and END THE TURN. STOP and wait for explicit app
 the user approves may you `Write` the spec into `docs/`. Writing the file before approval, or
 continuing without it, is a VIOLATION = ABORT.
 
-After the file is written, point at the next steps — migrate the spec to phase documents, then run
-`/mneme:dev` per phase — but do NOT run them. plan's artifact ends at the spec on disk.
+### Step 7: STAGE-CHOICE — stage the decision, then point at the next steps
+
+After the spec is written, UNCONDITIONALLY stage the choice as a decision note — this closes the
+back half of the plan's memory loop (choice → memory), mirroring how `/mneme:dev` stages harvest
+artifacts. Call `mcp__plugin_mneme_memory__remember` with `type: "decision"`, a `body` distilling
+the fork (the CHOSEN option, the REJECTED options each with compressed trade-offs, and WHY the
+choice won), and `anchors` set to the affected files (see Output format for how body and anchors are
+built). `remember` only QUEUES the note — it does not publish; tell the user (Russian) to review and
+accept it via `staging_list` / `staging_resolve`, and never assume it was accepted.
+
+Then point at the next steps — migrate the spec to phase documents, then run `/mneme:dev` per phase
+— but do NOT run them. plan's artifact ends at the spec on disk plus the staged decision note.
 
 ## Output format
 
@@ -137,7 +151,9 @@ option to continue." (This is the OPTION-FAN-HARD-STOP.)
 Five sections, matching the project's existing `docs/SPEC-*.md` delta format:
 
 - **Baseline** — prior spec reference + a `Prior spec-hash: sha256:<placeholder — confirm>` line +
-  what already exists and is not touched.
+  what already exists and is not touched + a SOFT traceability line "обоснование выбора — staged
+  decision note (id после accept)" (the note is staged in Step 7; its id is unknown until a human
+  accepts it, so the reference stays SOFT — never hard-code an id).
 - **Stack** — new/changed components (files, tools), concrete.
 - **Conventions** — rules this change must hold to.
 - **Knowledge** — self-contained rationale and gotchas (from-spec carries Knowledge into the phase
@@ -155,6 +171,16 @@ drives ONE phase at a time (multi-phase sequencing, "D2", is not built yet) — 
 executed one phase at a time, ordering handled by the user by hand. This is honesty about the
 current limit, not a planning blocker. The first real task where the planner splits into 3+ phases
 and the user hits "one at a time" is the trigger to pull D2 from the backlog.
+
+### The choice decision note (Step 7)
+
+Staged via `remember(type: "decision", body, anchors)`:
+- **body** — the fork distilled: the CHOSEN option, the REJECTED options each with compressed
+  trade-offs, and WHY the choice won. This is the ADR moment from the fan, compressed into one note.
+- **anchors** — the affected files, and they MUST be repo-relative AND git-tracked (an untracked
+  anchor is a dead-anchor sink that drops the note to the bottom of recall). A plan often touches
+  files that do not exist yet — anchor to the already-tracked files it affects, never to
+  not-yet-created ones.
 
 ### Language
 
@@ -174,6 +200,9 @@ of the existing specs in that directory.
   through confirmation.
 - WRITE ONLY THE APPROVED SPEC — `Write` fires once, after Step 6, into `docs/`, nowhere else and
   never before approval.
+- STAGE THE CHOICE — Step 7 UNCONDITIONALLY stages the decision (chosen + rejected + why) via
+  `remember`, closing the choice → memory loop; it only QUEUES for human accept and NEVER publishes.
+  Anchors must be git-tracked (already-existing files, not future ones).
 - EVIDENCE-BASED — every option references a specific file or recalled note; name files and
   modules, not "consider separating concerns".
 - RECALL IS VISIBLE — surface what memory contributed in the fan; an antipattern note forces every
