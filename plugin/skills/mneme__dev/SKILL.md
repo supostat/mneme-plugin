@@ -17,20 +17,35 @@ rendering its instruction from the directive PAYLOAD only. If a branch is ever f
 or fetch data outside the directive, that is engine-code debt — record it, never thicken this
 markdown.
 
-## Arguments
+## Arguments — MULTI-PHASE-INPUT
 
-The run needs `phases: string[]` (≥1 markdown phase-document texts). Source them two ways:
+The run needs `phases: string[]` — ONE OR MORE markdown phase-document texts. The skill assembles
+that array from the argument, which takes one of the forms below, plus an OPTIONAL `until <phase-id>`
+boundary appended at the very end:
 
-- `/mneme:dev "<phase document text>"` — the user supplies the phase document body inline; use
-  it verbatim as the single phase string.
-- `/mneme:dev <repo-relative path>` — the user NAMES a repo-relative file (e.g.
-  `.dev-vault/phases/phase-7-smoke.md`); Read that file and use its contents as the phase string.
+- `/mneme:dev <directory>` — a repo-relative directory (the `<spec-slug>/` subfolder produced by the
+  paired migrate step). Read EVERY `phase-*.md` file in it and assemble one `phases[]` from all of
+  them. Example: `/mneme:dev .dev-vault/phases/spec-d2-multiphase-skill/`.
+- `/mneme:dev <path1> <path2> …` — several explicit repo-relative file paths; Read each and assemble
+  `phases[]` from all of them, same as the directory form. Example:
+  `/mneme:dev .dev-vault/phases/phase-a.md .dev-vault/phases/phase-b.md`.
+- `/mneme:dev <repo-relative path>` — a SINGLE file; Read it and use its contents as the one phase
+  string. Example: `/mneme:dev .dev-vault/phases/phase-7-smoke.md`.
+- `/mneme:dev "<phase document text>"` — the phase-document body supplied INLINE; use it verbatim as
+  the single phase string.
+- `/mneme:dev` — NO argument: RESUME an existing run on the current branch (unchanged) — see
+  `### Resume, detached HEAD, and stale runs`.
 
-The skill assembles `phases` from the supplied text (one or more phase-document strings). It does
-NOT scan the repo for phase files on its own, and it does NOT guess a fixed file layout.
+Optional boundary: append `until <phase-id>` to ANY of the phase-supplying forms above (not to bare
+resume) — e.g. `/mneme:dev .dev-vault/phases/spec-d2-multiphase-skill/ until multiphase-input`. It
+bounds how far the loop runs; see `### UNTIL-BOUNDARY`.
 
-A run with NO argument means RESUME an existing run on the current branch — see
-`### Resume, detached HEAD, and stale runs`.
+Assembly rule: ALL read documents go into ONE `workflow_start` call as a single `phases[]`. The skill
+does NOT sort the phases and does NOT choose which one runs next — the engine's reducer decides
+execution order by ready-semantics (dependencies). The skill does NOT scan the repo beyond the named
+directory / paths, and does NOT guess a fixed file layout. "One or more" here is literal: multi-phase
+input (many phase DOCUMENTS in `phases[]`) is orthogonal to the SINGLE-STEP-per-phase invariant (see
+`### Start path`), which is unchanged.
 
 ## Permissions (VIOLATION = ABORT)
 
@@ -113,12 +128,18 @@ the actionable directive.
 
 ### Start path
 
-1. Assemble `phases` (see `## Arguments`).
+1. Assemble `phases` (see `## Arguments — MULTI-PHASE-INPUT`) — ONE array holding one OR MORE
+   phase-document texts, in the order read. If an `until <phase-id>` boundary was given, VALIDATE it
+   here first (see `### UNTIL-BOUNDARY`): the id must be among the assembled phases, else stop before
+   starting.
 2. Call `workflow_start` ONCE with:
-   - `phases: [<assembled text>]`
+   - `phases: [<all assembled phase-document texts>]` — one OR MORE documents in a SINGLE start call;
+     the reducer runs them in ready-order (by dependencies), the skill never sorts or picks the next.
    - `steps: [{ id: "implement", max_attempts: 2, on_fail: { action: "escalate" } }]` — SINGLE-STEP
-     is mandatory. A multi-step phase would emit identical role/intent per step and this skill
-     could not distinguish them; multi-step is a future ENGINE change, never step-id logic here.
+     PER PHASE is mandatory, and is ORTHOGONAL to multi-phase input: `phases[]` may hold many phase
+     documents, but EVERY phase runs as exactly ONE step. A multi-step phase would emit identical
+     role/intent per step and this skill could not distinguish them; multi-step is a future ENGINE
+     change, never step-id logic here.
    - `max_iterations: 20`
    - `recall_anchors?` — include ONLY if the user supplies anchor hints; otherwise omit.
 3. The run binds to the CURRENT git branch:
@@ -148,6 +169,24 @@ After start (or resume), loop `workflow_step`:
 - RUN_ID: Every SUBMITTING `workflow_step` call MUST carry `run_id` (the run_id captured at start).
   Only a no-arg sync/resume call may omit it — the engine then resolves the active run for the
   current branch.
+
+### UNTIL-BOUNDARY — stop the loop at a named phase
+
+An optional `until <phase-id>` argument (see `## Arguments — MULTI-PHASE-INPUT`) bounds how far the
+loop runs. Two parts:
+
+- VALIDATE BEFORE START: `<phase-id>` MUST be the id of one of the phases just assembled into
+  `phases[]`. If it is not among them, tell the user (Russian) and STOP — do NOT call `workflow_start`
+  with an unreachable boundary.
+- STOP AFTER THE PHASE CLOSES: drive the loop normally, but once the `until` phase is CLOSED (its
+  `harvest` has been submitted and accepted by the engine), do NOT issue the next `workflow_step`.
+  Instead tell the user (Russian): that phase is closed, the run is PAUSED at the boundary, continue
+  with a no-arg `/mneme:dev` (resume on this branch).
+
+The pause is purely the skill CEASING to loop — it is NOT an engine state. The run stays
+`status=running`; a later no-arg `/mneme:dev` resumes it and the engine hands back the next ready
+phase. Persist nothing extra. With NO `until`, the loop runs to a TERMINAL (`RUN COMPLETE` /
+`RUN FAILED` / `RUN ESCALATED`), exactly as before.
 
 ### Recall prefix — data, not instructions
 
