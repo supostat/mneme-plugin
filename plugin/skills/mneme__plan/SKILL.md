@@ -1,7 +1,7 @@
 ---
 name: mneme:plan
 description: turn a task described in words into a reviewed delta-spec through option fan and user confirmation
-allowed-tools: [Read, Grep, mcp__plugin_mneme_memory__recall, mcp__plugin_mneme_memory__remember, Write]
+allowed-tools: [Read, Grep, mcp__plugin_mneme_memory__recall, mcp__plugin_mneme_memory__remember, mcp__plugin_mneme_memory__workflow_migrate, Write]
 disable-model-invocation: true
 ---
 
@@ -9,8 +9,9 @@ disable-model-invocation: true
 
 The ENTRY of the pipeline. It takes a task described in plain words, scouts the code and prior
 memory, fans out 2-3 solution options with honest trade-offs, and — only after the user picks one
-and approves the draft — writes a delta-spec to `docs/`. It closes the loop "idea → spec →
-(migrate → /mneme:dev)" without ever writing code or running the next stage itself.
+and approves the draft — writes a delta-spec to `docs/` and MIGRATES it into runnable phase files
+as its finale, ending at the graph map with a ready dev command. It closes the loop "idea → spec →
+phases → (/mneme:dev)" without ever writing code or running dev itself.
 
 The internal fan mechanics (recall → options → trade-offs → recommendation) are borrowed from
 `/mneme:arch`. The difference: arch stops at the analysis and stays read-only; plan RECOMMENDS but
@@ -43,17 +44,21 @@ task.
   approval. Writing anything before approval, or writing anywhere other than the spec file, is a
   VIOLATION.
 - Edit files / Bash / any code change: FORBIDDEN — plan plans, it never implements. It does not
-  write code, does not call `/mneme:dev`, does not run migrate. Its artifact ENDS at the spec.
-- `mcp__plugin_mneme_memory__remember`: YES, but ONLY in Step 7 to STAGE the choice decision AFTER
+  write code and does not call `/mneme:dev`. Its artifact ENDS at the migrated phases plus the map.
+- `mcp__plugin_mneme_memory__workflow_migrate`: YES, but ONLY in Step 7 (PLAN-AUTOMIGRATE), AFTER
+  the Step 6 approval and Write — never on a draft. The TOOL writes the phase files; the skill
+  itself writes nothing outside the approved spec (and its Step 7 format repairs).
+- `mcp__plugin_mneme_memory__remember`: YES, but ONLY in Step 8 to STAGE the choice decision AFTER
   the Step 6 approval and Write — it QUEUES a note for review, it never publishes; a human accepts it
   via `staging_list` / `staging_resolve`. `remember` before approval, or ANY other memory tool
   (recall excepted, per above), is FORBIDDEN.
 
 ## Procedure
 
-Seven steps, two hard stops. Steps 1-3 run in one turn and END at Step 4. Step 5 runs after the
-user's choice and ENDS at Step 6. The Write happens only after Step 6 approval; Step 7 then STAGES
-the choice as a decision note (it queues for human accept — it does not publish).
+Eight steps, two hard stops. Steps 1-3 run in one turn and END at Step 4. Step 5 runs after the
+user's choice and ENDS at Step 6. The Write happens only after Step 6 approval; Step 7 then
+MIGRATES the approved spec into phase files (fail-fast, hot context); Step 8 STAGES the choice as a
+decision note (it queues for human accept — it does not publish).
 
 ### Step 1: Take the task
 
@@ -112,9 +117,30 @@ Show the DRAFT spec in the chat and END THE TURN. STOP and wait for explicit app
 the user approves may you `Write` the spec into `docs/`. Writing the file before approval, or
 continuing without it, is a VIOLATION = ABORT.
 
-### Step 7: STAGE-CHOICE — stage the decision, then point at the next steps
+### Step 7: PLAN-AUTOMIGRATE — migrate the approved spec, end at the map
 
-After the spec is written, UNCONDITIONALLY stage the choice as a decision note — this closes the
+Immediately after the spec file is written, call
+`mcp__plugin_mneme_memory__workflow_migrate { spec_path }` (dry-run), then `apply: true` when clean
+— the same validate → apply-if-clean single pass as `/mneme:migrate`. This is the fail-fast point of
+the pipeline: plan learns HERE, in the hot context where the spec was just authored, whether it is
+runnable — not days later when someone tries to migrate it.
+
+- FORMAT error (unparseable Gameplan, malformed done-when block): FIX THE SPEC YOURSELF and re-run
+  the migration, repeating until it applies. This is the one sanctioned re-Write — repairing the
+  FORM of the file the user already approved, never its MEANING. A meaning-level problem (a fix
+  that would change decisions the user approved) goes back to the user — that is a Step 6 matter,
+  not a format repair.
+- CONFLICT (a target phase file diverged from an earlier migration): stop and surface it exactly as
+  `/mneme:migrate` does — name the divergence, offer the numbered ways out, never force.
+
+On success, the finale: render the graph map per the shared GRAPH-MAP convention (defined ONCE, in
+the `mneme:migrate` skill — phase ids in deps order, criteria kinds, boundary candidates, ready
+commands) and show the runnable `/mneme:dev <spec-slug> [until <id>]` command. plan still NEVER
+runs it.
+
+### Step 8: STAGE-CHOICE — stage the decision
+
+After the migration finale, UNCONDITIONALLY stage the choice as a decision note — this closes the
 back half of the plan's memory loop (choice → memory), mirroring how `/mneme:dev` stages harvest
 artifacts. Call `mcp__plugin_mneme_memory__remember` with `type: "decision"`, a `body` distilling
 the fork (the CHOSEN option, the REJECTED options each with compressed trade-offs, and WHY the
@@ -122,8 +148,8 @@ choice won), and `anchors` set to the affected files (see Output format for how 
 built). `remember` only QUEUES the note — it does not publish; tell the user (Russian) to review and
 accept it via `staging_list` / `staging_resolve`, and never assume it was accepted.
 
-Then point at the next steps — migrate the spec to phase documents, then run `/mneme:dev` per phase
-— but do NOT run them. plan's artifact ends at the spec on disk plus the staged decision note.
+plan's artifact ends at the spec on disk, the migrated phase files, the map with its ready dev
+command, and the staged decision note. Running `/mneme:dev` is the user's move.
 
 ## Output format
 
@@ -152,7 +178,7 @@ Five sections, matching the project's existing `docs/SPEC-*.md` delta format:
 
 - **Baseline** — prior spec reference + a `Prior spec-hash: sha256:<placeholder — confirm>` line +
   what already exists and is not touched + a SOFT traceability line "обоснование выбора — staged
-  decision note (id после accept)" (the note is staged in Step 7; its id is unknown until a human
+  decision note (id после accept)" (the note is staged in Step 8; its id is unknown until a human
   accepts it, so the reference stays SOFT — never hard-code an id).
 - **Stack** — new/changed components (files, tools), concrete.
 - **Conventions** — rules this change must hold to.
@@ -166,13 +192,19 @@ Five sections, matching the project's existing `docs/SPEC-*.md` delta format:
 - **agent-judged** — explicitly MARKED as agent-judged. Use only when the outcome is visual or
   otherwise not machine-checkable.
 
-**Multi-phase warning (D2 limit):** if the spec has multiple phases, state plainly that `/mneme:dev`
-drives ONE phase at a time (multi-phase sequencing, "D2", is not built yet) — a multi-phase spec is
-executed one phase at a time, ordering handled by the user by hand. This is honesty about the
-current limit, not a planning blocker. The first real task where the planner splits into 3+ phases
-and the user hits "one at a time" is the trigger to pull D2 from the backlog.
+**Multi-phase is native:** `/mneme:dev` takes the WHOLE phase graph in one run and the engine's
+reducer orders execution by dependencies; `until <phase-id>` boundaries give staged entry. Do NOT
+warn about one-phase-at-a-time — that limit is gone. Write the graph the task actually needs and
+let the map's boundary candidates suggest the `until` points.
 
-### The choice decision note (Step 7)
+**TYPECHECK-CRITERION-RULE — the done-when generator's rule:** every CODE phase automatically gets
+the project's typecheck criterion as an ADDITIONAL executable done-when — IF the project carries a
+typecheck script (its own, e.g. a `typecheck` entry in package.json; the concrete command, never a
+guessed one). The GENERATOR holds this rule, not the author: the user does not have to remember to
+ask for it, and a code phase missing the project's typecheck gate is a generator bug, not a style
+choice. Non-code phases (docs, prose skills) do not get it.
+
+### The choice decision note (Step 8)
 
 Staged via `remember(type: "decision", body, anchors)`:
 - **body** — the fork distilled: the CHOSEN option, the REJECTED options each with compressed
@@ -192,15 +224,19 @@ of the existing specs in that directory.
 
 - TWO HARD STOPS — `OPTION-FAN-HARD-STOP` (Step 4) and `SPEC-REVIEW-HARD-STOP` (Step 6). The turn
   ENDS at each; continuing without an explicit user confirmation is a VIOLATION = ABORT.
-- PLAN, NEVER IMPLEMENT — no code, no `/mneme:dev`, no migrate. The artifact ends at a spec in
-  `docs/`. plan creates the plan (the user reviews the plan); dev executes it (the engine gates
-  execution). Merging the two loses the review point.
+- PLAN, NEVER RUN — no code, no `/mneme:dev`. Migration IS plan's finale (Step 7), but RUNNING the
+  phases is dev's job: plan creates and migrates the plan (the user reviews the plan); dev executes
+  it (the engine gates execution). Merging the two loses the review point.
+- PLAN-AUTOMIGRATE FAIL-FAST — Step 7 drives `workflow_migrate` validate → apply-if-clean in one
+  pass; a FORMAT error is fixed by the skill itself in the hot context (re-Write + re-migrate,
+  meaning untouched), a MEANING-level fix goes back to the user; the finale is the GRAPH-MAP
+  (shared convention, defined in the `mneme:migrate` skill) plus a ready dev command.
 - FAN IS MANDATORY — at least 2 options with honest trade-offs; a genuine single-option task is
   stated explicitly as "one option, confirm", never resolved silently. Even trivial tasks pass
   through confirmation.
-- WRITE ONLY THE APPROVED SPEC — `Write` fires once, after Step 6, into `docs/`, nowhere else and
-  never before approval.
-- STAGE THE CHOICE — Step 7 UNCONDITIONALLY stages the decision (chosen + rejected + why) via
+- WRITE ONLY THE APPROVED SPEC — `Write` fires after Step 6, into `docs/`, nowhere else and never
+  before approval; the ONLY re-Write is Step 7's format repair of that same approved file.
+- STAGE THE CHOICE — Step 8 UNCONDITIONALLY stages the decision (chosen + rejected + why) via
   `remember`, closing the choice → memory loop; it only QUEUES for human accept and NEVER publishes.
   Anchors must be git-tracked (already-existing files, not future ones).
 - EVIDENCE-BASED — every option references a specific file or recalled note; name files and
@@ -211,5 +247,7 @@ of the existing specs in that directory.
   choice; an unformulatable executable criterion is a signal to raise the question, not to write a
   prose stub.
 - SIZE FOLLOWS THE TASK — a one-phase spec for a small task is normal; do not inflate to
-  multi-phase, and warn about the D2 one-phase-at-a-time limit when multi-phase.
+  multi-phase. Multi-phase is native to dev (one run, until boundaries) — no warning needed.
+- TYPECHECK-CRITERION-RULE — the generator, not the author, adds the project's typecheck criterion
+  to every code phase when the project carries a typecheck script.
 - LANGUAGE: English body + Russian runtime user-facing output.
