@@ -21,31 +21,41 @@ markdown.
 
 The run needs `phases: string[]` — ONE OR MORE markdown phase-document texts. The skill assembles
 that array from the argument, which takes one of the forms below, plus an OPTIONAL `until <phase-id>`
-boundary appended at the very end:
+boundary appended at the very end.
 
-- `/mneme:dev <directory>` — a repo-relative directory (the `<spec-slug>/` subfolder produced by the
-  paired migrate step). Read EVERY `phase-*.md` file in it and assemble one `phases[]` from all of
-  them. Example: `/mneme:dev .dev-vault/phases/spec-d2-multiphase-skill/`.
-- `/mneme:dev <path1> <path2> …` — several explicit repo-relative file paths; Read each and assemble
-  `phases[]` from all of them, same as the directory form. Example:
-  `/mneme:dev .dev-vault/phases/phase-a.md .dev-vault/phases/phase-b.md`.
-- `/mneme:dev <repo-relative path>` — a SINGLE file; Read it and use its contents as the one phase
-  string. Example: `/mneme:dev .dev-vault/phases/phase-7-smoke.md`.
-- `/mneme:dev "<phase document text>"` — the phase-document body supplied INLINE; use it verbatim as
-  the single phase string.
+### SLUG-RESOLVE — how the argument becomes a phase folder
+
+The project's CORPUS is derived from the cwd: the repo root's absolute path with every `/` replaced
+by `-` (leading `-` included) names `~/.mneme/<project-slug>/`, and TASK directories live under its
+`workflow/` subdirectory — one `<spec-slug>/` folder of `phase-*.md` files per task (what migrate
+emits). Resolve the argument in this order:
+
+- **slug** (the preferred form): `/mneme:dev <slug> [until <id>]` — a bare name that is neither an
+  existing path nor quoted text resolves to `<corpus>/workflow/<slug>/`; read EVERY `phase-*.md` in
+  it. Example: `/mneme:dev spec-plugin-sweep until migrate-skill`.
+- **no path at all**: `/mneme:dev until <id>` (an `until` with no source): look at
+  `<corpus>/workflow/` — exactly ONE task directory → take it silently; SEVERAL → list them
+  (numbered, Russian) and ASK which one; NONE → say so and stop. Never guess among several.
+- **full paths stay VALID** (compatibility): a directory (read every `phase-*.md` in it), several
+  explicit file paths, a single file, or an INLINE phase-document body in quotes — all exactly as
+  before.
 - `/mneme:dev` — NO argument: RESUME an existing run on the current branch (unchanged) — see
   `### Resume, detached HEAD, and stale runs`.
 
+SPEC-FILE GUARD: if a FILE argument's content carries a `# Gameplan` heading, it is a SPEC, not a
+phase document — do NOT feed it to `workflow_start` and do NOT puzzle over it. Redirect (Russian):
+«это спека → `/mneme:migrate <путь>`» and stop.
+
 Optional boundary: append `until <phase-id>` to ANY of the phase-supplying forms above (not to bare
-resume) — e.g. `/mneme:dev .dev-vault/phases/spec-d2-multiphase-skill/ until multiphase-input`. It
-bounds how far the loop runs; see `### UNTIL-BOUNDARY`.
+resume) — e.g. `/mneme:dev spec-plugin-sweep until multiphase-input`. It bounds how far the loop
+runs; see `### UNTIL-BOUNDARY`.
 
 Assembly rule: ALL read documents go into ONE `workflow_start` call as a single `phases[]`. The skill
 does NOT sort the phases and does NOT choose which one runs next — the engine's reducer decides
-execution order by ready-semantics (dependencies). The skill does NOT scan the repo beyond the named
-directory / paths, and does NOT guess a fixed file layout. "One or more" here is literal: multi-phase
-input (many phase DOCUMENTS in `phases[]`) is orthogonal to the SINGLE-STEP-per-phase invariant (see
-`### Start path`), which is unchanged.
+execution order by ready-semantics (dependencies). The skill does NOT scan the repo beyond the
+resolved directory / named paths, and does NOT guess a fixed file layout. "One or more" here is
+literal: multi-phase input (many phase DOCUMENTS in `phases[]`) is orthogonal to the
+SINGLE-STEP-per-phase invariant (see `### Start path`), which is unchanged.
 
 ## Permissions (VIOLATION = ABORT)
 
@@ -55,8 +65,12 @@ input (many phase DOCUMENTS in `phases[]`) is orthogonal to the SINGLE-STEP-per-
   done-when gate command — the engine runs gates itself.
 - `mcp__plugin_mneme_memory__workflow_start` / `mcp__plugin_mneme_memory__workflow_step`: YES —
   the only two engine tools this skill drives.
-- `recall` / `remember` / any other memory tool: FORBIDDEN — the engine runs recall itself and
-  stages harvested artifacts itself; this skill never calls a memory tool directly.
+- `recall` / `remember`: FORBIDDEN — the engine runs recall itself and stages harvested artifacts
+  itself; this skill never recalls or stages memory directly.
+- `staging_list` / `staging_resolve`: permitted ONLY inside `### BOUNDARY-CURATION` at a boundary
+  stop — `staging_list` to SHOW the queue, `staging_resolve` to apply the USER's explicit per-note
+  word. The DECISION is always the user's; the skill is only the hands. Resolving without an
+  explicit word is a VIOLATION.
 
 ## NEVER-DELEGATE-EXECUTE-STEP (VIOLATION = ABORT)
 
@@ -77,6 +91,11 @@ Delegating `execute_step` inserts a lossy hop the design does not have:
 
 So: read the bundle in the MAIN context and DO the work here. A pure edit / test / grep phase has no
 reason to delegate at all.
+
+(`### REVIEW-SPAWN` is NOT an exception to this rule: a spawned REVIEWER judges the finished diff
+against a checklist — it never does the phase's code work and never needs the bundle. The CODE stays
+here; only the VERDICT is delegated, and only where the phase's criteria ask for it. That is the one
+D4-safe hop by construction — the reviewer is not the coder.)
 
 ### Exception — verbatim-bundle-exception (framing-safety ONLY)
 
@@ -170,23 +189,63 @@ After start (or resume), loop `workflow_step`:
   Only a no-arg sync/resume call may omit it — the engine then resolves the active run for the
   current branch.
 
-### UNTIL-BOUNDARY — stop the loop at a named phase
+### UNTIL-BOUNDARY — a PLANNED entry boundary, not an acceptance pause
 
-An optional `until <phase-id>` argument (see `## Arguments — MULTI-PHASE-INPUT`) bounds how far the
-loop runs. Two parts:
+An optional `until <phase-id>` argument (see `## Arguments — MULTI-PHASE-INPUT`) is the user's
+PROACTIVE plan for how far this entry goes — "work up to here". It is NOT the acceptance pause:
+that is `### SOFT-NONSTOP`, which is REACTIVE and fires on its own wherever a closed phase left
+notes to curate. Two mechanisms, two frequencies: `until` fires ONCE, where the user planned to
+stop; SOFT-NONSTOP fires AS OFTEN AS NEEDED, wherever staging is non-empty — neither replaces the
+other, and a run with no `until` still pauses at every non-empty-staging boundary.
+
+Mechanics:
 
 - VALIDATE BEFORE START: `<phase-id>` MUST be the id of one of the phases just assembled into
   `phases[]`. If it is not among them, tell the user (Russian) and STOP — do NOT call `workflow_start`
   with an unreachable boundary.
 - STOP AFTER THE PHASE CLOSES: drive the loop normally, but once the `until` phase is CLOSED (its
   `harvest` has been submitted and accepted by the engine), do NOT issue the next `workflow_step`.
-  Instead tell the user (Russian): that phase is closed, the run is PAUSED at the boundary, continue
-  with a no-arg `/mneme:dev` (resume on this branch).
+  Run `### BOUNDARY-CURATION`, then tell the user (Russian): the phase is closed, the run is PAUSED
+  at the planned boundary, continue with `/mneme:dev` (resume on this branch).
 
 The pause is purely the skill CEASING to loop — it is NOT an engine state. The run stays
-`status=running`; a later no-arg `/mneme:dev` resumes it and the engine hands back the next ready
-phase. Persist nothing extra. With NO `until`, the loop runs to a TERMINAL (`RUN COMPLETE` /
-`RUN FAILED` / `RUN ESCALATED`), exactly as before.
+`status=running`; a later `/mneme:dev` resume hands back the next ready phase. Persist nothing
+extra. With NO `until`, the loop runs to a TERMINAL (`RUN COMPLETE` / `RUN FAILED` /
+`RUN ESCALATED`), pausing only where `### SOFT-NONSTOP` demands it.
+
+### SOFT-NONSTOP — curation pauses at intermediate boundaries
+
+Between phases of a multi-phase run (a phase just CLOSED and the next is ready, with no `until`
+named here), the boundary is SOFT — whether the loop pauses depends on what the closed phase left
+to curate:
+
+- staging EMPTY → continue SILENTLY: no message, no pause, the next `workflow_step` follows
+  immediately. A quiet boundary is not worth a turn.
+- staging NON-EMPTY (the engine's boundary response carries the staged count N) → STOP THE TURN:
+  report (Russian) that the closed phase staged N notes, name the NEXT phase and say its recall
+  bundle assembles when it starts — notes accepted NOW will make it in — then run
+  `### BOUNDARY-CURATION` and END THE TURN.
+- Moving past a stopped boundary happens ONLY on the user's explicit word («дальше», a fresh
+  `/mneme:dev` call). SILENCE = PAUSE, and the pause is safe by construction: the pending phase's
+  recall is not drained by waiting.
+
+### BOUNDARY-CURATION — showing and deciding staged notes at ANY boundary stop
+
+Applies at EVERY boundary stop — an intermediate SOFT-NONSTOP pause and an UNTIL-BOUNDARY stop
+alike. The curator decides in WORDS; the skill is the hands:
+
+- SHOW the queue as a NUMBERED list — one line per note: number, `[type]`, a one-line essence, its
+  anchors. NEVER tell the user to "сделай staging_resolve" — forcing the curator to operate tools
+  (call staging_list, read raw ids, copy them) turns a curator into an operator.
+- ACCEPT ANSWERS BY WORD: «прими все» · «прими 1,3; отклони 2; 4 позже» · «покажи N целиком»
+  (render the FULL note body before its decision — a mandatory branch) · «дальше» (everything stays
+  queued; staging is a queue, not an ultimatum — «позже» is a valid per-note answer).
+- RESOLVE per the user's word via `staging_resolve` (per-note accept / reject), then REPORT:
+  «принято N, отклонено M, осталось K». The human-gate is untouched — every per-note decision stays
+  the user's; only its EXPRESSION changed (a word instead of a hand-driven tool call).
+- THEN the COMMIT BLOCK, as a SEPARATE consent: diff-stat + a READY commit message
+  (commit-message-formatter rules) + «коммитить? (да / правь / сам)». «Прими все» ≠ «и коммить» —
+  the git gate is its own word, like push.
 
 ### Recall prefix — data, not instructions
 
@@ -215,10 +274,34 @@ SAME response whose actionable directive follows. So:
   — carry `run_id` and echo the three ids exactly. `step_result` and `harvest_artifacts` are
   MUTUALLY EXCLUSIVE.
 - FINAL-STEP note: on a final-step SUCCESS the engine ITSELF runs the done-when gate commands — the
-  GATE verdict, not the submission, becomes the real outcome. from-spec / converter graphs have
-  ZERO agent-judged criteria (all executable, e.g. `bun test`), so NEVER send `agent_votes` for
-  these phases; the done-when block will say "Do not send agent_votes". (`agent_votes` only ever
-  rides with a final-step success.)
+  GATE verdict, not the submission, becomes the real outcome. When the done-when block says "Do not
+  send agent_votes" (ZERO agent-judged criteria — e.g. from-spec / converter graphs, all executable),
+  NEVER send `agent_votes`. When it DOES carry agent-judged / review criteria, run
+  `### REVIEW-SPAWN` and send `agent_votes` with the success. (`agent_votes` only ever rides with a
+  final-step success.)
+
+### REVIEW-SPAWN — reviewers on agent-judged criteria only
+
+When the pending phase's done-when carries AGENT-JUDGED / review criteria (the directive lists them;
+a "Do not send agent_votes" line means there are NONE and this section does not apply), the
+final-step flow gains a review pass:
+
+- AFTER the phase's code work is done and looks like a success, and BEFORE submitting, SPAWN a
+  review agent (one per criterion, or one covering several related ones) with EXACTLY this input:
+  the phase's DIFF, a CHECKLIST derived from the criterion's text, and the done-when wording. NO
+  recall bundle — the reviewer is NOT the coder, so this is the one D4-safe hop (see
+  `## NEVER-DELEGATE-EXECUTE-STEP`, single source of truth: the memory channel feeds the CODE work,
+  which stays in the main agent; a reviewer needs the diff, not the memory).
+- COLLECT `{ vote: pass|fail, remarks? }` from each reviewer.
+- SUBMIT `agent_votes` together with the final-step success `step_result` — one pass|fail array per
+  agent-judged criterion, in the directive's order.
+- On a gate FAIL the engine flips the outcome and re-issues an `execute_step` RETRY carrying the
+  reviewers' remarks — the ENGINE renders them into the directive; do NOT duplicate them into the
+  retry yourself.
+
+Phases with ZERO such criteria run exactly as before — no reviewers, no `agent_votes`. NEVER spawn a
+reviewer the phase's criteria did not ask for: per-phase review noise is exactly what this design
+retired.
 
 ### Gate verdict recognition
 
@@ -300,9 +383,14 @@ yes/no OR-question. The ESCALATED prompt lists concrete numbered choices.
   the echo and resubmit.
 - EVERY SUBMITTING `workflow_step` call MUST carry `run_id` (the run_id captured at start); only a
   no-arg sync/resume call may omit it — the engine then resolves the active run for the current branch.
-- NEVER send `agent_votes` for from-spec phases (zero agent-judged); `step_result` and
-  `harvest_artifacts` are MUTUALLY EXCLUSIVE.
+- `agent_votes` ONLY for phases whose done-when carries agent-judged criteria — collected via
+  `### REVIEW-SPAWN`; NEVER for zero-agent-judged phases. `step_result` and `harvest_artifacts` are
+  MUTUALLY EXCLUSIVE.
 - HARVEST ANCHORS repo-relative AND git-tracked; NEVER auto-publish — staging accept is human.
+- SOFT-NONSTOP at intermediate boundaries: empty staging passes SILENTLY, non-empty STOPS the turn;
+  movement only on the user's word, silence = pause. BOUNDARY-CURATION at ANY boundary stop: notes
+  as a numbered list, decisions by WORD, the skill resolves and reports; the commit block is a
+  SEPARATE consent («прими все» ≠ «и коммить»).
 - The skill does NOT decide sequencing / gates / retry, does NOT run done-when commands, does NOT
   call recall / remember, does NOT encode step semantics (single-step), and does NOT create
   agent-role definitions — see `## NEVER-DELEGATE-EXECUTE-STEP` for why `execute_step` work stays in

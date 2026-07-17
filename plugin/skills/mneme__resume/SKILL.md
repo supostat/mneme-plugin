@@ -8,9 +8,10 @@ disable-model-invocation: true
 # /mneme:resume — Orient in the current task graph, then stop
 
 Read-only ORIENTATION. It reads the current git branch, finds the branch's active run in mneme's
-event log, reconstructs the phase graph (closed / ready / blocked), and SUGGESTS the `/mneme:dev`
-command to continue — but it NEVER continues and NEVER mutates anything. It answers "where am I",
-not "carry on".
+event log, reconstructs the phase map (closed / ready / blocked / paused-on-boundary) plus the
+staged-but-unaccepted notes, and SUGGESTS the `/mneme:dev` continuation in REAL syntax — slug +
+`until`, with boundary candidates per the shared GRAPH-MAP convention — but it NEVER continues and
+NEVER mutates anything. It answers "where am I", not "carry on".
 
 The internal read-only posture is borrowed from `/mneme:arch`. The difference from `/mneme:dev`
 with no argument is the whole point: dev CONTINUES (it calls `workflow_step` and drives the loop);
@@ -69,12 +70,21 @@ From that run's `workflow_run_started` event, read `definition.phases[]` — eac
 - **closed** — phases with a harvest step_applied.
 - **ready** — every `dep` is closed AND the phase itself is not closed.
 - **blocked** — at least one `dep` is not yet closed (name the blocking deps).
+- **paused-on-boundary** — the run is still `running` but its LATEST applied event is a closed
+  phase's harvest (or the next phase's recall emission) with no execute_step submission after it:
+  the driving loop ceased at a boundary. The pending phase's recall is already issued and is NOT
+  drained by waiting — resuming is safe.
+- **staged-unaccepted** — notes queued under `<corpus>/staging/` (one file per note): count them
+  and show one-line essences. They are waiting for the user's word; resume NEVER resolves them.
 
 ### Step 5: render, suggest, and STOP (ORIENT-ONLY)
 
-Print the map and the continuation command in REAL `/mneme:dev` syntax (see Output format), then
-STOP. Do NOT run the command, do NOT call the engine, do NOT submit anything. The turn ends; acting
-on the map is the user's next move via `/mneme:dev`.
+Print the map and the continuation command in REAL `/mneme:dev` syntax — slug-first
+(`/mneme:dev <spec-slug>` to a terminal, `/mneme:dev <spec-slug> until <id>` for a staged entry),
+with `until` BOUNDARY CANDIDATES picked per the shared GRAPH-MAP convention (defined once, in the
+`mneme:migrate` skill): foundation phases by dependent count and stack seams. Then STOP. Do NOT run
+the command, do NOT call the engine, do NOT submit anything. The turn ends; acting on the map is
+the user's next move via `/mneme:dev`.
 
 ### RESUME-VS-DEV — orientation vs continuation
 
@@ -101,9 +111,13 @@ fence):
 - ✅ closed: `<ids>`
 - ▶ ready: `<ids>`
 - ⛔ blocked: `<ids>` (ждёт: `<dep ids>`)
+- ⏸ paused-on-boundary: `<pending id>` (директива/recall выданы, цикл остановлен — ждёт слова)
+- 🗃 staged-непринятое: `<N>` заметок (однострочники)
 
-**Продолжить** — `/mneme:dev <реальная команда>` (директория подпапки фаз, или голый `/mneme:dev`
-для resume текущей ветки) + одна строка, что она сделает. Это ПОДСКАЗКА — resume её не запускает.
+**Продолжить** — реальный синтаксис, slug-first: `/mneme:dev <spec-slug>` (до терминала) или
+`/mneme:dev <spec-slug> until <id>` (кандидаты границ — по GRAPH-MAP-конвенции), либо голый
+`/mneme:dev` (resume текущей ветки) + одна строка, что команда сделает. Это ПОДСКАЗКА — resume её
+не запускает.
 
 If NO run is found for the branch: say so (Russian) — there is no active task on this branch — and
 suggest the entry path `/mneme:plan` → migrate → `/mneme:dev`. Never fabricate a map.
@@ -116,6 +130,8 @@ suggest the entry path `/mneme:plan` → migrate → `/mneme:dev`. Never fabrica
   CLOSED ⇔ a `harvest` step_applied. If a log's `schema_version` differs, FLAG it and re-pin these
   field names rather than guessing.
 - slug derivation, month-file selection, and run↔branch matching are exactly as in Step 2.
+- staged-unaccepted comes from `<corpus>/staging/` (one file per queued note) — a read-only listing;
+  resolution happens elsewhere (a `/mneme:dev` boundary stop or the user's own word), never here.
 - KNOWN OPEN-RISK: this couples resume to mneme's internal event-log format. The clean decoupling — a
   read-only `workflow_status` projection exposed by the engine itself — is FUTURE work, NOT v1.
 - NOT v1: multi-run forensics, stale-run analysis, and surfacing open questions carried from past
