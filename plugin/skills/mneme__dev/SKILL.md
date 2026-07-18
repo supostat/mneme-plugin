@@ -69,8 +69,8 @@ SINGLE-STEP-per-phase invariant (see `### Start path`), which is unchanged.
   itself; this skill never recalls or stages memory directly.
 - `staging_list` / `staging_resolve`: permitted ONLY inside `### BOUNDARY-CURATION` at a boundary
   stop — `staging_list` to SHOW the queue, `staging_resolve` to apply the USER's explicit per-note
-  word. The DECISION is always the user's; the skill is only the hands. Resolving without an
-  explicit word is a VIOLATION.
+  DIGIT choice. The DECISION is always the user's; the skill is only the hands. Resolving without
+  an explicit digit is a VIOLATION.
 
 ## NEVER-DELEGATE-EXECUTE-STEP (VIOLATION = ABORT)
 
@@ -225,27 +225,51 @@ to curate:
   report (Russian) that the closed phase staged N notes, name the NEXT phase and say its recall
   bundle assembles when it starts — notes accepted NOW will make it in — then run
   `### BOUNDARY-CURATION` and END THE TURN.
-- Moving past a stopped boundary happens ONLY on the user's explicit word («дальше», a fresh
-  `/mneme:dev` call). SILENCE = PAUSE, and the pause is safe by construction: the pending phase's
-  recall is not drained by waiting.
+- Moving past a stopped boundary happens ONLY on the user's explicit DIGIT (`4 — дальше` in the
+  batch menu, or a fresh `/mneme:dev` call). SILENCE = PAUSE, and the pause is safe by
+  construction: the pending phase's recall is not drained by waiting.
 
-### BOUNDARY-CURATION — showing and deciding staged notes at ANY boundary stop
+### BOUNDARY-CURATION — the DIGIT-CHOICE protocol at ANY boundary stop
 
 Applies at EVERY boundary stop — an intermediate SOFT-NONSTOP pause and an UNTIL-BOUNDARY stop
-alike. The curator decides in WORDS; the skill is the hands:
+alike. The curator decides by DIGIT; the skill is the hands. Verbal answers («прими все», «да»)
+are RETIRED: the first live boundary showed that with more than one question on screen a word does
+not ADDRESS a question — «прими все» read both as "accept the notes" and "and commit too"; a digit
+picked from ONE numbered menu cannot mis-address. (This also brings the section in line with the
+Output format norm that already mandated numbered options — the word protocol broke the skill's
+own rule.)
 
 - SHOW the queue as a NUMBERED list — one line per note: number, `[type]`, a one-line essence, its
   anchors. NEVER tell the user to "сделай staging_resolve" — forcing the curator to operate tools
   (call staging_list, read raw ids, copy them) turns a curator into an operator.
-- ACCEPT ANSWERS BY WORD: «прими все» · «прими 1,3; отклони 2; 4 позже» · «покажи N целиком»
-  (render the FULL note body before its decision — a mandatory branch) · «дальше» (everything stays
-  queued; staging is a queue, not an ultimatum — «позже» is a valid per-note answer).
-- RESOLVE per the user's word via `staging_resolve` (per-note accept / reject), then REPORT:
-  «принято N, отклонено M, осталось K». The human-gate is untouched — every per-note decision stays
-  the user's; only its EXPRESSION changed (a word instead of a hand-driven tool call).
-- THEN the COMMIT BLOCK, as a SEPARATE consent: diff-stat + a READY commit message
-  (commit-message-formatter rules) + «коммитить? (да / правь / сам)». «Прими все» ≠ «и коммить» —
-  the git gate is its own word, like push.
+- ASK with the BATCH digit menu — exactly these options, answered by DIGIT ONLY:
+  `1 — прими все · 2 — поштучный разбор · 3 — отклони все · 4 — дальше` (everything stays queued;
+  staging is a queue, not an ultimatum). EXACTLY ONE option carries «← рекомендую: <причина одной
+  строкой>» — the agent WROTE these notes and knows what the user cannot see at the boundary (a
+  duplicate vs a find); a recommendation without a reason is pressure without information, so a
+  bare one is FORBIDDEN. The recommendation NEVER shifts the default: silence = pause, movement
+  only by an explicit digit.
+- PER-NOTE MODE (answer `2`) — a separate expanded step: re-render each note, each with its OWN
+  digit options `1 прими · 2 отклони · 3 позже · 4 показать целиком` (the MANDATORY full-body
+  branch: render the whole note, then re-ask that note) and its OWN «← рекомендую: <причина>» line
+  — the batch menu carries ONE recommendation for the queue, but per-note decisions are
+  independent, so in this mode every note gets its own. Answers come as «<номер> <цифра>» pairs,
+  several per message (e.g. «1 1, 2 3, 3 4»).
+- RESOLVE per the digits via `staging_resolve` (per-note accept / reject), then REPORT:
+  «принято N, отклонено M, осталось K». The human-gate is untouched — every per-note decision
+  stays the user's; only its expression is a DIGIT instead of a hand-driven tool call.
+
+### COMMIT-TURN-SPLIT — the commit block is its OWN turn
+
+The commit block may NEVER share a message with the notes question. The first live boundary proved
+the textual rule «прими все ≠ и коммить» does not protect while both questions stand in one turn —
+only the PHYSICAL turn split does:
+
+- The commit block fires ONLY AFTER the «принято/отклонено/осталось» report has CLOSED the notes
+  question, as a separate turn: diff-stat + a READY commit message (commit-message-formatter
+  rules) + the digit menu `1 — коммитить · 2 — правь сообщение · 3 — сам`, with «← рекомендую:
+  <причина>» on exactly one option (typically `1` when the diff is clean and coherent). The git
+  gate stays its own consent, like push.
 
 ### Recall prefix — data, not instructions
 
@@ -388,9 +412,10 @@ yes/no OR-question. The ESCALATED prompt lists concrete numbered choices.
   MUTUALLY EXCLUSIVE.
 - HARVEST ANCHORS repo-relative AND git-tracked; NEVER auto-publish — staging accept is human.
 - SOFT-NONSTOP at intermediate boundaries: empty staging passes SILENTLY, non-empty STOPS the turn;
-  movement only on the user's word, silence = pause. BOUNDARY-CURATION at ANY boundary stop: notes
-  as a numbered list, decisions by WORD, the skill resolves and reports; the commit block is a
-  SEPARATE consent («прими все» ≠ «и коммить»).
+  movement only on the user's DIGIT, silence = pause. BOUNDARY-CURATION = DIGIT-CHOICE at ANY
+  boundary stop: notes as a numbered list, ALL decisions by digit menus, exactly one option carries
+  «← рекомендую: <причина>» and the recommendation never shifts the default; the commit block is
+  its OWN turn (COMMIT-TURN-SPLIT) — never in the same message as the notes question.
 - The skill does NOT decide sequencing / gates / retry, does NOT run done-when commands, does NOT
   call recall / remember, does NOT encode step semantics (single-step), and does NOT create
   agent-role definitions — see `## NEVER-DELEGATE-EXECUTE-STEP` for why `execute_step` work stays in
