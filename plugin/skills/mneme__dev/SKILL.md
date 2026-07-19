@@ -237,7 +237,8 @@ are RETIRED: the first live boundary showed that with more than one question on 
 not ADDRESS a question — «прими все» read both as "accept the notes" and "and commit too"; a digit
 picked from ONE numbered menu cannot mis-address. (This also brings the section in line with the
 Output format norm that already mandated numbered options — the word protocol broke the skill's
-own rule.)
+own rule.) In grammar terms (`## OUTPUT-GRAMMAR`): the batch menu is a DECISION block, DIGIT-CHOICE
+is the set of DECISION-block properties, and the render is the staging-очередь template there.
 
 - SHOW the queue as a NUMBERED list — one line per note: number, `[type]`, a one-line essence, its
   anchors. NEVER tell the user to "сделай staging_resolve" — forcing the curator to operate tools
@@ -263,7 +264,9 @@ own rule.)
 
 The commit block may NEVER share a message with the notes question. The first live boundary proved
 the textual rule «прими все ≠ и коммить» does not protect while both questions stand in one turn —
-only the PHYSICAL turn split does:
+only the PHYSICAL turn split does. In grammar terms (`## OUTPUT-GRAMMAR`, layer 2) the split is a
+COROLLARY of «two DECISION blocks in one message = VIOLATION» — the notes menu and the commit menu
+are two DECISIONs; the render is the коммит-блок template there:
 
 - The commit block fires ONLY AFTER the «принято/отклонено/осталось» report has CLOSED the notes
   question, as a separate turn: diff-stat + a READY commit message (commit-message-formatter
@@ -380,6 +383,8 @@ skill PRINTS at runtime, independent of this file's English source. Engine PROTO
 in the output stay LITERAL English verbatim (`DIRECTIVE: execute_step`, `DIRECTIVE: harvest`,
 `Recall bundle for phase`, `Gate verdict for`, `RUN COMPLETE`, `RUN FAILED`, `RUN ESCALATED at`,
 `Workflow run`, `Started workflow run`, and all StepResult field names) — never translate them.
+Message COMPOSITION follows `## OUTPUT-GRAMMAR` — five block types, at most ONE DECISION per
+message, and nothing after it.
 
 Print, in Russian:
 
@@ -392,6 +397,112 @@ Print, in Russian:
 
 Questions to the user use NUMBERED options (2-4 choices, user answers with a number), never a
 yes/no OR-question. The ESCALATED prompt lists concrete numbered choices.
+
+## OUTPUT-GRAMMAR — the shared output standard (single source of truth)
+
+The output grammar of EVERY mneme skill is DEFINED here and ONLY here — dev is the ANCHOR skill.
+Sibling skills (`mneme:plan`, `mneme:migrate`, `mneme:resume`, `mneme:arch`) REFERENCE this
+section and carry only their OWN layer-3 templates; re-stating the layer 1-2 rules in another
+file is a VIOLATION (the D4 single-source precedent). The standard is GENERATIVE, not a catalog:
+layers 1-2 produce the correct form for a case no template has seen yet; layer 3 pins the known
+cases as literal templates.
+
+### Layer 1 — the five block types
+
+Every user-facing message of every mneme skill is assembled ONLY from these blocks:
+
+- **STATUS** — the one-line context header: run · ветка · итерации · фаза · directive (the
+  статус-шапка template below). Opens a message ONLY when the engine context CHANGED since the
+  previous message; an unchanged context repeats no header.
+- **PROSE** — short connected text: an explanation, a warning, reasoning. PROSE never carries a
+  choice and never hides one.
+- **DATA** — structured payload rendered to be scanned, not argued with: a numbered or bulleted
+  list, a table, a fenced block (a diff-stat, a command, a queue of notes).
+- **VERDICT** — the literal outcome line of a check that already ran: `Gate verdict for …
+  PASS|FAIL`, a reviewer's pass/fail, migrate's `create: N · identical: M · conflict: K`. Quoted
+  verbatim, never paraphrased into prose.
+- **DECISION** — the CLOSING numbered menu (2-4 options) answered BY DIGIT ONLY. Its interaction
+  properties are the DIGIT-CHOICE rules of `### BOUNDARY-CURATION` — exactly ONE option MAY carry
+  «← рекомендую: <причина одной строкой>» (a bare recommendation is FORBIDDEN), the recommendation
+  never shifts the default, silence = pause — and they hold for EVERY DECISION block, not just the
+  staging menu.
+
+### Layer 2 — composition
+
+- ORDER: STATUS opens (only on context change) → PROSE / DATA / VERDICT fill the body, any order →
+  DECISION closes IF a choice exists, and NOTHING comes after it — a choice must never drown in
+  text.
+- TWO DECISION blocks in one message = VIOLATION. This is the grammar-level statement of the
+  «заметки + коммит одним турном» defect; `### COMMIT-TURN-SPLIT` is this rule's COROLLARY, not an
+  independent prohibition.
+- A clarifying question («какую заметку показать?») is ALSO a DECISION — numbered, digit-answered —
+  never a prose sentence trailing a question mark.
+- A message with no choice ends after its body: resume's ORIENT-ONLY map (a suggested command is
+  DATA, not a menu) is the canonical example.
+
+### Layer 3 — the vocabulary rule
+
+Known message shapes are LITERAL templates with `<placeholders>`, each a layer-1 composition,
+each living in its OWNER skill's SKILL.md: dev owns статус-шапка / staging-очередь / коммит-блок
+(below), plan owns the option fan and the finale map, migrate owns GRAPH-MAP, resume owns the
+ORIENT-ONLY map, arch owns its fan render. The rule: FILL the placeholders, NEVER reinvent the
+structure. A case no template covers is composed from layer-1 blocks per layer 2 — the vocabulary
+is EXTENSIBLE, the grammar is NOT.
+
+### The limit — stated honestly
+
+SKILL.md is an instruction, not a renderer: nothing here machine-guarantees the form. The bet is
+narrower: literal templates hold form better than verbal descriptions (copying a structure is
+easier than re-composing one), and layers 1-2 generalize to unseen cases — which a catalog of
+examples never does.
+
+### Dev templates (layer 3, owned here)
+
+**статус-шапка** — STATUS; opens every message whose engine context changed:
+
+```
+run <run_id> · ветка <branch> · итерации <used>/<max> · фаза <phase_id> · <directive|boundary|terminal>
+```
+
+**staging-очередь** — the BOUNDARY-CURATION render: STATUS + DATA (the queue) + DECISION (the
+batch menu):
+
+```
+<статус-шапка>
+
+Фаза <phase_id> закрыта, в staging <N> заметок. Recall фазы <next_phase_id> соберётся при её
+старте — принятое сейчас попадёт в бандл.
+
+1. [<type>] <суть одной строкой> — якоря: <anchors>
+2. …
+
+1 — прими все · 2 — поштучный разбор · 3 — отклони все · 4 — дальше
+```
+
+(the «← рекомендую: <причина одной строкой>» suffix rides exactly ONE of the four options —
+whichever the queue's content argues for; per-note mode re-renders each note with its own menu
+`1 прими · 2 отклони · 3 позже · 4 показать целиком` and its own recommendation, per
+`### BOUNDARY-CURATION`)
+
+**коммит-блок** — the COMMIT-TURN-SPLIT render, ALWAYS its own turn: DATA (diff-stat) + DATA (the
+ready message, fenced) + DECISION:
+
+````
+<diff-stat>
+
+Сообщение коммита:
+
+```
+<subject ≤70 символов>
+
+<один абзац: что и зачем>
+```
+
+1 — коммитить · 2 — правь сообщение · 3 — сам
+````
+
+(the «← рекомендую: <причина>» suffix rides exactly ONE option — typically `1` when the diff is
+clean and coherent)
 
 ## Rules
 
@@ -416,6 +527,9 @@ yes/no OR-question. The ESCALATED prompt lists concrete numbered choices.
   boundary stop: notes as a numbered list, ALL decisions by digit menus, exactly one option carries
   «← рекомендую: <причина>» and the recommendation never shifts the default; the commit block is
   its OWN turn (COMMIT-TURN-SPLIT) — never in the same message as the notes question.
+- OUTPUT-GRAMMAR — `## OUTPUT-GRAMMAR` here is the SINGLE source of truth for the five-block
+  grammar of every mneme skill's output: at most one DECISION per message and nothing after it;
+  sibling skills reference it and carry only their own layer-3 templates.
 - The skill does NOT decide sequencing / gates / retry, does NOT run done-when commands, does NOT
   call recall / remember, does NOT encode step semantics (single-step), and does NOT create
   agent-role definitions — see `## NEVER-DELEGATE-EXECUTE-STEP` for why `execute_step` work stays in

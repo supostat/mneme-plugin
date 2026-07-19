@@ -86,7 +86,10 @@ Pick ONE. Justify: why over the others · which perspective it optimizes for · 
 
 ## Output format
 
-Display as plain markdown (NOT inside a code fence):
+Display as plain markdown (NOT inside a code fence). The render below is arch's layer-3 template
+per the shared five-block grammar (DEFINED once in the `mneme:dev` skill's `## OUTPUT-GRAMMAR`
+section — never re-stated here): PROSE context + DATA options + a closing DECISION menu — the same
+DATA+DECISION form as plan's fan. Fill the placeholders, never restructure:
 
 ## ARCH: <question short form>
 
@@ -103,9 +106,20 @@ Display as plain markdown (NOT inside a code fence):
 ### RECOMMENDATION
 **Option <A/B/C>: <name>** — justification + concrete next steps.
 
-After the recommendation, offer to persist the decision via `mcp__plugin_mneme_memory__remember`
-(type `decision`, staged for human review) — only if the user asks. Staging queues the note; the
-human accepts it separately. Never publish automatically.
+The render CLOSES with a DECISION block — the numbered option menu, digit-answered, nothing after
+it:
+
+```
+1 — вариант A: <name>
+2 — вариант B: <name>
+3 — вариант C: <name>
+```
+
+(the «← рекомендую: <причина одной строкой>» suffix rides exactly the recommended option's line)
+
+Persisting the chosen decision via `mcp__plugin_mneme_memory__remember` (type `decision`, staged
+for human review) stays available — ONLY when the user explicitly asks, on a later turn. Staging
+queues the note; the human accepts it separately. Never publish automatically.
 
 ## Rules
 

@@ -101,7 +101,11 @@ that erasure of the "orient before you act" pause is exactly what this separatio
 ## Output format
 
 Russian runtime (per the user's global ru-RU rule). Display as plain markdown (NOT inside a code
-fence):
+fence). The map below is resume's layer-3 template per the shared five-block grammar (DEFINED once
+in the `mneme:dev` skill's `## OUTPUT-GRAMMAR` section — never re-stated here): STATUS (the
+Context line) + DATA (карта фаз, staged count, the suggested command) and NO DECISION — resume не
+спрашивает, оно останавливается; a suggested command is DATA, not a menu. Fill the placeholders,
+never restructure:
 
 ## RESUME: <spec / run short form>
 

@@ -153,6 +153,13 @@ command, and the staged decision note. Running `/mneme:dev` is the user's move.
 
 ## Output format
 
+Every render below follows the shared five-block grammar — STATUS / PROSE / DATA / VERDICT /
+DECISION — DEFINED once in the `mneme:dev` skill's `## OUTPUT-GRAMMAR` section (dev is the anchor
+skill; re-stating the grammar here is a VIOLATION). plan OWNS two layer-3 templates: the option
+fan (PROSE context + DATA options + a closing DECISION) and the finale map (VERDICT counts +
+GRAPH-MAP per the `mneme:migrate` convention + the staged-note notice, NO DECISION). Fill the
+placeholders, never reinvent the structure.
+
 ### The fan (Step 3)
 
 Display as plain markdown (NOT inside a code fence):
@@ -169,8 +176,18 @@ sketch** · **Antipattern?** · **Prior experience** (from recall, if any)
 ### Option B / C: <same structure>
 
 ### RECOMMENDATION
-**Option <A/B/C>: <name>** — why, and which trade-offs it accepts. Then: "Your call — pick an
-option to continue." (This is the OPTION-FAN-HARD-STOP.)
+**Option <A/B/C>: <name>** — why, and which trade-offs it accepts.
+
+The fan CLOSES with a DECISION block — the numbered option menu, digit-answered, nothing after it
+(this IS the OPTION-FAN-HARD-STOP):
+
+```
+1 — вариант A: <name>
+2 — вариант B: <name>
+3 — вариант C: <name>
+```
+
+(the «← рекомендую: <причина одной строкой>» suffix rides exactly the recommended option's line)
 
 ### The delta-spec (Step 5)
 
@@ -203,6 +220,23 @@ typecheck script (its own, e.g. a `typecheck` entry in package.json; the concret
 guessed one). The GENERATOR holds this rule, not the author: the user does not have to remember to
 ask for it, and a code phase missing the project's typecheck gate is a generator bug, not a style
 choice. Non-code phases (docs, prose skills) do not get it.
+
+### The finale map (Step 7) — финал-карта
+
+VERDICT (migrate's counts + apply confirmation, verbatim) + the GRAPH-MAP per the shared
+convention (defined in the `mneme:migrate` skill — never re-drawn differently here) + the
+staged-note notice. NO DECISION: plan ends at the map — running `/mneme:dev` is the user's move.
+Literal shape:
+
+```
+create: <N> · identical: <M> · conflict: <K>
+Спека записана: docs/<SPEC-…>.md · фазовых файлов применено: <W>
+
+<GRAPH-MAP по конвенции mneme:migrate — таблица фаз, кандидаты границ, готовые /mneme:dev команды>
+
+Заметка-решение (выбор варианта) в очереди staging — принять/отклонить: staging_list /
+staging_resolve.
+```
 
 ### The choice decision note (Step 8)
 

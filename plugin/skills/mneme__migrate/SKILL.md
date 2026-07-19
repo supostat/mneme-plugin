@@ -78,6 +78,26 @@ this same convention). Built strictly from `workflow_migrate`'s response — it 
   - полный прогон: `/mneme:dev <spec-slug>`
   - до границы: `/mneme:dev <spec-slug> until <boundary-candidate-id>` (one line per candidate).
 
+In grammar terms (the shared five-block grammar, DEFINED once in the `mneme:dev` skill's
+`## OUTPUT-GRAMMAR` section — never re-stated here): GRAPH-MAP = VERDICT (validation counts) +
+DATA (the phase table) + DATA (boundary candidates) + fenced ready commands, and NO DECISION —
+the skill ends at the map. migrate's one DECISION block is the conflict exit of Step 2 (numbered
+ways out, digit-answered). The literal template (fill placeholders, never restructure):
+
+```
+create: <N> · identical: <M> · conflict: <K>
+Apply: записано <W> файлов → <corpus>/workflow/<spec-slug>/
+
+| Фаза | deps | done-when |
+|---|---|---|
+| <id> | <deps или —> | <executable / agent-judged> |
+
+Кандидаты границ: <ids + причина, или «нет — единственная фаза»>
+
+/mneme:dev <spec-slug>
+/mneme:dev <spec-slug> until <boundary-id>
+```
+
 ## Output format
 
 Russian runtime output (per the user's global ru-RU rule); protocol tokens (`workflow_migrate`,
