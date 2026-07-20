@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" viewBox="0 0 1200 630" role="img" aria-label="mneme — your agent forgets, the canon doesn't">
+  <rect width="1200" height="630" fill="#141210"/>
+  <rect x="0.5" y="0.5" width="1199" height="629" fill="none" stroke="#EDE6D6" stroke-opacity="0.12"/>
+  <line x1="72" y1="120" x2="1128" y2="120" stroke="#EDE6D6" stroke-opacity="0.12"/>
+  <line x1="72" y1="510" x2="1128" y2="510" stroke="#EDE6D6" stroke-opacity="0.12"/>
+  <text x="72" y="96" font-family="JetBrains Mono, Menlo, monospace" font-size="22" letter-spacing="6" fill="#EDE6D6" fill-opacity="0.55">MNEME</text>
+  <circle cx="1114" cy="88" r="7" fill="#D9A441"/>
+  <text x="72" y="272" font-family="IBM Plex Serif, Georgia, serif" font-size="84" fill="#EDE6D6">Your agent forgets.</text>
+  <text x="72" y="378" font-family="IBM Plex Serif, Georgia, serif" font-size="84" font-style="italic" fill="#EDE6D6">The canon doesn&#8217;t.</text>
+  <text x="72" y="462" font-family="IBM Plex Sans, Helvetica, sans-serif" font-size="30" fill="#EDE6D6" fill-opacity="0.72">File-based memory + workflow engine for coding agents</text>
+  <text x="72" y="566" font-family="JetBrains Mono, Menlo, monospace" font-size="22" fill="#EDE6D6" fill-opacity="0.55">local-first &#183; git-native &#183; human-gated &#183; event-sourced</text>
+</svg>

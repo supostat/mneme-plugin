@@ -46,6 +46,11 @@ bundles only plugin artifacts — repo internals (`.dev-vault`, `.claude`, `.mcp
 `.engram`, `CLAUDE.md`, `docs`) stay outside the bundle. The install commands
 (`/plugin marketplace add ./`) are unchanged, since the marketplace stays at the repo root.
 
+Landing: site/ → GitHub Pages — `site/index.html` is the self-contained product landing
+page (with `site/og.svg` alongside); it also stays outside the plugin bundle. Publishing
+`site/` needs a Pages workflow or manual configuration (Pages-from-branch serves only the
+repo root or `/docs`).
+
 ## Verifying
 
 Run `npm test` — a dependency-free node script validates both manifests: JSON
