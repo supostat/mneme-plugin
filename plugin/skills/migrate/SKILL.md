@@ -1,5 +1,5 @@
 ---
-name: mneme:migrate
+name: migrate
 description: convert an externally-authored spec into runnable workflow phase files and render the graph map with boundary candidates, without running anything
 allowed-tools: [Read, mcp__plugin_mneme_memory__workflow_migrate]
 disable-model-invocation: true

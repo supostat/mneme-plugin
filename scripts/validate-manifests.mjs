@@ -3,7 +3,11 @@ import { readFileSync, readdirSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..');
+// The root defaults to this repo; scripts/check-skill-names.mjs passes a fixture root instead,
+// so the negative case of every rule can be exercised without planting fixtures in plugin/skills.
+const repoRoot = process.argv[2]
+  ? resolve(process.argv[2])
+  : resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const errors = [];
 
 const KEBAB_CASE = /^[a-z0-9]+(-[a-z0-9]+)*$/;
@@ -122,11 +126,15 @@ function assertSkillNameMatchesDirectory(relativePath, frontmatterBody) {
   if (!declaredNameMatch || !directoryMatch) return;
   const declaredName = declaredNameMatch[1].trim().replace(/^["']|["']$/g, '');
   const directoryName = directoryMatch[1];
-  // Claude Code invokes a plugin skill by its frontmatter `name` verbatim, so a colon
-  // produces a namespaced command (name "mneme:arch" → /mneme:arch). A colon is illegal
-  // in a directory name, so the directory encodes the same identity with "__" per colon.
-  if (declaredName.replace(/:/g, '__') !== directoryName) {
-    errors.push(`${relativePath}: frontmatter name "${declaredName}" must match the skill directory "${directoryName}" (each ":" in the name maps to "__" in the directory)`);
+  // Claude Code prefixes a plugin skill's command with the PLUGIN's own namespace, so the
+  // skill name itself carries no prefix: skill "arch" of plugin "mneme" is invoked as
+  // /mneme:arch. Spelling the prefix into the name (or its "__" directory encoding) makes
+  // the host prepend it a second time — /mneme:mneme:arch.
+  if (!KEBAB_CASE.test(declaredName)) {
+    errors.push(`${relativePath}: frontmatter name "${declaredName}" must be kebab-case with no plugin prefix — Claude Code prepends the plugin's namespace itself, so a name carrying it (or its "__" encoding) yields a doubled command like /<plugin>:<plugin>:<skill>`);
+  }
+  if (declaredName !== directoryName) {
+    errors.push(`${relativePath}: frontmatter name "${declaredName}" must match the skill directory "${directoryName}" exactly`);
   }
 }
 

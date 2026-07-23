@@ -33,8 +33,11 @@ plugin/              # ← the installable bundle; the marketplace source points
   .claude-plugin/
     plugin.json      # declares the mneme MCP server
   skills/
-    mneme__arch/SKILL.md  # /mneme:arch — read-only architecture-analysis skill
-    mneme__dev/SKILL.md   # /mneme:dev  — thin workflow-dispatcher skill
+    arch/SKILL.md      # /mneme:arch    — read-only architecture-analysis skill
+    plan/SKILL.md      # /mneme:plan    — task-to-spec planning skill
+    migrate/SKILL.md   # /mneme:migrate — spec-to-phase-files migration skill
+    dev/SKILL.md       # /mneme:dev     — thin workflow-dispatcher skill
+    resume/SKILL.md    # /mneme:resume  — read-only run-orientation skill
   commands/          # reserved, empty
   hooks/             # reserved, empty
   bin/mneme          # compiled server — generated, gitignored, NOT in this repo

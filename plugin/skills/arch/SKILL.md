@@ -1,5 +1,5 @@
 ---
-name: mneme:arch
+name: arch
 description: Read-only architecture analysis — 2-3 solutions with trade-offs, one recommended. Use when designing a component or scoping a refactor.
 allowed-tools: [Read, Grep, mcp__plugin_mneme_memory__recall, mcp__plugin_mneme_memory__remember]
 disable-model-invocation: true

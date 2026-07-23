@@ -1,5 +1,5 @@
 ---
-name: mneme:plan
+name: plan
 description: turn a task described in words into a reviewed delta-spec through option fan and user confirmation
 allowed-tools: [Read, Grep, mcp__plugin_mneme_memory__recall, mcp__plugin_mneme_memory__remember, mcp__plugin_mneme_memory__workflow_migrate, Write]
 disable-model-invocation: true

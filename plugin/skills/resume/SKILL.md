@@ -1,5 +1,5 @@
 ---
-name: mneme:resume
+name: resume
 description: orient in the current task graph and stop — show closed/ready/blocked phases and the command to continue, without acting
 allowed-tools: [Read, Grep]
 disable-model-invocation: true

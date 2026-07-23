@@ -1,5 +1,5 @@
 ---
-name: mneme:dev
+name: dev
 description: orchestrate a development workflow through phases
 allowed-tools: [mcp__plugin_mneme_memory__workflow_start, mcp__plugin_mneme_memory__workflow_step, Read, Edit, Write, Bash, Grep]
 disable-model-invocation: true
