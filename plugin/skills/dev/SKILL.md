@@ -425,7 +425,21 @@ Every user-facing message of every mneme skill is assembled ONLY from these bloc
   properties are the DIGIT-CHOICE rules of `### BOUNDARY-CURATION` — exactly ONE option MAY carry
   «← рекомендую: <причина одной строкой>» (a bare recommendation is FORBIDDEN), the recommendation
   never shifts the default, silence = pause — and they hold for EVERY DECISION block, not just the
-  staging menu.
+  staging menu. Its RENDER properties are two, and they hold for every DECISION block anywhere:
+  - DECISION-CHIPS — every option is a CHIP: `N — действие` in inline-code, so the digits read as
+    a keypad and not as prose. The recommendation arrow and its reason stay PLAIN text, placed
+    after the recommended option's chip — the chip is the target, the reason is commentary.
+  - DECISION-VERTICAL — the layout is VERTICAL: one option per LINE. The « · » separator is
+    FORBIDDEN as an option layout; it survives only inside the per-note mini-choice of
+    `### BOUNDARY-CURATION`, where the whole menu is a binary tail on one note's line.
+
+  The literal form (fill the placeholders, never re-lay them out):
+
+  ```
+  `1 — <действие>`
+  `2 — <действие>` ← рекомендую: <причина одной строкой>
+  `3 — <действие>`
+  ```
 
 ### Layer 2 — composition
 
@@ -439,6 +453,18 @@ Every user-facing message of every mneme skill is assembled ONLY from these bloc
   never a prose sentence trailing a question mark.
 - A message with no choice ends after its body: resume's ORIENT-ONLY map (a suggested command is
   DATA, not a menu) is the canonical example.
+- CONTINUE-DECISION — any turn that ENDS waiting for the user while the run is NON-terminal closes
+  with a DECISION block, minimally `1 — дальше` (naming what happens next) and `2 — пауза` (the run
+  stands, a resume picks it up), with the usual reasoned recommendation. A PROSE announcement
+  («следующим туром будет X») does NOT replace it — the announcement is the REASON for the menu,
+  and X becomes the text of option 1. Terminal turns (`RUN COMPLETE` / `RUN FAILED` /
+  `RUN ESCALATED` / abandoned) carry NO CONTINUE-DECISION: the run is over, there is nothing to
+  continue. Silence still means pause. The literal form:
+
+  ```
+  `1 — дальше: <что произойдёт>` ← рекомендую: <причина одной строкой>
+  `2 — пауза` (run стоит, resume продолжит)
+  ```
 
 ### Layer 3 — the vocabulary rule
 
@@ -476,7 +502,10 @@ batch menu):
 1. [<type>] <суть одной строкой> — якоря: <anchors>
 2. …
 
-1 — прими все · 2 — поштучный разбор · 3 — отклони все · 4 — дальше
+`1 — прими все`
+`2 — поштучный разбор`
+`3 — отклони все`
+`4 — дальше`
 ```
 
 (the «← рекомендую: <причина одной строкой>» suffix rides exactly ONE of the four options —
@@ -485,7 +514,26 @@ whichever the queue's content argues for; per-note mode re-renders each note wit
 `### BOUNDARY-CURATION`)
 
 **коммит-блок** — the COMMIT-TURN-SPLIT render, ALWAYS its own turn: DATA (diff-stat) + DATA (the
-ready message, fenced) + DECISION:
+ready message, fenced) + DECISION.
+
+COMMIT-DATA-SIZE-RULE — the diff-stat DATA has TWO forms, chosen by the number of changed files
+(the threshold is 10: below it the eye takes the list in at once, above it the list becomes a
+bedsheet). Both are monospace DATA blocks:
+
+- ≤10 files — a PER-FILE table, one line per file with its own diff-stat:
+
+  ```
+  <путь/до/файла.ts> | <N> ++--
+  ```
+
+- \>10 files — a GROUPED line: the total stat, then top-level directories with counters, then the
+  NEW files BY NAME (a creation is an event worth naming):
+
+  ```
+  +<A>/−<B> · <dir> <N> · <dir> <M> · новые: <путь/нового/файла.ts>, <путь/другого.ts>
+  ```
+
+The render:
 
 ````
 <diff-stat>
@@ -498,7 +546,9 @@ ready message, fenced) + DECISION:
 <один абзац: что и зачем>
 ```
 
-1 — коммитить · 2 — правь сообщение · 3 — сам
+`1 — коммитить`
+`2 — правь сообщение`
+`3 — сам`
 ````
 
 (the «← рекомендую: <причина>» suffix rides exactly ONE option — typically `1` when the diff is
