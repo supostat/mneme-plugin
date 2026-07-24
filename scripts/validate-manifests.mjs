@@ -156,6 +156,51 @@ function validateSkills() {
   }
 }
 
+const RELEASE_PIN_PATH = 'plugin/bin/release.json';
+const SHA256_HEX = /^[0-9a-f]{64}$/;
+
+function validateReleasePin(pluginManifest) {
+  let raw;
+  try {
+    raw = readFileSync(resolve(repoRoot, RELEASE_PIN_PATH), 'utf8');
+  } catch {
+    return; // No pin yet — the pre-release state until release-sync writes one.
+  }
+  let pin;
+  try {
+    pin = JSON.parse(raw);
+  } catch (cause) {
+    errors.push(`${RELEASE_PIN_PATH}: invalid JSON — ${cause.message}`);
+    return;
+  }
+  if (pin === null || typeof pin !== 'object' || Array.isArray(pin)) {
+    errors.push(`${RELEASE_PIN_PATH}: root must be a JSON object`);
+    return;
+  }
+  for (const field of ['engine_version', 'plugin_version', 'base_url']) {
+    if (typeof pin[field] !== 'string' || pin[field].length === 0) {
+      errors.push(`${RELEASE_PIN_PATH}: "${field}" must be a non-empty string`);
+    }
+  }
+  if (typeof pin.base_url === 'string' && !pin.base_url.startsWith('https://')) {
+    errors.push(`${RELEASE_PIN_PATH}: "base_url" must be an https:// URL`);
+  }
+  if (pin.sha256 === null || typeof pin.sha256 !== 'object' || Array.isArray(pin.sha256) || Object.keys(pin.sha256).length === 0) {
+    errors.push(`${RELEASE_PIN_PATH}: "sha256" must be a non-empty object of per-target digests`);
+  } else {
+    for (const [target, checksum] of Object.entries(pin.sha256)) {
+      if (typeof checksum !== 'string' || !SHA256_HEX.test(checksum)) {
+        errors.push(`${RELEASE_PIN_PATH}: sha256["${target}"] must be a lowercase 64-hex digest`);
+      }
+    }
+  }
+  if (pluginManifest && typeof pin.plugin_version === 'string' && pin.plugin_version !== pluginManifest.version) {
+    errors.push(
+      `${RELEASE_PIN_PATH}: plugin_version "${pin.plugin_version}" does not match plugin.json version "${pluginManifest.version}" — after bumping the version, regenerate the pin (scripts/generate-release-pin.mjs --restamp)`,
+    );
+  }
+}
+
 function validateBundleHygiene() {
   let entries;
   try {
@@ -177,6 +222,7 @@ const marketplaceManifest = loadManifest('.claude-plugin/marketplace.json');
 validatePlugin(pluginManifest);
 validateMarketplace(marketplaceManifest);
 validateCrossReferences(pluginManifest, marketplaceManifest);
+validateReleasePin(pluginManifest);
 validateSkills();
 validateBundleHygiene();
 
