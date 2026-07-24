@@ -4,11 +4,22 @@ import { existsSync, readFileSync, statSync } from "node:fs";
 
 const INDEX_PATH = "site/index.html";
 const OG_PATH = "site/og.svg";
+// og.png is the RASTER DERIVATIVE of og.svg (1200×630): social-card crawlers
+// reject SVG images, so the absolute og:image URL points at the PNG. When
+// og.svg changes, regenerate the PNG by hand (rsvg-convert -w 1200 -h 630).
+const OG_RASTER_PATH = "site/og.png";
 const README_PATH = "plugin/README.md";
 const MAX_INDEX_BYTES = 256000;
 const FORBIDDEN_WORDS = /magic|supercharge|revolutioniz|unleash|lorem ipsum|coming soon/i;
 const ARTIFACT_MARKERS = ["BEGIN MNEME NOTE", "workflow_run_started", "staging", "exit-zero"];
-const ALLOWED_HOSTS = new Set(["fonts.googleapis.com", "fonts.gstatic.com", "github.com"]);
+// supostat.github.io is the landing's own Pages origin — needed for the
+// absolute og:url / og:image meta; every other host is still rejected.
+const ALLOWED_HOSTS = new Set([
+  "fonts.googleapis.com",
+  "fonts.gstatic.com",
+  "github.com",
+  "supostat.github.io",
+]);
 
 const failures = [];
 
@@ -18,6 +29,10 @@ function check(condition, name) {
 
 check(existsSync(INDEX_PATH), `missing file: ${INDEX_PATH}`);
 check(existsSync(OG_PATH), `missing file: ${OG_PATH}`);
+check(
+  existsSync(OG_RASTER_PATH) && statSync(OG_RASTER_PATH).size > 0,
+  `missing or empty raster card: ${OG_RASTER_PATH} (regenerate from ${OG_PATH})`,
+);
 check(existsSync(README_PATH), `missing file: ${README_PATH}`);
 
 if (failures.length === 0) {

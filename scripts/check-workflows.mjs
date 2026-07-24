@@ -83,6 +83,21 @@ requireMarker(
   'the auto-bump actor guard breaks the bump-on-bump loop',
 );
 
+const pagesPath = '.github/workflows/pages.yml';
+const pages = load(pagesPath);
+requireMarker(pagesPath, pages, 'workflow_dispatch', 'the landing must be publishable on demand, before any site/ push');
+requireMarker(pagesPath, pages, "'site/**'", 'the push trigger must fire on landing changes only');
+requireMarker(pagesPath, pages, 'upload-pages-artifact', 'the site/ upload step is load-bearing');
+requireMarker(pagesPath, pages, 'path: site', 'the artifact must be the site/ directory, not the repo root');
+requireMarker(pagesPath, pages, 'deploy-pages', 'the deploy step is load-bearing');
+requireOrder(
+  pagesPath,
+  pages,
+  'upload-pages-artifact',
+  'deploy-pages',
+  'the artifact must exist before it is deployed',
+);
+
 if (failures.length > 0) {
   console.error('Workflow structure check FAILED:');
   for (const failure of failures) console.error(`  - ${failure}`);

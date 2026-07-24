@@ -1,0 +1,39 @@
+# Publishes site/ to GitHub Pages. Pages-from-branch can only serve the repo
+# root or /docs, so the landing deploys through Actions instead.
+#
+# One-time manual prerequisite (recorded in the PR checklist): Settings →
+# Pages → Source must be set to "GitHub Actions", or the deploy step fails.
+name: pages
+
+on:
+  push:
+    branches: [main]
+    paths: ['site/**']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/configure-pages@v5
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: site
+
+      - id: deployment
+        uses: actions/deploy-pages@v4

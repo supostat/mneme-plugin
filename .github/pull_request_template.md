@@ -12,3 +12,7 @@
       гарде = успех теста.
 - [ ] **Сквозная установка через лаунчер**: `rm -rf ~/.mneme/bin && npm run reinstall`
       → `/reload-plugins` → `/mcp` видит инструменты mneme (dev-режим лаунчера).
+- [ ] **Публикация лендинга**: Settings → Pages → Source: «GitHub Actions» включён
+      (разовый шаг); прогон workflow `pages` зелёный;
+      https://supostat.github.io/mneme-plugin/ открывается; OG-карточка валидна
+      (opengraph.xyz или превью ссылки в Telegram показывает og.png).
