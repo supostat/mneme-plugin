@@ -10,5 +10,5 @@
       "command": "${CLAUDE_PLUGIN_ROOT}/bin/launch.sh"
     }
   },
-  "version": "0.2.6"
+  "version": "0.2.7"
 }
