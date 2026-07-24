@@ -1,0 +1,16 @@
+{
+  "hooks": {
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "${CLAUDE_PLUGIN_ROOT}/bin/launch.sh --warm",
+            "timeout": 120,
+            "statusMessage": "Warming the mneme engine cache"
+          }
+        ]
+      }
+    ]
+  }
+}

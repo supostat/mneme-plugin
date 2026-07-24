@@ -149,6 +149,18 @@ try {
       failures.push(`the validator still rejects the pin after --restamp:\n${repaired.output.trim()}`);
     }
   }
+
+  // Case 5: a command pointing at the raw binary instead of the launcher is rejected.
+  const manifestPath = join(root, 'plugin', '.claude-plugin', 'plugin.json');
+  const manifest = JSON.parse(readFileSync(manifestPath, 'utf8'));
+  manifest.mcpServers.memory.command = '${CLAUDE_PLUGIN_ROOT}/bin/mneme';
+  writeFileSync(manifestPath, JSON.stringify(manifest, null, 2));
+  const rawBinary = run([validator, root]);
+  if (rawBinary.status === 0) {
+    failures.push('a plugin.json command pointing at the raw binary (bin/mneme) was ACCEPTED — the launcher rule is unguarded');
+  } else if (!rawBinary.output.includes('starts through the launcher')) {
+    failures.push(`the raw-binary rejection does not explain the launcher rule — the error reads:\n${rawBinary.output.trim()}`);
+  }
 } finally {
   rmSync(root, { recursive: true, force: true });
 }

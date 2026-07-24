@@ -60,6 +60,10 @@ function validatePlugin(manifest) {
       errors.push(`plugin.json: mcpServers.${id}.command is an absolute path — use \${CLAUDE_PLUGIN_ROOT} so it resolves wherever the plugin is installed`);
     } else if (!command.includes('${CLAUDE_PLUGIN_ROOT}')) {
       errors.push(`plugin.json: mcpServers.${id}.command must reference \${CLAUDE_PLUGIN_ROOT} (portable plugin-root path)`);
+    } else if (command !== '${CLAUDE_PLUGIN_ROOT}/bin/launch.sh') {
+      errors.push(
+        `plugin.json: mcpServers.${id}.command is "${command}" but must be exactly "\${CLAUDE_PLUGIN_ROOT}/bin/launch.sh" — the server always starts through the launcher (local dev build or cached pinned release); pointing at the raw binary breaks installs from GitHub, where the binary is gitignored`,
+      );
     }
   }
 }

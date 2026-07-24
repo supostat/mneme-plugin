@@ -60,7 +60,7 @@ function buildFixtureRoot(root, skillDirectoryName, declaredName) {
       {
         name: 'fixture',
         description: 'fixture plugin for the skill-name rule',
-        mcpServers: { memory: { command: '${CLAUDE_PLUGIN_ROOT}/bin/fixture' } },
+        mcpServers: { memory: { command: '${CLAUDE_PLUGIN_ROOT}/bin/launch.sh' } },
         version: '0.0.1',
       },
       null,
