@@ -3,7 +3,7 @@
   "private": true,
   "description": "Distribution repo for the mneme Claude Code plugin. Holds hand-written packaging; the compiled server binary is produced by the mneme code repo and gitignored.",
   "scripts": {
-    "test": "node scripts/validate-manifests.mjs && node scripts/check-skill-names.mjs && node scripts/check-release-pin.mjs && node scripts/check-workflows.mjs && sh scripts/check-launcher.sh",
+    "test": "node scripts/validate-manifests.mjs && node scripts/check-skill-names.mjs && node scripts/check-release-pin.mjs && node scripts/check-workflows.mjs && node scripts/check-readme.mjs && sh scripts/check-launcher.sh",
     "reinstall": "bash scripts/reinstall.sh"
   }
 }

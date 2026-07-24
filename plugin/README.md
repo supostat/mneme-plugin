@@ -1,139 +1,59 @@
-# mneme-plugin
+# mneme plugin bundle
 
-Distribution repo for **mneme** — the persistent-memory MCP server for Claude Code, packaged as an installable plugin.
+Distribution half of a two-repo setup. This repo holds only hand-written
+packaging — manifests, skills, hooks, the launcher; the mneme **code** repo
+holds the source and drops the compiled server binary into `plugin/bin/`,
+where it stays gitignored and is never committed. User-facing install,
+update and troubleshooting docs live in the repo-root `README.md`.
 
-## What this repo is
-
-This is the *distribution* half of a two-repo setup. It holds only hand-written
-packaging: the plugin manifests, the self-marketplace declaration, the reserved
-skills/commands/hooks directories, and the MCP server declaration. It does **not**
-contain mneme's source code.
-
-## Two-repo boundary
-
-The split is by **role**, not by artifact type.
-
-| Repo | Role | Contents |
-| --- | --- | --- |
-| mneme **CODE** repo (`~/Projects/.../mneme`, already exists) | Development & build | `src/`, tests, and `scripts/build-plugin.ts` (added in Phase 2), which compiles the server and drops the binary into this repo's `plugin/bin/`. |
-| **mneme-plugin** (this repo) | Distribution | Hand-written behavior tracked in git; the compiled `plugin/bin/mneme` is produced from the code repo and gitignored. |
-
-In short: **what the user installs** lives here; **what the developer builds** lives
-in the code repo.
-
-## Repo layout
+## Bundle layout
 
 ```
-.claude-plugin/
-  marketplace.json   # self-marketplace entry (stays at repo root; source → ./plugin)
-package.json         # dev harness: npm test → manifest validation (NOT shipped)
-scripts/
-  validate-manifests.mjs   # dependency-free node validator (dev tooling, NOT shipped)
-plugin/              # ← the installable bundle; the marketplace source points here
+plugin/                # ← the installable bundle; the marketplace source points here
   .claude-plugin/
-    plugin.json      # declares the mneme MCP server
-  skills/
-    arch/SKILL.md      # /mneme:arch    — read-only architecture-analysis skill
-    plan/SKILL.md      # /mneme:plan    — task-to-spec planning skill
-    migrate/SKILL.md   # /mneme:migrate — spec-to-phase-files migration skill
-    dev/SKILL.md       # /mneme:dev     — thin workflow-dispatcher skill
-    resume/SKILL.md    # /mneme:resume  — read-only run-orientation skill
-  commands/          # reserved, empty
-  hooks/             # reserved, empty
-  bin/mneme          # compiled server — generated, gitignored, NOT in this repo
-  README.md
+    plugin.json        # MCP server declaration: command → bin/launch.sh
+  skills/              # /mneme:arch, /mneme:plan, /mneme:migrate, /mneme:dev, /mneme:resume
+  hooks/
+    hooks.json         # SessionStart → launch.sh --warm (cache pre-warm)
+  commands/            # reserved, empty
+  bin/
+    launch.sh          # POSIX sh launcher: local dev build → cached pinned release
+    release.json       # machine-generated release pin (appears with the first engine release)
+    mneme              # compiled server — generated, gitignored, NOT in git
 ```
 
-The installable plugin lives under `plugin/`, so the marketplace source `./plugin`
-bundles only plugin artifacts — repo internals (`.dev-vault`, `.claude`, `.mcp.json`,
-`.engram`, `CLAUDE.md`, `docs`) stay outside the bundle. The install commands
-(`/plugin marketplace add ./`) are unchanged, since the marketplace stays at the repo root.
+Repo internals (`docs`, `site`, root `scripts/`, `CLAUDE.md`, dot-directories)
+stay outside `plugin/`, so the marketplace source `./plugin` bundles only what
+an install needs.
 
-Landing: site/ → GitHub Pages — `site/index.html` is the self-contained product landing
-page (with `site/og.svg` alongside); it also stays outside the plugin bundle. Publishing
-`site/` needs a Pages workflow or manual configuration (Pages-from-branch serves only the
-repo root or `/docs`).
+## How the server starts
+
+`plugin.json` points at `${CLAUDE_PLUGIN_ROOT}/bin/launch.sh`, never at the raw
+binary — an install from GitHub carries no binary at all. The launcher prefers
+a local dev build (`bin/mneme` next to it, present after a local build or
+`npm run reinstall`); otherwise it resolves the platform target, reads the
+machine-generated `bin/release.json` pin, and serves the engine from
+`~/.mneme/bin/<engine_version>/`, downloading it from the pinned GitHub Release
+on a cache miss — SHA256 is verified **before** `chmod +x`, installs are atomic
+`mv`. `launch.sh --warm` walks the same path but never execs; the SessionStart
+hook uses it to pre-fill the cache. Every failure is a named stderr line.
+
+## Versioning
+
+The `version` field in `plugin.json` is maintained by automation: the
+release-sync workflow patch-bumps it on every engine release, and CI
+auto-bumps it when `plugin/` changes land on main without a manual bump.
+The pin's `plugin_version` must equal `plugin.json`'s version —
+`validate-manifests` enforces the pair, and
+`scripts/generate-release-pin.mjs --restamp` repairs a drift.
 
 ## Verifying
 
-Run `npm test` — a dependency-free node script validates both manifests: JSON
-well-formedness, required fields (kebab-case names, owner, plugin sources
-starting with `./`), and that no absolute path leaks into the distributed
-manifest (the MCP command must use `${CLAUDE_PLUGIN_ROOT}`).
+`npm test` at the repo root runs the whole dependency-free gate chain:
+manifest validation, skill-name rules, release-pin rules, workflow structure,
+README invariants, and the launcher's five mocked scenarios. During local
+iteration `npm run reinstall` re-copies the working tree into the installed
+plugin; `/reload-plugins` picks it up in-session.
 
-## The compiled binary
-
-`plugin/bin/mneme` is a ~62 MB self-contained binary produced by `bun build --compile`
-in the code repo (it bundles `bun:sqlite`, so there is no external runtime to
-install). It is gitignored, reproducible from source, and never committed. The
-manifest points at it via `${CLAUDE_PLUGIN_ROOT}/bin/mneme`, so the path resolves
-wherever the plugin happens to be installed.
-
-## Why a plugin
-
-A plugin gives versioned, portable installs (`/plugin update`) instead of manual
-per-project wiring. Previously a server like this was wired per-project through a
-local `.mcp.json` that ran `bun run src/mcp-server.ts` behind brittle absolute
-paths — fragile across machines and GUI PATHs. The plugin replaces that pattern
-with one versioned, portable install.
-
-The plugin version in `plugin/.claude-plugin/plugin.json` is stamped from the code repo's
-`package.json` by the build-script — it currently reads `0.1.0`. Claude Code uses that
-field to detect updates: `/plugin update` pulls a new build only when the version is
-bumped. To cut a release, bump the version in the code repo and rebuild; the build-script
-restamps `plugin.json`. (Claude Code's git-SHA update tracking only applies while a plugin
-declares no `version` — which no longer holds here.)
-
-## Install
-
-From a Claude Code session, install the plugin from its self-marketplace (this repo):
-
-```
-/plugin marketplace add ./
-/plugin install mneme@mneme-marketplace
-```
-
-`marketplace add ./` registers this repo as a local marketplace; `install
-mneme@mneme-marketplace` installs the `mneme` plugin from it. After install, the mneme MCP
-server starts from the plugin — verify with `/mcp`: the `mneme` server lists its seven tools
-(`remember`, `recall`, `staging_list`, `staging_resolve`, `stats`, plus the workflow pair
-`workflow_start` and `workflow_step`), exposed under plugin-namespaced names
-(`mcp__plugin_mneme_memory__remember`, `…__recall`, …). Two bundled skills are picked up on
-install too: `/mneme:arch` — a read-only architecture-analysis skill anchored on mneme `recall`
-and generic repo docs (`CLAUDE.md`, `docs/`, `README`) — and `/mneme:dev`, a thin dispatcher
-that drives the workflow engine (`workflow_start` once, then a `workflow_step` loop over the
-engine's directives).
-
-## Update
-
-```
-/plugin update
-```
-
-Claude Code pulls a new build only when `plugin/.claude-plugin/plugin.json` declares a **higher**
-`version`. Releasing an update means bumping the version in the code repo and rebuilding —
-the build-script restamps `plugin.json`. Rebuilding at the **same** version leaves `/plugin
-update` reporting "already latest", and the fresh binary is skipped. During local iteration,
-`/reload-plugins` hot-reloads the installed plugin (including `SKILL.md` edits) without a
-version bump or reinstall.
-
-## Migrating from manual `.mcp.json` registration
-
-If one of your projects wired mneme by hand — a `.mcp.json` entry running the server behind
-an absolute path, plus per-project copies of the arch skill — the plugin replaces both:
-
-- **MCP server** — remove the `mneme` entry from that project's `.mcp.json` and install the
-  plugin instead. The plugin's server is portable (`${CLAUDE_PLUGIN_ROOT}/bin/mneme`) and
-  versioned. You can tell the server comes from the plugin, not a local `.mcp.json`: its tools
-  appear as `mcp__plugin_mneme_memory__*` (a local `.mcp.json` registration would expose them
-  as `mcp__mneme__*`).
-- **Skill** — delete the per-project arch copies; the plugin ships it as `/mneme:arch`,
-  updated centrally via `/plugin update`.
-
-## Status
-
-Manifests are valid, the compiled server is produced by the code repo's build-script, and
-`plugin/.claude-plugin/plugin.json` declares `version` `0.1.0` (stamped from the code repo). The
-repo ships the `/mneme:arch` and `/mneme:dev` skills and the install/update/migration docs above.
-Installing the plugin and confirming the server and skill are picked up in-session is the
-final, hands-on step of this phase.
+Landing: site/ → GitHub Pages — `site/index.html` is the self-contained product
+landing page (with `site/og.svg` alongside); it stays outside the plugin bundle.
