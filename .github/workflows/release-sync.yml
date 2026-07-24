@@ -1,0 +1,64 @@
+# Receives the engine's release dispatch and syncs the release pin into main.
+#
+# The integrity guard runs BEFORE any edit: a dispatch pointing at missing or
+# corrupt assets fails the run and leaves main untouched. That makes a fake
+# dispatch with nonexistent assets the wiring test — a RED run failing on the
+# guard step is the expected proof, not a defect.
+name: release-sync
+
+on:
+  repository_dispatch:
+    types: [engine-release]
+
+permissions:
+  contents: write
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Save the dispatch payload
+        env:
+          PAYLOAD: ${{ toJSON(github.event.client_payload) }}
+        run: printf '%s' "$PAYLOAD" > "$RUNNER_TEMP/engine-release-payload.json"
+
+      - name: Integrity guard — assets exist and hash to the declared sha256
+        run: node scripts/check-release-integrity.mjs "$RUNNER_TEMP/engine-release-payload.json"
+
+      - name: Generate the release pin
+        run: node scripts/generate-release-pin.mjs "$RUNNER_TEMP/engine-release-payload.json"
+
+      - name: Patch-bump the plugin version and restamp the pin
+        run: |
+          node -e '
+            const fs = require("fs");
+            const path = "plugin/.claude-plugin/plugin.json";
+            const manifest = JSON.parse(fs.readFileSync(path, "utf8"));
+            const [major, minor, patch] = manifest.version.split(".").map(Number);
+            manifest.version = `${major}.${minor}.${patch + 1}`;
+            fs.writeFileSync(path, JSON.stringify(manifest, null, 2) + "\n");
+          '
+          node scripts/generate-release-pin.mjs --restamp
+
+      - name: Validate the result
+        run: npm test
+
+      - name: Commit and tag on main
+        env:
+          ENGINE_VERSION: ${{ github.event.client_payload.version }}
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add plugin/.claude-plugin/plugin.json plugin/bin/release.json
+          plugin_version=$(node -p 'require("./plugin/.claude-plugin/plugin.json").version')
+          git commit -m "Pin engine $ENGINE_VERSION and bump the plugin to $plugin_version"
+          git tag "v$plugin_version"
+          git push origin main --follow-tags

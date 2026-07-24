@@ -1,0 +1,75 @@
+# Push/PR gate plus the main-branch auto patch-bump.
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Install shellcheck
+        run: sudo apt-get update && sudo apt-get install -y shellcheck
+
+      - name: Manifest, pin and launcher gates
+        run: npm test
+
+      - name: Launcher is shellcheck-clean
+        run: shellcheck plugin/bin/launch.sh
+
+      - name: Release pin integrity (silently skipped while no pin exists)
+        run: node scripts/check-release-integrity.mjs plugin/bin/release.json --allow-missing
+
+  auto-bump:
+    # The actor guard breaks the loop: a bump commit pushed by the bot must
+    # never trigger another bump of itself.
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main' && github.actor != 'github-actions[bot]'
+    needs: test
+    permissions:
+      contents: write
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Patch-bump when plugin/ changed without a version bump
+        run: |
+          if ! git diff --name-only HEAD^ HEAD | grep -q '^plugin/'; then
+            echo "no plugin/ changes — no bump"
+            exit 0
+          fi
+          if git diff HEAD^ HEAD -- plugin/.claude-plugin/plugin.json | grep -q '"version"'; then
+            echo "version already bumped by the author — no auto-bump"
+            exit 0
+          fi
+          node -e '
+            const fs = require("fs");
+            const path = "plugin/.claude-plugin/plugin.json";
+            const manifest = JSON.parse(fs.readFileSync(path, "utf8"));
+            const [major, minor, patch] = manifest.version.split(".").map(Number);
+            manifest.version = `${major}.${minor}.${patch + 1}`;
+            fs.writeFileSync(path, JSON.stringify(manifest, null, 2) + "\n");
+          '
+          if [ -f plugin/bin/release.json ]; then
+            node scripts/generate-release-pin.mjs --restamp
+            git add plugin/bin/release.json
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add plugin/.claude-plugin/plugin.json
+          plugin_version=$(node -p 'require("./plugin/.claude-plugin/plugin.json").version')
+          git commit -m "Bump the plugin to $plugin_version after plugin/ changes"
+          git push origin main
