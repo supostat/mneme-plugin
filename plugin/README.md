@@ -56,4 +56,6 @@ iteration `npm run reinstall` re-copies the working tree into the installed
 plugin; `/reload-plugins` picks it up in-session.
 
 Landing: site/ → GitHub Pages — `site/index.html` is the self-contained product
-landing page (with `site/og.svg` alongside); it stays outside the plugin bundle.
+landing page (with `site/og.svg` and its raster card `site/og.png` alongside);
+it stays outside the plugin bundle and is published to
+<https://supostat.github.io/mneme-plugin/> by `.github/workflows/pages.yml`.

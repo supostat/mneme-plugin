@@ -40,6 +40,7 @@ const ROOT_README_REQUIRED = [
   ['checksum mismatch', 'the checksum-mismatch troubleshooting entry'],
   ['unsupported platform', 'the unsupported-platform troubleshooting entry'],
   ['no local build and no release pin', 'the pre-release troubleshooting entry'],
+  ['https://supostat.github.io/mneme-plugin/', 'the published landing link'],
 ];
 
 const rootReadme = load('README.md');
