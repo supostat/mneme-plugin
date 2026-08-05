@@ -484,7 +484,7 @@ agent-judged verdicts: 0 of 2 criteria</code></pre>
       <div class="mech-grid">
         <div class="mech-card">
           <h3>fts + cosine, local</h3>
-          <p>Full-text search fused with cosine similarity from a local embedder via Ollama. Recall runs entirely on your machine.</p>
+          <p>Full-text search fused with cosine similarity from a local embedder via Ollama. Recall runs entirely on your machine. Full-text works immediately; the local embedder is an upgrade, not a requirement.</p>
         </div>
         <div class="mech-card">
           <h3>anchors + git staleness</h3>
@@ -503,8 +503,8 @@ agent-judged verdicts: 0 of 2 criteria</code></pre>
           <p>Near-duplicates surface with the neighbor and the similarity shown. You see why &mdash; then you decide.</p>
         </div>
         <div class="mech-card">
-          <h3>patterns don&rsquo;t rot</h3>
-          <p>Generalized pattern notes are exempt from anchor staleness: knowledge that outlives its example file keeps its rank.</p>
+          <h3>generalized notes don&rsquo;t rot</h3>
+          <p>Pattern and antipattern notes are exempt from anchor staleness: generalized knowledge outlives its example file and keeps its rank.</p>
         </div>
       </div>
       <figure class="artifact mech-note">
@@ -523,7 +523,7 @@ tests/conformance/ and are the contract. Treat any KDF edit as a
 breaking migration: changing costs invalidates every existing vault.</code></pre>
         </div>
       </figure>
-      <p class="artifact-note">Notes are plain files in your repo&rsquo;s git &mdash; diffable, reviewable, portable. The knowledge lives where the code lives.</p>
+      <p class="artifact-note">Notes are plain files in a git repo of their own &mdash; diffable, reviewable, portable. Every accepted note is a commit: the canon has a history you can read, revert and back up, and none of it touches your project&rsquo;s tree.</p>
     </div>
   </section>
 
@@ -541,11 +541,11 @@ breaking migration: changing costs invalidates every existing vault.</code></pre
       <figure class="artifact">
         <figcaption><span>the log remembers</span><span>events/2026-07.jsonl</span></figcaption>
         <div class="artifact-scroll" role="region" aria-label="Event log lines in JSONL format" tabindex="0">
-<pre><code>{"type":<span class="t-key">"workflow_run_started"</span>,"run_id":"3f6a92c1-4b8e-47d2-9c15-a2e07d5b8f41","branch":"feature/unlock","ts":"2026-07-18T09:12:04.118Z","mneme_version":"0.3.1","schema_version":5}
-{"type":<span class="t-key">"recall"</span>,"query":"vault-unlock kdf passphrase attempts","returned":3,"ts":"2026-07-18T09:12:04.564Z","mneme_version":"0.3.1","schema_version":5}
-{"type":<span class="t-key">"workflow_step_applied"</span>,"run_id":"3f6a92c1-4b8e-47d2-9c15-a2e07d5b8f41","phase_id":"vault-unlock","step_id":"implement","attempt":2,"result_kind":"execute_step","outcome":"success","ts":"2026-07-18T09:47:31.902Z","mneme_version":"0.3.1","schema_version":5}
-{"type":<span class="t-key">"workflow_step_applied"</span>,"run_id":"3f6a92c1-4b8e-47d2-9c15-a2e07d5b8f41","phase_id":"vault-unlock","result_kind":"harvest","artifacts":3,"ts":"2026-07-18T09:48:02.677Z","mneme_version":"0.3.1","schema_version":5}
-{"type":<span class="t-key">"staging_resolve"</span>,"note_id":"4e19c7d2-88a3-4f10-9d42-b7c5e01a2f36","decision":"accept","commit":"9f3c1a2e07b44d5f8a6c0d1b2e3f4a5b6c7d8e9f","ts":"2026-07-18T09:51:18.240Z","mneme_version":"0.3.1","schema_version":5}</code></pre>
+<pre><code>{"type":<span class="t-key">"workflow_run_started"</span>,"run_id":"3f6a92c1-4b8e-47d2-9c15-a2e07d5b8f41","branch":"feature/unlock","ts":"2026-07-18T09:12:04.118Z","mneme_version":"0.1.6","schema_version":10}
+{"type":<span class="t-key">"recall"</span>,"query":"vault-unlock kdf passphrase attempts","returned_ids":["8b1f0c2d-5e47-4a19-9c3b-6d2e8f4a7b50","c7a92e14-3f68-4b05-8d1a-92c4e6b7f3d8"],"degraded":false,"origin":"workflow-step","ts":"2026-07-18T09:12:04.564Z","mneme_version":"0.1.6","schema_version":10}
+{"type":<span class="t-key">"workflow_step_applied"</span>,"run_id":"3f6a92c1-4b8e-47d2-9c15-a2e07d5b8f41","phase_id":"vault-unlock","step_id":"implement","attempt":2,"result_kind":"execute_step","outcome":"success","ts":"2026-07-18T09:47:31.902Z","mneme_version":"0.1.6","schema_version":10}
+{"type":<span class="t-key">"workflow_step_applied"</span>,"run_id":"3f6a92c1-4b8e-47d2-9c15-a2e07d5b8f41","phase_id":"vault-unlock","result_kind":"harvest","harvested_n":3,"ts":"2026-07-18T09:48:02.677Z","mneme_version":"0.1.6","schema_version":10}
+{"type":<span class="t-key">"staging_resolve"</span>,"note_id":"4e19c7d2-88a3-4f10-9d42-b7c5e01a2f36","decision":"accept","commit":"9f3c1a2e07b44d5f8a6c0d1b2e3f4a5b6c7d8e9f","ts":"2026-07-18T09:51:18.240Z","mneme_version":"0.1.6","schema_version":10}</code></pre>
         </div>
       </figure>
       <p class="artifact-note">Every run is a sequence of events like these. Replay folds them back into the exact same state &mdash; which is what makes branch-scoped resume safe.</p>
@@ -609,6 +609,8 @@ breaking migration: changing costs invalidates every existing vault.</code></pre
       <p class="lead">CLAUDE.md holds what you sit down and write. Built-in auto memory writes notes for you &mdash; and a compressor that paraphrases will sometimes record a discarded idea as a decision, then hand it to your next session as fact.</p>
       <p class="lead skills-line">mneme moves the gate: the agent proposes, <strong>you accept</strong>. Nothing reaches recall that you did not sign. Notes anchor to real files, so stale knowledge sinks instead of quietly outliving the code. Every retrieval logs its candidates, so ranking is auditable &mdash; and replayable &mdash; offline.</p>
       <p class="lead skills-line">And the memory is delivered by an engine, not by discipline: the bundle arrives when a phase starts, the harvest is staged when it closes.</p>
+      <p class="lead skills-line"><strong>What it costs.</strong> The bundle is token-budgeted, not a dump: recall fuses full-text and vector search, ranks, and stops at the budget. Stale notes sink by their anchors instead of crowding the window, and the corpus itself never travels &mdash; only the handful of notes a phase earns.</p>
+      <p class="lead skills-line"><strong>When you don&rsquo;t need mneme.</strong> Short, well-scoped work where pointing the agent at the right files is enough, or a project whose conventions fit in a CLAUDE.md you keep tidy. Memory layers earn their keep on long, exploratory work &mdash; where the expensive knowledge is the dead ends, the rejected options and the reasons, and re-deriving them costs more than curating them.</p>
     </div>
   </section>
 
@@ -624,11 +626,11 @@ breaking migration: changing costs invalidates every existing vault.</code></pre
         </div>
         <div class="proof-card">
           <span class="fig">day one</span>
-          <p>event-sourced from the first commit</p>
+          <p><a href="https://github.com/supostat/mneme/commits/main">event-sourced from the first commit</a></p>
         </div>
         <div class="proof-card">
           <span class="fig">14 phases</span>
-          <p>first product: a password manager, TypeScript + Swift</p>
+          <p>first product: <a href="https://github.com/supostat/Clavis">a password manager</a>, TypeScript + Swift</p>
         </div>
         <div class="proof-card">
           <span class="fig">2 days</span>
@@ -638,9 +640,17 @@ breaking migration: changing costs invalidates every existing vault.</code></pre
     </div>
   </section>
 
+  <section id="trust-boundary" class="rule-top" aria-labelledby="trust-h">
+    <div class="wrap reveal">
+      <p class="kicker">11 &middot; the trust boundary</p>
+      <h2 id="trust-h">The trust boundary</h2>
+      <p class="lead">The server speaks stdio &mdash; no HTTP surface, no auth to misconfigure, no port to leave open. Writes are confined to the corpus under ~/.mneme. Note bodies are sanitised fail-closed on the way in <em>and</em> on the way into a bundle, and every bundle carries a framing line telling the model that what follows is retrieved data, never instructions. Stored text that reaches a model is text a human accepted and the server re-checked.</p>
+    </div>
+  </section>
+
   <section id="quickstart" class="rule-top" aria-labelledby="qs-h">
     <div class="wrap reveal">
-      <p class="kicker">11 &middot; quickstart</p>
+      <p class="kicker">12 &middot; quickstart</p>
       <h2 id="qs-h">Three moves to a canon</h2>
       <figure class="artifact qs">
         <figcaption><span>quickstart</span><span>claude code</span></figcaption>
@@ -648,11 +658,11 @@ breaking migration: changing costs invalidates every existing vault.</code></pre
 <pre><code><span class="t-dim"># 1 &middot; install the plugin (marketplace add + install &mdash; see the README)</span>
 /plugin install mneme
 
-<span class="t-dim"># 2 &middot; plan your first task &mdash; options, your pick, spec, phases</span>
-<span class="t-amber">/mneme:plan "add rate limiting to the unlock flow"</span>
+<span class="t-dim"># 2 &middot; one-time checkup &mdash; diagnose the wiring, fix by digit consent, first note through the gate</span>
+/mneme:setup
 
-<span class="t-dim"># 3 &middot; curate &mdash; accept what&rsquo;s worth keeping; the canon grows</span>
-1 &mdash; accept all</code></pre>
+<span class="t-dim"># 3 &middot; plan your first task &mdash; options, your pick, spec, phases</span>
+<span class="t-amber">/mneme:plan "add rate limiting to the unlock flow"</span></code></pre>
         </div>
       </figure>
       <p class="qs-readme">Full install and configuration live in the <a href="https://github.com/supostat/mneme#readme">README</a>.</p>
