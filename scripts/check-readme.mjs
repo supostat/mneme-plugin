@@ -36,6 +36,7 @@ const ROOT_README_REQUIRED = [
   ['claude plugin install mneme@mneme-marketplace', 'the plugin-install command'],
   ['Ollama', 'the optional Ollama vector upgrade'],
   ['/mneme:setup', 'the one-time onboarding checkup step'],
+  ['## Why not CLAUDE.md, or the built-in memory', 'the positioning section (its short twin lives on the landing)'],
   ['/mcp', 'the /mcp verification step'],
   ['/plugin update', 'the update command'],
   ['checksum mismatch', 'the checksum-mismatch troubleshooting entry'],

@@ -55,6 +55,12 @@ if (failures.length === 0) {
     check(indexHtml.includes(marker), `artifact marker missing from ${INDEX_PATH}: ${marker}`);
   }
 
+  check(
+    indexHtml.includes("mneme moves the gate"),
+    `positioning key phrase missing from ${INDEX_PATH}: "mneme moves the gate" ` +
+      `(the landing block is the short twin of the README section "Why not CLAUDE.md, or the built-in memory")`,
+  );
+
   const urlPattern = /https?:\/\/([^/"'\s<>)]+)/g;
   for (const match of indexHtml.matchAll(urlPattern)) {
     const host = match[1];

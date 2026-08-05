@@ -30,6 +30,61 @@ Two halves, one MCP server:
   directives; the agent executes them; the harvest of every phase flows back
   into memory — through the same human gate.
 
+## Why not CLAUDE.md, or the built-in memory
+
+Claude Code already remembers things three ways, and each answers a different
+question than mneme does.
+
+**`CLAUDE.md` holds what you decide to write down.** It is the right home for
+conventions, commands and architecture notes — instructions that change rarely
+and that you author deliberately. It does not accumulate: nothing you learn
+mid-session ends up there unless you stop and write it. mneme does not replace
+it — the `/mneme:setup` skill inserts a criteria block into yours.
+
+**Built-in auto memory writes notes on its own.** That is the convenience and
+the problem: the thing summarising your session is a language model, and a
+compressor that paraphrases will occasionally record a discarded idea as a
+decision, or invert the reason behind a choice. The result reads authoritative
+and arrives at the top of your next session, where the agent trusts it more
+than it should. You did not approve it, and you will not notice until it argues
+for the wrong thing.
+
+**Auto-capture memory servers scale that same bet.** They add embeddings and a
+larger store, but the write path stays automatic: the agent decides what is
+worth remembering, and the corpus grows with paraphrase nobody reviewed.
+
+**mneme moves the gate.** The agent proposes; nothing enters the corpus until
+you accept it. A staged note shows its type, its body and its anchors before
+you decide, and `staging_resolve` is the only way in. What you accept is what
+recall can ever surface — the corpus is a record of decisions you signed, not
+of what a summariser thought you meant.
+
+Three consequences follow from that one design choice:
+
+- **Retrieval is auditable.** Every recall logs its candidates and scores to an
+  append-only event log, so you can replay offline why a note surfaced and
+  another did not. Ranking you cannot inspect is ranking you cannot fix.
+- **Knowledge rots visibly.** Notes anchor to real files. When an anchor is
+  deleted or drifts from HEAD, the note sinks in ranking instead of quietly
+  outliving the code it described — and the staging list warns you before you
+  accept an anchor git does not track.
+- **Nothing is injected raw.** Note bodies are sanitised on the way in *and* on
+  the way into a bundle, fail-closed. Stored text that reaches a model is text
+  a human accepted and the server re-checked.
+
+**When you do not need mneme:** short, well-scoped work where pointing the agent
+at the right files is enough, or a project whose conventions fit in a
+`CLAUDE.md` you keep tidy. Memory layers earn their keep on long, exploratory
+work — where the expensive knowledge is the dead ends, the rejected options and
+the reasons, and where re-deriving them costs more than curating them.
+
+**And memory is only half of it.** The other half is the engine: phases with
+dependencies, machine-run gates, an append-only run log and resume across
+sessions. Memory is delivered as a pipeline step — the bundle arrives before a
+phase starts, the harvest is staged when it closes — so recall is not a habit
+the agent has to remember to practise. That loop is the part `CLAUDE.md` and a
+memory store cannot assemble between them.
+
 ## Key features
 
 - **Human-gated by construction** — the staging queue is a review step, not a
