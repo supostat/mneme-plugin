@@ -34,7 +34,8 @@ function load(relativePath) {
 const ROOT_README_REQUIRED = [
   ['claude plugin marketplace add supostat/mneme-plugin', 'the marketplace-add install command'],
   ['claude plugin install mneme@mneme-marketplace', 'the plugin-install command'],
-  ['Ollama', 'the Ollama prerequisite'],
+  ['Ollama', 'the optional Ollama vector upgrade'],
+  ['/mneme:setup', 'the one-time onboarding checkup step'],
   ['/mcp', 'the /mcp verification step'],
   ['/plugin update', 'the update command'],
   ['checksum mismatch', 'the checksum-mismatch troubleshooting entry'],
