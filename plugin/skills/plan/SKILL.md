@@ -221,6 +221,33 @@ guessed one). The GENERATOR holds this rule, not the author: the user does not h
 ask for it, and a code phase missing the project's typecheck gate is a generator bug, not a style
 choice. Non-code phases (docs, prose skills) do not get it.
 
+**WIRE-PHASE-RULE — the integration-phase generator's rule:** every Gameplan with 2+ CODE phases
+automatically ENDS with a terminal `wire` phase whose deps list ALL the code phases. The GENERATOR
+holds this rule, not the author (the TYPECHECK-CRITERION-RULE precedent): unit gates look INSIDE
+their module by construction, so wiring — the imports, the composition in the entrypoint — is work
+that belongs to NO phase unless one is generated for it; a multi-phase spec whose gates are all
+green while the application does not start is a generator bug, not an author lapse. The wire
+phase's content is the e2e scenario of the MAIN PATH: an end-to-end test assembling the REAL
+modules, with mocks ONLY at the network/system boundary. Its done-when is EXECUTABLE with a
+definite target (a specific test file — never a bare test runner). UI-limit honesty: where "really
+works in a browser" exceeds what the test harness can prove, the executable criterion goes exactly
+as far as the harness proves real-module connectivity (happy-dom and the like), and the remainder
+is NOT disguised as an agent-judged criterion — the spec's Knowledge carries an honest limit note,
+and the wire phase's boundary is declared the human-acceptance point. Removing an unwanted wire
+phase is the USER's move at the Step 6 review — that review IS the opt-out; no separate mechanism
+exists. Specs with 0-1 code phases are untouched by this rule.
+
+**REAL-DEP-SMOKE-RULE — honest dep edges:** in a multi-phase Gameplan every dep edge must declare
+what it carries. An edge that carries CODE CONSUMPTION ("phase B uses X from phase A") gives the
+CONSUMER phase an ADDITIONAL executable done-when criterion that exercises the REAL X — importing
+the actual upstream module; a mock in THIS criterion is forbidden. An edge that is pure ordering
+is explicitly marked `order-only` in the phase's deps line. The generator makes the distinction at
+draft time — plan has just designed who consumes whom, so an unmarked, criterion-less dep edge is
+a generator bug. This keeps `deps` from lying about connectivity: bare "deps [phase 3]" means
+execution order only, and an agent can honestly finish phase 4 without importing anything from
+phase 3 — a failure the wire phase alone would catch only at the very end, while the smoke
+criterion catches it fail-fast at the consumer's own gate.
+
 ### The finale map (Step 7) — финал-карта
 
 VERDICT (migrate's counts + apply confirmation, verbatim) + the GRAPH-MAP per the shared
@@ -284,4 +311,10 @@ of the existing specs in that directory.
   multi-phase. Multi-phase is native to dev (one run, until boundaries) — no warning needed.
 - TYPECHECK-CRITERION-RULE — the generator, not the author, adds the project's typecheck criterion
   to every code phase when the project carries a typecheck script.
+- WIRE-PHASE-RULE — the generator, not the author, appends a terminal `wire` phase (real-module
+  e2e of the main path, mocks only at the network/system boundary, definite-target executable
+  done-when) to every Gameplan with 2+ code phases; removal is the user's Step 6 move.
+- REAL-DEP-SMOKE-RULE — the generator, not the author, makes every dep edge honest: a
+  code-consuming edge adds a real-module executable smoke criterion to the consumer phase, and a
+  pure-ordering edge is explicitly marked `order-only`.
 - LANGUAGE: English body + Russian runtime user-facing output.

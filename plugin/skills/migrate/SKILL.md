@@ -74,6 +74,12 @@ this same convention). Built strictly from `workflow_migrate`'s response — it 
   the user sees where gates run commands and where review verdicts will be needed.
 - **Кандидаты границ** (suggested-until, minimal version): the FOUNDATION phases — those with the
   most dependents — and seams of the stack. These are the natural `until` stopping points.
+- **WIRE-TERMINAL-MARK** — when the graph ends in a wire/integration terminal (a phase whose deps
+  span the code phases and whose gate is the real-module e2e of the main path — what plan's
+  WIRE-PHASE-RULE generates), its row in the phase table is marked `wire-терминал`, and EVERY
+  boundary candidate that stops BEFORE it carries the caveat «модули ещё не связаны». An `until`
+  pause short of the integration terminal is a planned entry boundary — it must never read as
+  «всё готово».
 - **Готовые команды** — real, runnable syntax:
   - полный прогон: `/mneme:dev <spec-slug>`
   - до границы: `/mneme:dev <spec-slug> until <boundary-candidate-id>` (one line per candidate).
@@ -91,12 +97,18 @@ Apply: записано <W> файлов → <corpus>/workflow/<spec-slug>/
 | Фаза | deps | done-when |
 |---|---|---|
 | <id> | <deps или —> | <executable / agent-judged> |
+| <id> | <все code-фазы> | <executable> · wire-терминал |
 
-Кандидаты границ: <ids + причина, или «нет — единственная фаза»>
+Кандидаты границ: <ids + причина, или «нет — единственная фаза»; каждый кандидат до
+wire-терминала — с оговоркой «модули ещё не связаны»>
 
 /mneme:dev <spec-slug>
 /mneme:dev <spec-slug> until <boundary-id>
 ```
+
+(the `· wire-терминал` row and the «модули ещё не связаны» caveat appear ONLY when the graph
+carries a wire/integration terminal — see WIRE-TERMINAL-MARK above; other graphs render the
+table and candidates exactly as before)
 
 ## Output format
 
