@@ -27,3 +27,6 @@ plugin/bin/mneme
 CLAUDE.md
 docs
 .dev-vault
+
+# Analytics data package (machine-local, built by mneme-analytics/build/build.ts)
+mneme-analytics/
