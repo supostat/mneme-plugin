@@ -40,9 +40,10 @@ Two halves, one MCP server:
   session resumes exactly where the last one stopped.
 - **Machine-verified phases** — `done-when` gates are real commands run by the
   engine, not checkbox prose.
-- **Six bundled skills** — `/mneme:grill`, `/mneme:plan`, `/mneme:dev`,
-  `/mneme:arch`, `/mneme:migrate`, `/mneme:resume`: raw idea → interrogated
-  protocol → spec → phases → gated execution.
+- **Seven bundled skills** — `/mneme:grill`, `/mneme:plan`, `/mneme:fix`,
+  `/mneme:dev`, `/mneme:arch`, `/mneme:migrate`, `/mneme:resume`: raw idea →
+  interrogated protocol → spec → phases → gated execution, and a diagnosis
+  entry for bugs whose gate is the regression test.
 
 ## Quick start
 
