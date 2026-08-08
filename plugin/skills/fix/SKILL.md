@@ -212,9 +212,10 @@ the queued diagnosis shown WHOLE as a numbered list + the closing digit menu
 **Контракт курирования** — compact replica (full protocol: dev's `### BOUNDARY-CURATION`):
 
 - The queue renders as a NUMBERED list — number, `[type]`, one-line essence, anchors.
-- Every decision is a DIGIT menu (vertical chips per the grammar); answers by DIGIT ONLY; exactly
-  ONE option carries «← рекомендую: <причина одной строкой>»; the recommendation never shifts the
-  default; silence = pause.
+- Every decision is a DIGIT menu (vertical chips per the grammar); the batch form is
+  `1 — прими все` / `2 — поштучный разбор` / `3 — отклони все` / `4 — дальше`; answers by DIGIT
+  ONLY; exactly ONE option carries «← рекомендую: <причина одной строкой>»; the recommendation
+  never shifts the default; silence = pause.
 - NEVER tell the user to operate `staging_list` / `staging_resolve` — the agent calls the tools on
   the user's digit; every per-note decision stays the human's. Details: dev's
   `### BOUNDARY-CURATION`.
