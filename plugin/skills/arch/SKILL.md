@@ -89,7 +89,10 @@ Pick ONE. Justify: why over the others · which perspective it optimizes for · 
 Display as plain markdown (NOT inside a code fence). The render below is arch's layer-3 template
 per the shared five-block grammar (DEFINED once in the `mneme:dev` skill's `## OUTPUT-GRAMMAR`
 section — never re-stated here): PROSE context + DATA options + a closing DECISION menu — the same
-DATA+DECISION form as plan's fan. Fill the placeholders, never restructure:
+DATA+DECISION form as plan's fan. FINALE-CLASS-INFORMATIONAL: arch creates nothing (read-only,
+stages nothing), so its finale carries no HANDOFF-DECISION of created objects — the fan's closing
+menu is the option-choice QUESTION of arch's contract, not a handoff. Fill the placeholders,
+never restructure:
 
 ## ARCH: <question short form>
 

@@ -104,8 +104,9 @@ Russian runtime (per the user's global ru-RU rule). Display as plain markdown (N
 fence). The map below is resume's layer-3 template per the shared five-block grammar (DEFINED once
 in the `mneme:dev` skill's `## OUTPUT-GRAMMAR` section — never re-stated here): STATUS (the
 Context line) + DATA (карта фаз, staged count, the suggested command) and NO DECISION — resume не
-спрашивает, оно останавливается; a suggested command is DATA, not a menu. Fill the placeholders,
-never restructure:
+спрашивает, оно останавливается; a suggested command is DATA, not a menu.
+FINALE-CLASS-INFORMATIONAL: resume creates nothing — it only shows; the orient-and-stop contract
+exempts it from HANDOFF-DECISION. Fill the placeholders, never restructure:
 
 ## RESUME: <spec / run short form>
 

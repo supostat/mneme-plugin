@@ -145,7 +145,10 @@ rules in dev's `## OUTPUT-GRAMMAR`. A binary clarification asked BY the round's 
 digit chips of its own INSTEAD of the standing menu — one DECISION per message, never two.)
 
 **Финал** — the GRILL-FINALIZE render: PROSE (protocol written) + DATA (file + hand-off), NO
-DECISION — grill's run is over, the next move is the user's:
+DECISION — grill's run is over, the next move is the user's. FINALE-CLASS-INFORMATIONAL by the
+refined criterion: the protocol file IS created this turn, but a handoff menu exists only where
+the agent can ACT on a digit — grill has no staged notes to resolve and the plan launch is manual
+(`disable-model-invocation`), so a menu would reduce to re-printing the already-shown command:
 
 ```
 Протокол записан: docs/GRILL-<slug>.md — закрыто <N> веток, отдано plan'у <M>, открыто сознательно <K>.

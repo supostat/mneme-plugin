@@ -111,7 +111,10 @@ digit → a control `recall` query returns the accepted note → declare the loo
 human gate → recall works in this repository. No throwaway probe notes — the note staged is the
 real record of this setup.
 
-### Step 5: FINALE — the "what's next" map
+### Step 5: FINALE — the "what's next" map (FINALE-CLASS-INFORMATIONAL)
+
+Everything setup created was already curated by digit in Step 4 — by this finale the turn leaves
+nothing undecided, so the map is informational and carries no HANDOFF-DECISION.
 
 Short, three lines, no re-telling of every skill: фича начинается с `/mneme:grill` (вскрыть
 несформулированные решения) или сразу `/mneme:plan` (веер вариантов → спека → фазы) → прогон
