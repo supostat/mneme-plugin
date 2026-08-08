@@ -1,7 +1,7 @@
 ---
 name: plan
 description: turn a task described in words into a reviewed delta-spec through option fan and user confirmation
-allowed-tools: [Read, Grep, mcp__plugin_mneme_memory__recall, mcp__plugin_mneme_memory__remember, mcp__plugin_mneme_memory__workflow_migrate, Write]
+allowed-tools: [Read, Grep, mcp__plugin_mneme_memory__recall, mcp__plugin_mneme_memory__remember, mcp__plugin_mneme_memory__workflow_migrate, mcp__plugin_mneme_memory__staging_list, mcp__plugin_mneme_memory__staging_resolve, Write]
 disable-model-invocation: true
 ---
 
@@ -49,9 +49,13 @@ task.
   the Step 6 approval and Write — never on a draft. The TOOL writes the phase files; the skill
   itself writes nothing outside the approved spec (and its Step 7 format repairs).
 - `mcp__plugin_mneme_memory__remember`: YES, but ONLY in Step 8 to STAGE the choice decision AFTER
-  the Step 6 approval and Write — it QUEUES a note for review, it never publishes; a human accepts it
-  via `staging_list` / `staging_resolve`. `remember` before approval, or ANY other memory tool
-  (recall excepted, per above), is FORBIDDEN.
+  the Step 6 approval and Write — it QUEUES a note for review, it never publishes. `remember`
+  before approval is FORBIDDEN.
+- `mcp__plugin_mneme_memory__staging_list` / `mcp__plugin_mneme_memory__staging_resolve`: YES, but
+  ONLY applying the user's explicit DIGIT from the finale's HANDOFF-DECISION menu (per the
+  curation contract in Output format): `staging_list` to SHOW the queue, `staging_resolve` to
+  apply a per-note digit decision. Resolving without an explicit digit is a VIOLATION — the human
+  gate is untouched. ANY other memory tool is FORBIDDEN.
 
 ## Procedure
 
@@ -145,11 +149,15 @@ back half of the plan's memory loop (choice → memory), mirroring how `/mneme:d
 artifacts. Call `mcp__plugin_mneme_memory__remember` with `type: "decision"`, a `body` distilling
 the fork (the CHOSEN option, the REJECTED options each with compressed trade-offs, and WHY the
 choice won), and `anchors` set to the affected files (see Output format for how body and anchors are
-built). `remember` only QUEUES the note — it does not publish; tell the user (Russian) to review and
-accept it via `staging_list` / `staging_resolve`, and never assume it was accepted.
+built). `remember` only QUEUES the note — it does not publish and the skill never assumes
+acceptance. The queue is then curated BY DIGIT through the finale's HANDOFF-DECISION menu (the
+curation contract in Output format) — NEVER by telling the user to operate MCP tools.
 
-plan's artifact ends at the spec on disk, the migrated phase files, the map with its ready dev
-command, and the staged decision note. Running `/mneme:dev` is the user's move.
+plan's artifact ends at the spec on disk, the migrated phase files, the map with its closing menu,
+and the staged decision note. Launch is ALWAYS manual: `/mneme:dev` carries
+`disable-model-invocation` — the agent cannot invoke it even on an explicit digit, so a menu digit
+makes the skill accept/reject the note itself and hand over the READY command as a fenced block;
+running it is the user's move.
 
 ## Output format
 
@@ -157,8 +165,8 @@ Every render below follows the shared five-block grammar — STATUS / PROSE / DA
 DECISION — DEFINED once in the `mneme:dev` skill's `## OUTPUT-GRAMMAR` section (dev is the anchor
 skill; re-stating the grammar here is a VIOLATION). plan OWNS two layer-3 templates: the option
 fan (PROSE context + DATA options + a closing DECISION) and the finale map (VERDICT counts +
-GRAPH-MAP per the `mneme:migrate` convention + the staged-note notice, NO DECISION). Fill the
-placeholders, never reinvent the structure.
+GRAPH-MAP per the `mneme:migrate` convention + the staged-note queue + a closing HANDOFF-DECISION
+menu). Fill the placeholders, never reinvent the structure.
 
 ### The fan (Step 3)
 
@@ -248,12 +256,19 @@ execution order only, and an agent can honestly finish phase 4 without importing
 phase 3 — a failure the wire phase alone would catch only at the very end, while the smoke
 criterion catches it fail-fast at the consumer's own gate.
 
-### The finale map (Step 7) — финал-карта
+### The finale map (Step 7) — финал-карта (FINALE-CLASS-HANDOFF)
 
 VERDICT (migrate's counts + apply confirmation, verbatim) + the GRAPH-MAP per the shared
-convention (defined in the `mneme:migrate` skill — never re-drawn differently here) + the
-staged-note notice. NO DECISION: plan ends at the map — running `/mneme:dev` is the user's move.
-Literal shape:
+convention (defined in the `mneme:migrate` skill — never re-drawn differently here) + the staged
+note rendered WHOLE as a numbered queue + the closing HANDOFF-DECISION menu (dev's
+`## OUTPUT-GRAMMAR`, layer 2): this turn just CREATED unlaunched phases and a queued note, so the
+message MUST close with the menu — a prose list of next commands, or naming `staging_list` /
+`staging_resolve` to the user, is a VIOLATION. Menu composition (2-4 items): early boundary = the
+FIRST boundary candidate from GRAPH-MAP + the full run to the terminal + note curation. The
+combined item «принять заметку и выдать команду …» is legal by COMBINE-VISIBILITY — the note is
+shown whole in this same message. Launch is ALWAYS manual (`disable-model-invocation`): on a digit
+the skill resolves the note itself and prints the chosen ready command as a fenced block — the
+user runs it. Literal shape:
 
 ```
 create: <N> · identical: <M> · conflict: <K>
@@ -261,9 +276,30 @@ create: <N> · identical: <M> · conflict: <K>
 
 <GRAPH-MAP по конвенции mneme:migrate — таблица фаз, кандидаты границ, готовые /mneme:dev команды>
 
-Заметка-решение (выбор варианта) в очереди staging — принять/отклонить: staging_list /
-staging_resolve.
+В staging 1 заметка (показана целиком):
+
+1. [decision] <суть выбора одной строкой> — якоря: <anchors>
+
+`1 — принять заметку и выдать команду полного прогона`
+`2 — принять заметку и выдать команду until <первый-кандидат>`
+`3 — отклонить заметку`
 ```
+
+(the «← рекомендую: <причина одной строкой>» suffix rides exactly ONE option; silence = pause —
+plan does not move without a digit)
+
+### Curation contract — compact replica (full protocol: dev's `### BOUNDARY-CURATION`)
+
+- The queue renders as a NUMBERED list — number, `[type]`, one-line essence, anchors.
+- Every decision is a DIGIT menu (rendered as vertical chips per the grammar); the batch form is
+  `1 — прими все` / `2 — поштучный разбор` / `3 — отклони все` / `4 — дальше`; answers by DIGIT
+  ONLY.
+- Exactly ONE option carries «← рекомендую: <причина одной строкой>»; the recommendation never
+  shifts the default; silence = pause.
+- NEVER tell the user to operate `staging_list` / `staging_resolve` — the agent calls the tools on
+  the user's digit; every per-note decision stays the human's.
+- Per-note mode and the mandatory full-body branch live in dev's `### BOUNDARY-CURATION`; this
+  replica defers to it for details.
 
 ### The choice decision note (Step 8)
 
@@ -287,7 +323,13 @@ of the existing specs in that directory.
   ENDS at each; continuing without an explicit user confirmation is a VIOLATION = ABORT.
 - PLAN, NEVER RUN — no code, no `/mneme:dev`. Migration IS plan's finale (Step 7), but RUNNING the
   phases is dev's job: plan creates and migrates the plan (the user reviews the plan); dev executes
-  it (the engine gates execution). Merging the two loses the review point.
+  it (the engine gates execution). Merging the two loses the review point. Launch is always
+  manual — `/mneme:dev` carries `disable-model-invocation`, so the finale menu only hands over the
+  ready command; wording that promises the agent will launch is a VIOLATION.
+- FINALE = HANDOFF-DECISION (FINALE-CLASS-HANDOFF) — the Step 7 finale closes with the digit menu
+  (early boundary / terminal / note curation, 2-4 items); a prose list of next commands, or naming
+  MCP tools to the user, is a VIOLATION; curation follows the compact contract (replica of dev's
+  `### BOUNDARY-CURATION`).
 - PLAN-AUTOMIGRATE FAIL-FAST — Step 7 drives `workflow_migrate` validate → apply-if-clean in one
   pass; a FORMAT error is fixed by the skill itself in the hot context (re-Write + re-migrate,
   meaning untouched), a MEANING-level fix goes back to the user; the finale is the GRAPH-MAP

@@ -58,9 +58,10 @@ classifies every target as `create`, `identical`, or `conflict` — writing NOTH
 ### Step 3: GRAPH-MAP — render the graph, then end
 
 Render the phase graph from the APPLY response (see the GRAPH-MAP section below — the data comes
-from the tool's returned graph structure, never from re-parsing the files). Then END the turn. Do
-NOT call `/mneme:dev`, do NOT start a run, do NOT offer to "just continue" — running the phases is
-the user's move, with a ready command already on screen.
+from the tool's returned graph structure, never from re-parsing the files), CLOSE with the map's
+HANDOFF-DECISION menu, and END the turn. Do NOT call `/mneme:dev` (it carries
+`disable-model-invocation` — the agent cannot invoke it, ever) and do NOT start a run: a digit
+only makes the skill hand over the READY command as a fenced block; running it is the user's move.
 
 ## GRAPH-MAP — the graph render convention
 
@@ -86,9 +87,15 @@ this same convention). Built strictly from `workflow_migrate`'s response — it 
 
 In grammar terms (the shared five-block grammar, DEFINED once in the `mneme:dev` skill's
 `## OUTPUT-GRAMMAR` section — never re-stated here): GRAPH-MAP = VERDICT (validation counts) +
-DATA (the phase table) + DATA (boundary candidates) + fenced ready commands, and NO DECISION —
-the skill ends at the map. migrate's one DECISION block is the conflict exit of Step 2 (numbered
-ways out, digit-answered). The literal template (fill placeholders, never restructure):
+DATA (the phase table) + DATA (boundary candidates) + fenced ready commands, CLOSED by a
+HANDOFF-DECISION menu (FINALE-CLASS-HANDOFF: the freshly migrated phases are actionable objects
+this very turn created, so layer 2 demands the closing menu). The menu holds 2-4 options: the
+full run to the terminal, `until` the FIRST boundary candidate, and — in finales that also staged
+notes (plan, fix; migrate itself stages nothing) — the staging-queue item per their own
+templates. Launch is ALWAYS manual: `/mneme:dev` carries `disable-model-invocation`, so a launch
+option promises only «выдать готовую команду» — never that the agent will run it. migrate's
+other DECISION block is the conflict exit of Step 2 (numbered ways out, digit-answered). The
+literal template (fill placeholders, never restructure):
 
 ```
 create: <N> · identical: <M> · conflict: <K>
@@ -104,11 +111,16 @@ wire-терминала — с оговоркой «модули ещё не с�
 
 /mneme:dev <spec-slug>
 /mneme:dev <spec-slug> until <boundary-id>
+
+`1 — выдать команду полного прогона (до терминала)`
+`2 — выдать команду until <первый-кандидат>`
 ```
 
 (the `· wire-терминал` row and the «модули ещё не связаны» caveat appear ONLY when the graph
 carries a wire/integration terminal — see WIRE-TERMINAL-MARK above; other graphs render the
-table and candidates exactly as before)
+table and candidates exactly as before; the «← рекомендую: <причина одной строкой>» suffix rides
+exactly ONE menu option; on the user's digit the skill re-prints THAT command alone as a fenced
+block — the launch itself stays the user's, per `disable-model-invocation`)
 
 ## Output format
 
@@ -129,8 +141,10 @@ Russian runtime output (per the user's global ru-RU rule); protocol tokens (`wor
   verdict IS the permission to apply.
 - CONFLICT = STOP — name the divergence verbatim, offer the three numbered ways out, never guess
   and never force. Deleting the subfolder is only safe while no run has started on those phases.
-- ENDS AT THE MAP — never calls `/mneme:dev`, `workflow_start`, or `workflow_step`; the map plus a
-  ready command is the whole artifact.
+- ENDS AT THE MAP + MENU (FINALE-CLASS-HANDOFF) — never calls `/mneme:dev`, `workflow_start`, or
+  `workflow_step`; launch is always manual (`/mneme:dev` carries `disable-model-invocation` — the
+  agent cannot invoke it, even on an explicit digit), so the closing HANDOFF-DECISION menu only
+  hands over the ready command; the map plus that menu is the whole artifact.
 - MAP FROM THE RESPONSE — GRAPH-MAP renders the tool's returned graph; it never re-parses phase
   files to reconstruct it.
 - LANGUAGE: English body; Russian runtime user-facing output.

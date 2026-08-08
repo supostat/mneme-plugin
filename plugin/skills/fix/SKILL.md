@@ -1,7 +1,7 @@
 ---
 name: fix
 description: "bug diagnosis entry: reproduce with a red test, minimize, fan out hypotheses for a digit choice, emit a one-phase FIX spec whose gate is the regression test; never fixes code itself"
-allowed-tools: [Read, Grep, Bash, mcp__plugin_mneme_memory__recall, Write, mcp__plugin_mneme_memory__workflow_migrate, mcp__plugin_mneme_memory__remember]
+allowed-tools: [Read, Grep, Bash, mcp__plugin_mneme_memory__recall, Write, mcp__plugin_mneme_memory__workflow_migrate, mcp__plugin_mneme_memory__remember, mcp__plugin_mneme_memory__staging_list, mcp__plugin_mneme_memory__staging_resolve]
 disable-model-invocation: true
 ---
 
@@ -49,8 +49,13 @@ question), then proceed. Never invent a bug.
   staging the diagnosis-as-is (type `bugfix`). It QUEUES for human review, never publishes.
   `remember` anywhere else is a VIOLATION.
 - Edit: FORBIDDEN — see `### FIX-NEVER-FIXES`. fix never touches production code.
-- `workflow_start` / `workflow_step` / `staging_resolve` / any other engine or memory tool:
-  FORBIDDEN — running the fix phase is dev's job; accepting notes is the human's.
+- `mcp__plugin_mneme_memory__staging_list` / `mcp__plugin_mneme_memory__staging_resolve`: YES, but
+  ONLY applying the user's explicit DIGIT from a closing HANDOFF-DECISION menu (the curation
+  contract in Output format): `staging_list` to SHOW the queue, `staging_resolve` to apply a
+  per-note digit decision. Resolving without an explicit digit is a VIOLATION — the human gate is
+  untouched.
+- `workflow_start` / `workflow_step` / any other engine or memory tool: FORBIDDEN — running the
+  fix phase is dev's job.
 
 ## Procedure
 
@@ -136,8 +141,9 @@ instrumentation is in place — still a concrete executable target). Exit `2` go
 the agent-judged justification pre-written. Exit `3` stages the diagnosis via `remember`
 (type `bugfix`, body: symptom + hypotheses + evidence + what was ruled out; anchors: the
 git-tracked files investigated) — a diagnosis without a fix is still corpus value, the same bug
-seen next time starts warm. Tell the user it QUEUED for `staging_list` / `staging_resolve` review.
-This is the ONLY place fix may call `remember`.
+seen next time starts warm. Then render the queued note WHOLE and close with the digit menu per
+the curation contract (Output format) — NEVER by telling the user to operate MCP tools. This is
+the ONLY place fix may call `remember`.
 
 ### FIX-NEVER-FIXES — fix diagnoses, dev fixes (VIOLATION = ABORT)
 
@@ -175,8 +181,13 @@ DATA (hypotheses with evidence) + DECISION:
 `3 — не воспроизводится / другое`
 ```
 
-**Финал-карта** — the FIX-AUTOMIGRATE render: VERDICT (migrate counts) + GRAPH-MAP per the
-`mneme:migrate` convention + the ready command, NO DECISION — running dev is the user's move:
+**Финал-карта** — the FIX-AUTOMIGRATE render (FINALE-CLASS-HANDOFF): VERDICT (migrate counts) +
+GRAPH-MAP per the `mneme:migrate` convention + the ready command + the closing HANDOFF-DECISION
+menu (dev's `## OUTPUT-GRAMMAR`, layer 2): the turn just created an unlaunched phase, so the
+message closes with the menu — a prose list of next commands is a VIOLATION. Launch is ALWAYS
+manual (`/mneme:dev` carries `disable-model-invocation` — the agent cannot invoke it even on an
+explicit digit): a digit only makes the skill re-print the READY command as a fenced block; the
+user runs it. A one-phase graph has no boundary candidates, so the menu is the minimal pair:
 
 ```
 create: <N> · identical: <M> · conflict: <K>
@@ -187,11 +198,26 @@ create: <N> · identical: <M> · conflict: <K>
 | <id> | — | executable: <регрессионный тест> |
 
 /mneme:dev fix-<slug>
+
+`1 — выдать команду запуска fix-<slug>`
+`2 — пауза` (спека и фаза остаются, запуск позже)
 ```
 
+(the «← рекомендую: <причина одной строкой>» suffix rides exactly ONE option; silence = pause)
+
 (when the run went through `### FIX-NOREPRO-EXIT` exit `3` instead, the terminal render is PROSE +
-the staged-note notice: «Диагноз в очереди staging — принять/отклонить: staging_list /
-staging_resolve», and no map)
+the queued diagnosis shown WHOLE as a numbered list + the closing digit menu
+`1 — принять диагноз` / `2 — отклонить` / `3 — позже` per the curation contract, and no map)
+
+**Контракт курирования** — compact replica (full protocol: dev's `### BOUNDARY-CURATION`):
+
+- The queue renders as a NUMBERED list — number, `[type]`, one-line essence, anchors.
+- Every decision is a DIGIT menu (vertical chips per the grammar); answers by DIGIT ONLY; exactly
+  ONE option carries «← рекомендую: <причина одной строкой>»; the recommendation never shifts the
+  default; silence = pause.
+- NEVER tell the user to operate `staging_list` / `staging_resolve` — the agent calls the tools on
+  the user's digit; every per-note decision stays the human's. Details: dev's
+  `### BOUNDARY-CURATION`.
 
 ## Rules
 
@@ -208,7 +234,9 @@ staging_resolve», and no map)
 - FIX-NEVER-FIXES — Edit FORBIDDEN; Write only the repro test + the approved spec; the fix phase
   runs in dev; the dev command is printed, never run.
 - FIX-AUTOMIGRATE — validate → apply-if-clean in one pass after the approved Write; format errors
-  repaired in place, meaning goes back to the user; ends at the finale map.
+  repaired in place, meaning goes back to the user; ends at the finale map + its closing
+  HANDOFF-DECISION menu (FINALE-CLASS-HANDOFF). Launch is always manual — `/mneme:dev` carries
+  `disable-model-invocation`; the menu only hands over the ready command.
 - TWO HARD STOPS — the hypothesis fan and the spec review; continuing past either without an
   explicit user digit is a VIOLATION = ABORT.
 - OUTPUT-GRAMMAR — defined ONCE in dev's SKILL.md; fix owns only its two layer-3 templates (веер
