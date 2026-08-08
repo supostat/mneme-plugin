@@ -425,7 +425,12 @@ Every user-facing message of every mneme skill is assembled ONLY from these bloc
   properties are the DIGIT-CHOICE rules of `### BOUNDARY-CURATION` — exactly ONE option MAY carry
   «← рекомендую: <причина одной строкой>» (a bare recommendation is FORBIDDEN), the recommendation
   never shifts the default, silence = pause — and they hold for EVERY DECISION block, not just the
-  staging menu. Its RENDER properties are two, and they hold for every DECISION block anywhere:
+  staging menu. COMBINE-VISIBILITY: one option MAY combine several decisions ONLY when every
+  combined subject is shown WHOLE in the same message — a note rendered in the list above plus a
+  command named in the option makes «1 — принять заметку и выдать команду until <id>» legal (still
+  ONE DECISION, no conflict with the two-DECISION rule); a diff or commit content is never shown
+  whole, so commit decisions are NEVER combined — `### COMMIT-TURN-SPLIT` stands untouched. Its
+  RENDER properties are two, and they hold for every DECISION block anywhere:
   - DECISION-CHIPS — every option is a CHIP: `N — действие` in inline-code, so the digits read as
     a keypad and not as prose. The recommendation arrow and its reason stay PLAIN text, placed
     after the recommended option's chip — the chip is the target, the reason is commentary.
@@ -453,13 +458,22 @@ Every user-facing message of every mneme skill is assembled ONLY from these bloc
   never a prose sentence trailing a question mark.
 - A message with no choice ends after its body: resume's ORIENT-ONLY map (a suggested command is
   DATA, not a menu) is the canonical example.
-- CONTINUE-DECISION — any turn that ENDS waiting for the user while the run is NON-terminal closes
-  with a DECISION block, minimally `1 — дальше` (naming what happens next) and `2 — пауза` (the run
-  stands, a resume picks it up), with the usual reasoned recommendation. A PROSE announcement
-  («следующим туром будет X») does NOT replace it — the announcement is the REASON for the menu,
-  and X becomes the text of option 1. Terminal turns (`RUN COMPLETE` / `RUN FAILED` /
-  `RUN ESCALATED` / abandoned) carry NO CONTINUE-DECISION: the run is over, there is nothing to
-  continue. Silence still means pause. The literal form:
+- HANDOFF-DECISION — any turn that ENDS by leaving the user actionable objects CREATED in that
+  same turn (unlaunched phases, an uncurated staging queue) closes with a DECISION block whose
+  options ARE those objects. The trigger is the turn's OUTCOME, never the run's state. The
+  non-terminal run pause is a special case: its menu stays minimally `1 — дальше` (naming what
+  happens next) and `2 — пауза` (the run stands, a resume picks it up), with the usual reasoned
+  recommendation. A PROSE announcement («следующим туром будет X») — or a prose list of next
+  commands — does NOT replace the menu: the announcement is the REASON for the menu, and X
+  becomes the text of option 1. INFORMATIONAL finales are EXEMPT by the criterion «the turn
+  created nothing — it only showed», enumerated explicitly: arch and resume (orient-and-stop
+  contracts), setup and grill, and terminal turns (`RUN COMPLETE` / `RUN FAILED` /
+  `RUN ESCALATED` / abandoned) — there a suggested command is DATA, not a menu, and a finished
+  run has nothing to continue. Launch is ALWAYS manual: `/mneme:dev` carries
+  `disable-model-invocation`, so a menu option about running promises only «выдать готовую
+  команду» — on the digit the agent performs note ACCEPTANCE itself and prints the ready command
+  as a fenced block for the user to run; wording that promises the agent will launch is a
+  VIOLATION. Silence still means pause. The literal form of the run-pause case:
 
   ```
   `1 — дальше: <что произойдёт>` ← рекомендую: <причина одной строкой>
@@ -578,8 +592,10 @@ clean and coherent)
   «← рекомендую: <причина>» and the recommendation never shifts the default; the commit block is
   its OWN turn (COMMIT-TURN-SPLIT) — never in the same message as the notes question.
 - OUTPUT-GRAMMAR — `## OUTPUT-GRAMMAR` here is the SINGLE source of truth for the five-block
-  grammar of every mneme skill's output: at most one DECISION per message and nothing after it;
-  sibling skills reference it and carry only their own layer-3 templates.
+  grammar of every mneme skill's output: at most one DECISION per message and nothing after it; a
+  turn that leaves the user objects it just created closes with HANDOFF-DECISION (informational
+  finales and run terminals are exempt); sibling skills reference it and carry only their own
+  layer-3 templates.
 - The skill does NOT decide sequencing / gates / retry, does NOT run done-when commands, does NOT
   call recall / remember, does NOT encode step semantics (single-step), and does NOT create
   agent-role definitions — see `## NEVER-DELEGATE-EXECUTE-STEP` for why `execute_step` work stays in
