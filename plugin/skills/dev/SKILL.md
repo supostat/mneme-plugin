@@ -258,7 +258,39 @@ is the set of DECISION-block properties, and the render is the staging-очер�
   several per message (e.g. «1 1, 2 3, 3 4»).
 - RESOLVE per the digits via `staging_resolve` (per-note accept / reject), then REPORT:
   «принято N, отклонено M, осталось K». The human-gate is untouched — every per-note decision
-  stays the user's; only its expression is a DIGIT instead of a hand-driven tool call.
+  stays the user's; only its expression is a DIGIT instead of a hand-driven tool call. Every one
+  of these resolves carries its menu payload per `### MENU-CONTEXT` below.
+
+### MENU-CONTEXT — the deciding call carries its menu (invisible payload)
+
+Engine schema v14: `staging_resolve` and `remember` accept
+`menu {decision_class, options_n, recommended_position, chosen_position}` — the digit-menu
+context the deciding call rode on. The engine validates it fail-closed (positions ≤ options_n,
+class from the closed registry `curation | plan-fan`); a refused call writes nothing. The
+user-visible menu form does NOT change by a single character — menu is an invisible payload of
+the CALL, never an element of the render (OUTPUT-GRAMMAR untouched: vertical chips, exactly one
+reasoned «← рекомендую», silence = pause).
+
+- RULE — a property of the CALL, not a separate step: every `staging_resolve` that follows a
+  PRESENTED digit menu MUST carry the menu payload; resolve после меню без menu-поля = VIOLATION.
+- dev payloads (literal): the BATCH menu — «прими все» / «отклони все» is N resolve calls, EACH
+  carrying the IDENTICAL `{decision_class: "curation", options_n: 4, recommended_position:
+  <позиция «← рекомендую»>, chosen_position: 1|3}`; the stats reader collapses consecutive
+  identical payloads into ONE decision, so a batch never inflates agreement. PER-NOTE mode — each
+  note's resolve carries its OWN `{curation, 4, <its own recommendation position>, 1|2}`.
+- NON-EVENTS (дословно): «позже / показать целиком / дальше / молчание → вызова нет, ничего не
+  пишется». An outcome with no engine call writes nothing — never synthesize a call for coverage;
+  a call stamped for a decision that did not happen would make agreement count phantom decisions.
+- Honestly UNCOVERED menus (an admission, not an omission): SPEC-REVIEW approve, the commit menu
+  (COMMIT-TURN-SPLIT), run-pause `1 — дальше / 2 — пауза` — no engine call exists at choice time
+  and the closed class registry offers no door (engine: commit/boundary classes are a future
+  extend). Request resolutions (retag / retire / reanchor): menu НЕ передавать — v1 stamps NOTE
+  resolutions only, the engine silently drops it on requests, and passing it would fake
+  instrumentation that does not exist.
+- NEUTRALITY: agreement-цифры, coverage и menu-контекст никогда не рендерятся в тексты, где
+  вырабатывается рекомендация. An agent that knows its own agreement rate optimizes for
+  coincidence (Goodhart) and destroys the metric; the numbers live in the human-facing `stats`
+  output only.
 
 ### COMMIT-TURN-SPLIT — the commit block is its OWN turn
 
@@ -591,6 +623,10 @@ clean and coherent)
   boundary stop: notes as a numbered list, ALL decisions by digit menus, exactly one option carries
   «← рекомендую: <причина>» and the recommendation never shifts the default; the commit block is
   its OWN turn (COMMIT-TURN-SPLIT) — never in the same message as the notes question.
+- MENU-CONTEXT — filling the menu payload is a PROPERTY of the deciding call, never a separate
+  step (`### MENU-CONTEXT`): resolve после меню без menu-поля = VIOLATION; the visible menu form
+  never changes; non-events and silence write nothing; request resolutions
+  (retag / retire / reanchor) ride WITHOUT menu.
 - OUTPUT-GRAMMAR — `## OUTPUT-GRAMMAR` here is the SINGLE source of truth for the five-block
   grammar of every mneme skill's output: at most one DECISION per message and nothing after it; a
   turn that leaves the user objects it just created closes with HANDOFF-DECISION (informational

@@ -111,6 +111,18 @@ digit → a control `recall` query returns the accepted note → declare the loo
 human gate → recall works in this repository. No throwaway probe notes — the note staged is the
 real record of this setup.
 
+MENU-CONTEXT — compact replica (norm: dev's `### MENU-CONTEXT`):
+
+- RULE — a property of the CALL, not a separate step: every `staging_resolve` that follows a
+  PRESENTED digit menu MUST carry the menu payload; resolve после меню без menu-поля = VIOLATION.
+- setup payload (literal): the per-note menu above (`1 прими · 2 отклони · 3 позже`) resolves on
+  digits 1|2 with `{decision_class: "curation", options_n: 3, recommended_position: <позиция
+  «← рекомендую»>, chosen_position: 1|2}`; digit 3 «позже» is a non-event.
+- NON-EVENTS (дословно): «позже / показать целиком / дальше / молчание → вызова нет, ничего не
+  пишется» — never synthesize a call for coverage.
+- NEUTRALITY: agreement-цифры, coverage и menu-контекст никогда не рендерятся в тексты, где
+  вырабатывается рекомендация.
+
 ### Step 5: FINALE — the "what's next" map (FINALE-CLASS-INFORMATIONAL)
 
 Everything setup created was already curated by digit in Step 4 — by this finale the turn leaves

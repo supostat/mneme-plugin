@@ -153,6 +153,14 @@ built). `remember` only QUEUES the note — it does not publish and the skill ne
 acceptance. The queue is then curated BY DIGIT through the finale's HANDOFF-DECISION menu (the
 curation contract in Output format) — NEVER by telling the user to operate MCP tools.
 
+This remember is the plan-fan door of MENU-CONTEXT — the ONE point where the menu payload rides
+`remember` instead of `staging_resolve`: it carries
+`menu {decision_class: "plan-fan", options_n: <ФАКТИЧЕСКИЙ размер веера (2-3)>,
+recommended_position: <позиция реальной пометки «← рекомендую» в веере — НЕ привычная 1>,
+chosen_position: <цифра пользователя на OPTION-FAN-HARD-STOP>}`. The skill MUST carry the user's
+Step 4 digit (and the fan's size and recommended position) through BOTH hard stops to this call —
+losing it and stamping a guess is worse than stamping nothing.
+
 plan's artifact ends at the spec on disk, the migrated phase files, the map with its closing menu,
 and the staged decision note. Launch is ALWAYS manual: `/mneme:dev` carries
 `disable-model-invocation` — the agent cannot invoke it even on an explicit digit, so a menu digit
@@ -301,9 +309,24 @@ plan does not move without a digit)
 - Per-note mode and the mandatory full-body branch live in dev's `### BOUNDARY-CURATION`; this
   replica defers to it for details.
 
+MENU-CONTEXT — compact replica (norm: dev's `### MENU-CONTEXT`):
+
+- RULE — a property of the CALL, not a separate step: every `staging_resolve` that follows a
+  PRESENTED digit menu MUST carry the menu payload; resolve после меню без menu-поля = VIOLATION.
+- plan's finale payload (literal): the note resolve after the finale menu carries
+  `{decision_class: "curation", options_n: 3, recommended_position: <позиция «← рекомендую»>,
+  chosen_position: <фактическая цифра>}`. Combined options (COMBINE-VISIBILITY) change NOTHING:
+  menu describes the PRESENTED menu, not the actions — the resolve is the only engine call of the
+  option; the handed-over command has no call and never enters menu.
+- NON-EVENTS (дословно): «позже / показать целиком / дальше / молчание → вызова нет, ничего не
+  пишется» — never synthesize a call for coverage.
+- NEUTRALITY: agreement-цифры, coverage и menu-контекст никогда не рендерятся в тексты, где
+  вырабатывается рекомендация.
+
 ### The choice decision note (Step 8)
 
-Staged via `remember(type: "decision", body, anchors)`:
+Staged via `remember(type: "decision", body, anchors, menu)` — `menu` is the plan-fan payload
+defined in Step 8:
 - **body** — the fork distilled: the CHOSEN option, the REJECTED options each with compressed
   trade-offs, and WHY the choice won. This is the ADR moment from the fan, compressed into one note.
 - **anchors** — the affected files, and they MUST be repo-relative AND git-tracked (an untracked

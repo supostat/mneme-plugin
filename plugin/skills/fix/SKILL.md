@@ -220,6 +220,20 @@ the queued diagnosis shown WHOLE as a numbered list + the closing digit menu
   the user's digit; every per-note decision stays the human's. Details: dev's
   `### BOUNDARY-CURATION`.
 
+MENU-CONTEXT — compact replica (norm: dev's `### MENU-CONTEXT`):
+
+- RULE — a property of the CALL, not a separate step: every `staging_resolve` that follows a
+  PRESENTED digit menu MUST carry the menu payload; resolve после меню без menu-поля = VIOLATION.
+- fix payloads (literal): the happy-path terminal menu `1 — выдать команду / 2 — пауза` resolves
+  NO notes — there is no engine call and no menu to stamp. The NOREPRO branch's diagnosis menu
+  (`1 — принять диагноз` / `2 — отклонить` / `3 — позже`) resolves on digits 1|2 with
+  `{decision_class: "curation", options_n: 3, recommended_position: <позиция «← рекомендую»>,
+  chosen_position: 1|2}`; digit 3 «позже» is a non-event.
+- NON-EVENTS (дословно): «позже / показать целиком / дальше / молчание → вызова нет, ничего не
+  пишется» — never synthesize a call for coverage.
+- NEUTRALITY: agreement-цифры, coverage и menu-контекст никогда не рендерятся в тексты, где
+  вырабатывается рекомендация.
+
 ## Rules
 
 - FIX-REPRO-FIRST — reproduction (ideally a red minimal test) precedes hypotheses; hypotheses

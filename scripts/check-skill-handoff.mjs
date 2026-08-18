@@ -15,7 +15,15 @@
 //   (d) the curation-contract anchor lines (batch menu labels, the never-tell-the-user rule)
 //       are present in all three replicas (dev, plan, fix) — the diverged-replica detector;
 //   (e) dev carries no stale CONTINUE-DECISION marker (the negation a shell-less gate-runner
-//       cannot express).
+//       cannot express);
+//   (f) every skill granting staging_resolve in frontmatter (plus dev, the norm's home) carries
+//       the MENU-CONTEXT block, and its anchor lines (the VIOLATION formula, the verbatim
+//       non-events line, the neutrality line) have not diverged — whitespace-normalized compare,
+//       the (d) pattern;
+//   (g) negation guards, the (e) pattern: a replica must not weaken the norm — «menu
+//       опционален»/«menu optional» in a skill that resolves staging, a «без menu-поля» not
+//       followed by «= VIOLATION», or a menu-and-retag/retire/reanchor paragraph without the
+//       explicit prohibition (v1 stamps note resolutions only) all FAIL.
 //
 // Dev tooling: lives at the repo ROOT, never inside plugin/ (same rule as the other check-*).
 //
@@ -84,6 +92,53 @@ if (skillText('dev').includes('CONTINUE-DECISION')) {
   failures.push('dev: stale CONTINUE-DECISION marker survives — the norm was renamed to HANDOFF-DECISION');
 }
 
+// (f) + (g) MENU-CONTEXT: the deciding call carries its menu — replicas aligned, norm not weakened
+const normalize = (text) => text.replace(/\s+/g, ' ');
+const MENU_ANCHORS = [
+  'resolve после меню без menu-поля = VIOLATION',
+  '«позже / показать целиком / дальше / молчание → вызова нет, ничего не пишется»',
+  'agreement-цифры, coverage и menu-контекст никогда не рендерятся в тексты, где вырабатывается рекомендация',
+];
+const menuReplicas = new Set(['dev']); // dev is the norm's home even without a frontmatter grant
+for (const name of ALL_SKILLS) {
+  const text = skillText(name);
+  const frontmatterEnd = text.indexOf('---', 3);
+  const frontmatter = text.slice(0, frontmatterEnd === -1 ? 0 : frontmatterEnd);
+  if (frontmatter.includes('staging_resolve')) menuReplicas.add(name);
+}
+
+for (const name of menuReplicas) {
+  const text = skillText(name);
+  const flat = normalize(text);
+  // (f) block present, anchor lines byte-identical after whitespace normalization
+  if (!text.includes('MENU-CONTEXT')) {
+    failures.push(`${name}: resolves staging but carries no MENU-CONTEXT block — the deciding call would ride unstamped`);
+    continue;
+  }
+  for (const anchor of MENU_ANCHORS) {
+    if (!flat.includes(anchor)) failures.push(`${name}: MENU-CONTEXT anchor «${anchor}» missing — replicas diverged`);
+  }
+  // (g1) no replica may declare the payload skippable
+  if (/menu\s+(опционален|optional)/i.test(flat)) {
+    failures.push(`${name}: declares menu «опционален/optional» — a replica must not weaken the norm`);
+  }
+  // (g2) every «без menu-поля» must carry its verdict — a clarified-away VIOLATION is a hole
+  for (const tail of flat.split('без menu-поля').slice(1)) {
+    if (!tail.startsWith(' = VIOLATION')) {
+      failures.push(`${name}: «без menu-поля» appears without «= VIOLATION» — the rule got softened`);
+    }
+  }
+  // (g3) menu next to request resolutions only with the explicit prohibition (v1: notes only)
+  for (const paragraph of text.split(/\n\s*\n/)) {
+    const flatParagraph = normalize(paragraph);
+    if (!/\bmenu\b/i.test(flatParagraph)) continue;
+    if (!/\b(retag|retire|reanchor)\b/i.test(flatParagraph)) continue;
+    if (!/(НЕ передавать|не передавать|WITHOUT menu|never)/i.test(flatParagraph)) {
+      failures.push(`${name}: a paragraph pairs menu with retag/retire/reanchor without the prohibition — v1 stamps note resolutions only`);
+    }
+  }
+}
+
 if (failures.length > 0) {
   console.error('Handoff-finale sync check FAILED:');
   for (const failure of failures) console.error(`  - ${failure}`);
@@ -91,5 +146,5 @@ if (failures.length > 0) {
 }
 
 console.log(
-  'Handoff-finale sync check passed: finale classes declared, handoff menus in place, staging grants curated, contract replicas aligned, no stale markers.',
+  'Handoff-finale sync check passed: finale classes declared, handoff menus in place, staging grants curated, contract replicas aligned, no stale markers, MENU-CONTEXT replicas aligned and unweakened.',
 );
