@@ -253,6 +253,13 @@ and the wire phase's boundary is declared the human-acceptance point. Removing a
 phase is the USER's move at the Step 6 review — that review IS the opt-out; no separate mechanism
 exists. Specs with 0-1 code phases are untouched by this rule.
 
+**ETALON-ACCEPTANCE-RULE — the etalon-implementation generator's rule:** a spec whose task is
+"реализовать по эталону <design/pages/<slug>/…>" automatically carries the acceptance checklist
+in its Knowledge — the implementation is accepted by comparing AGAINST the etalon folder:
+section structure, the full state set, the accent-dosage rule, and the measurement units. The
+GENERATOR holds this rule, not the author (the TYPECHECK-CRITERION-RULE precedent); it is a
+HUMAN acceptance procedure, never disguised as an agent-judged criterion.
+
 **REAL-DEP-SMOKE-RULE — honest dep edges:** in a multi-phase Gameplan every dep edge must declare
 what it carries. An edge that carries CODE CONSUMPTION ("phase B uses X from phase A") gives the
 CONSUMER phase an ADDITIONAL executable done-when criterion that exercises the REAL X — importing

@@ -25,14 +25,25 @@
 // Intentional exceptions: design/system/lint-intentional.json — [{value, reason, files?}] —
 // curated ONLY on the user's explicit word (the design skill's rule).
 //
+// Pinned stdin contract of --hook mode: hook_event_name ("PostToolUse" | "Stop"),
+// tool_input.file_path (PostToolUse), cwd, and session_id — the key of the advice dedup store
+// <os.tmpdir()>/mneme-design-lint-<session_id>.json (PostToolUse records shown finding keys,
+// Stop subtracts them so the deep pass never repeats what per-edit passes already said).
+// A missing or unusable session_id simply disables dedup — advice repeats, nothing breaks.
+//
 // The raw-value heuristics come from design-rules.mjs — the SAME module the fixation checker
 // uses, so the two layers cannot disagree by construction.
 
-import { existsSync, readFileSync, readdirSync } from 'node:fs';
+import { existsSync, readFileSync, readdirSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
 import { basename, join, relative, resolve, sep } from 'node:path';
-import { collectStyleContexts, scanRawValues, parseTokens, parseFontFaces, GENERIC_FAMILIES, findDuplicateTokens } from './design-rules.mjs';
+import { collectStyleContexts, scanRawValues, parseTokens, parseFontFaces, GENERIC_FAMILIES, findDuplicateTokens, parseColor, colorsMatch } from './design-rules.mjs';
 
-const EM_DASH_LIMIT = 2;
+// Em-dash saturation (the impeccable calibration): humans use em dashes legitimately, so the
+// finding fires only on the AI saturation pattern — at least 8 dashes AND a density of one per
+// 500 visible characters or tighter — never on a long text that uses a few.
+const EM_DASH_MIN_COUNT = 8;
+const EM_DASH_MAX_CHARS_PER_DASH = 500;
 
 function lineOf(content, needle) {
   const index = needle === undefined ? -1 : content.indexOf(needle);
@@ -92,13 +103,20 @@ function familyCandidates(declaration) {
     .filter((part) => part.length > 0 && !part.startsWith('var('));
 }
 
+// A finding is {key, text}: `text` is the rendered advice line, `key` is the dedup identity —
+// name + file + normalized essence, NEVER the line number (lines jitter across edits).
+function makeFinding(name, filePath, essence, text) {
+  return { key: `${name}|${filePath}|${essence}`, text };
+}
+
 function lintHtml(filePath, content, truth, findings) {
   for (const finding of scanRawValues(collectStyleContexts(content))) {
     if (isIntentional(truth, filePath, finding.declaration)) continue;
     const explanation = finding.name === 'RAW-HEX'
       ? 'raw hex color in a style context — colors come from tokens.css via var(--…)'
       : 'raw px literal with no var(--…) in the declaration — sizes come from tokens.css';
-    findings.push(`${finding.name} ${filePath}:${lineOf(content, finding.declaration)} («${finding.declaration}») — ${explanation}`);
+    findings.push(makeFinding(finding.name, filePath, finding.declaration,
+      `${finding.name} ${filePath}:${lineOf(content, finding.declaration)} («${finding.declaration}») — ${explanation}`));
   }
   for (const context of collectStyleContexts(content)) {
     for (const declaration of context.split(/[;{}\n]/)) {
@@ -106,7 +124,8 @@ function lintHtml(filePath, content, truth, findings) {
       for (const family of familyCandidates(declaration)) {
         if (GENERIC_FAMILIES.has(family) || truth.families.has(family)) continue;
         if (isIntentional(truth, filePath, family)) continue;
-        findings.push(`SECOND-FAMILY ${filePath}:${lineOf(content, declaration.trim())} — font family "${family}" is outside the system (fonts.css @font-face + generic fallbacks); one system, one voice`);
+        findings.push(makeFinding('SECOND-FAMILY', filePath, family,
+          `SECOND-FAMILY ${filePath}:${lineOf(content, declaration.trim())} — font family "${family}" is outside the system (fonts.css @font-face + generic fallbacks); one system, one voice`));
       }
     }
   }
@@ -116,8 +135,9 @@ function lintHtml(filePath, content, truth, findings) {
     .replace(/<script[\s\S]*?<\/script>/g, '')
     .replace(/<[^>]*>/g, '');
   const emDashes = (visible.match(/—/g) || []).length;
-  if (emDashes > EM_DASH_LIMIT) {
-    findings.push(`EM-DASH-OVERUSE ${filePath}:1 — ${emDashes} em dashes in visible text (limit ${EM_DASH_LIMIT} per file); vary the punctuation`);
+  if (emDashes >= EM_DASH_MIN_COUNT && visible.length / emDashes <= EM_DASH_MAX_CHARS_PER_DASH) {
+    findings.push(makeFinding('EM-DASH-OVERUSE', filePath, 'saturation',
+      `EM-DASH-OVERUSE ${filePath}:1 — ${emDashes} em dashes in ~${visible.length} visible characters (≈1 per ${Math.round(visible.length / emDashes)}; saturation threshold: ${EM_DASH_MIN_COUNT}+ at 1 per ${EM_DASH_MAX_CHARS_PER_DASH} or tighter) — advisory: this cadence reads as AI slop; vary the punctuation`));
   }
 }
 
@@ -125,22 +145,31 @@ function lintAppCss(filePath, content, truth, findings) {
   for (const declaration of content.split(/[;{}\n]/)) {
     for (const color of declaration.matchAll(/#[0-9a-fA-F]{3,8}\b|rgba?\([^)]*\)|hsla?\([^)]*\)/g)) {
       const normalized = color[0].replace(/\s+/g, '').toLowerCase();
-      if (truth.tokens.colors.has(normalized)) continue;
+      // Channel-tolerant palette match (±6 per channel); an unparseable literal falls back to
+      // the exact normalized-string comparison — honest, never a guess.
+      const parsed = parseColor(color[0]);
+      const inPalette = parsed !== null
+        ? truth.tokens.parsedColors.some((paletteColor) => colorsMatch(paletteColor, parsed))
+        : truth.tokens.colors.has(normalized);
+      if (inPalette) continue;
       if (isIntentional(truth, filePath, color[0]) || isIntentional(truth, filePath, normalized)) continue;
-      findings.push(`FOREIGN-COLOR ${filePath}:${lineOf(content, color[0])} — ${color[0]} is neither in the tokens.css palette nor in lint-intentional.json; a fidelity skin may only use system colors or deliberate exceptions`);
+      findings.push(makeFinding('FOREIGN-COLOR', filePath, normalized,
+        `FOREIGN-COLOR ${filePath}:${lineOf(content, color[0])} — ${color[0]} is neither in the tokens.css palette (±6 per channel) nor in lint-intentional.json; a fidelity skin may only use system colors or deliberate exceptions`));
     }
     const fontSize = declaration.match(/font-size\s*:\s*([^;{}\n]+)/);
     if (fontSize !== null && !fontSize[1].includes('var(--')) {
       const value = fontSize[1].trim().toLowerCase();
       if (!truth.tokens.fontSizes.has(value) && !isIntentional(truth, filePath, value)) {
-        findings.push(`FOREIGN-FONT-SIZE ${filePath}:${lineOf(content, fontSize[0])} — ${value} is outside the tokens.css scale and not an intentional exception`);
+        findings.push(makeFinding('FOREIGN-FONT-SIZE', filePath, value,
+          `FOREIGN-FONT-SIZE ${filePath}:${lineOf(content, fontSize[0])} — ${value} is outside the tokens.css scale and not an intentional exception`));
       }
     }
     if (/font(-family)?\s*:/.test(declaration)) {
       for (const family of familyCandidates(declaration)) {
         if (GENERIC_FAMILIES.has(family) || truth.families.has(family)) continue;
         if (isIntentional(truth, filePath, family)) continue;
-        findings.push(`FOREIGN-FONT-FAMILY ${filePath}:${lineOf(content, declaration.trim())} — font family "${family}" is neither declared in fonts.css nor an intentional exception`);
+        findings.push(makeFinding('FOREIGN-FONT-FAMILY', filePath, family,
+          `FOREIGN-FONT-FAMILY ${filePath}:${lineOf(content, declaration.trim())} — font family "${family}" is neither declared in fonts.css nor an intentional exception`));
       }
     }
   }
@@ -152,7 +181,8 @@ function lintFile(filePath, truth, findings) {
   const name = basename(filePath);
   if (name === 'tokens.css') {
     for (const duplicate of findDuplicateTokens(content)) {
-      findings.push(`DUPLICATE-TOKEN ${filePath}:${lineOf(content, duplicate)} — custom property ${duplicate} is declared more than once; one token, one truth`);
+      findings.push(makeFinding('DUPLICATE-TOKEN', filePath, duplicate,
+        `DUPLICATE-TOKEN ${filePath}:${lineOf(content, duplicate)} — custom property ${duplicate} is declared more than once; one token, one truth`));
     }
     return;
   }
@@ -202,6 +232,31 @@ function relativize(lines) {
   return lines.map((line) => line.replaceAll(process.cwd() + sep, ''));
 }
 
+// ---------- the session dedup store (advice shown once per session) ----------
+
+function seenStorePath(sessionId) {
+  // The id comes from untrusted stdin: only a plain token may become a file name.
+  if (typeof sessionId !== 'string' || !/^[A-Za-z0-9_-]{1,128}$/.test(sessionId)) return null;
+  return join(tmpdir(), `mneme-design-lint-${sessionId}.json`);
+}
+
+function readSeen(storePath) {
+  try {
+    const parsed = JSON.parse(readFileSync(storePath, 'utf8'));
+    return new Set(Array.isArray(parsed) ? parsed.filter((key) => typeof key === 'string') : []);
+  } catch {
+    return new Set();
+  }
+}
+
+function writeSeen(storePath, keys) {
+  try {
+    writeFileSync(storePath, JSON.stringify([...keys]));
+  } catch {
+    // Best-effort: a failed write only means the advice may repeat later.
+  }
+}
+
 // ---------- entry ----------
 
 const argument = process.argv[2];
@@ -220,6 +275,7 @@ if (argument === '--hook') {
     process.exit(0);
   }
   const eventName = event?.hook_event_name;
+  const storePath = seenStorePath(event?.session_id);
   let findings = [];
   if (eventName === 'PostToolUse') {
     const filePath = event?.tool_input?.file_path;
@@ -234,13 +290,25 @@ if (argument === '--hook') {
   } else {
     process.exit(0);
   }
-  if (findings.length > 0) {
+  // Session dedup: the Stop deep pass subtracts what per-edit passes already said; every shown
+  // finding is recorded. No usable session_id → dedup off, advice may repeat (never breaks).
+  let toShow = findings;
+  if (storePath !== null && eventName === 'Stop') {
+    const seen = readSeen(storePath);
+    toShow = findings.filter((finding) => !seen.has(finding.key));
+  }
+  if (toShow.length > 0) {
     console.log(JSON.stringify({
       hookSpecificOutput: {
         hookEventName: eventName,
-        additionalContext: `design-lint (advisory, layer 3 of the design discipline):\n${relativize(findings).join('\n')}`,
+        additionalContext: `design-lint (advisory, layer 3 of the design discipline):\n${relativize(toShow.map((finding) => finding.text)).join('\n')}`,
       },
     }));
+    if (storePath !== null) {
+      const seen = readSeen(storePath);
+      for (const finding of toShow) seen.add(finding.key);
+      writeSeen(storePath, seen);
+    }
   }
   process.exit(0);
 }
@@ -252,7 +320,7 @@ if (argument === '--all') {
   for (const line of relativize(stale)) console.error(`design-lint: ${line}`);
   if (findings.length > 0) {
     console.error('design-lint FAILED:');
-    for (const line of relativize(findings)) console.error(`  - ${line}`);
+    for (const line of relativize(findings.map((finding) => finding.text))) console.error(`  - ${line}`);
     process.exit(1);
   }
   console.log('design-lint: design/ is clean.');
@@ -271,7 +339,7 @@ const findings = [];
 lintFile(argument, truth, findings);
 if (findings.length > 0) {
   console.error(`design-lint: ${argument} FAILED:`);
-  for (const line of relativize(findings)) console.error(`  - ${line}`);
+  for (const line of relativize(findings.map((finding) => finding.text))) console.error(`  - ${line}`);
   process.exit(1);
 }
 console.log(`design-lint: ${argument} is clean.`);

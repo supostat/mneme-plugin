@@ -11,7 +11,7 @@
 //
 // Usage: node scripts/check-design-lint.mjs   (also runs as part of npm test)
 
-import { mkdtempSync, mkdirSync, writeFileSync, rmSync } from 'node:fs';
+import { mkdtempSync, mkdirSync, writeFileSync, rmSync, existsSync, symlinkSync, readFileSync } from 'node:fs';
 import { spawnSync } from 'node:child_process';
 import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
@@ -26,6 +26,7 @@ const failures = [];
 const TOKENS = `:root {
   --bg: #101210;
   --paper: #e8e6df;
+  --amber: #d9a441;
   --accent: rgba(217, 164, 65, 0.9);
   --fs-body: 0.95rem;
   --fs-lead: 2.2rem;
@@ -126,8 +127,22 @@ withProject({ etalon: GOOD_ETALON.replace('var(--paper)', '#123456') }, (root) =
 withProject({ etalon: GOOD_ETALON.replace('"Plex Custom", monospace', '"Alien Grotesk"') }, (root) => {
   expectFinding('second-family', runLint([join(root, 'design', 'pages', 'page', 'page.html')]), 'SECOND-FAMILY');
 });
-withProject({ etalon: GOOD_ETALON.replace('One dash — fine.', 'A — B — C — D.') }, (root) => {
-  expectFinding('em-dash', runLint([join(root, 'design', 'pages', 'page', 'page.html')]), 'EM-DASH-OVERUSE');
+// --- em-dash saturation (the impeccable calibration): fires on >=8 dashes at <=500 chars/dash ---
+function dashedBody(dashes, totalChars) {
+  const sentence = 'Numbers stay honest — every figure below is reproducible. ';
+  let text = sentence.repeat(dashes);
+  const filler = 'Plain filler prose keeps the paragraph going with ordinary punctuation. ';
+  while (text.length < totalChars) text += filler;
+  return text.slice(0, Math.max(totalChars, text.length - filler.length));
+}
+withProject({ etalon: GOOD_ETALON.replace('One dash — fine.', dashedBody(14, 4300)) }, (root) => {
+  expectFinding('em-dash-saturated', runLint([join(root, 'design', 'pages', 'page', 'page.html')]), 'EM-DASH-OVERUSE');
+});
+withProject({ etalon: GOOD_ETALON.replace('One dash — fine.', dashedBody(3, 5000)) }, (root) => {
+  expectClean('em-dash-few', runLint([join(root, 'design', 'pages', 'page', 'page.html')]));
+});
+withProject({ etalon: GOOD_ETALON.replace('One dash — fine.', dashedBody(9, 10000)) }, (root) => {
+  expectClean('em-dash-low-density', runLint([join(root, 'design', 'pages', 'page', 'page.html')]));
 });
 
 // --- tokens.css: duplicate custom property ---
@@ -195,6 +210,84 @@ withProject({ appCss: '.hero { color: #ff00aa; }\n' }, (root) => {
 {
   const broken = runLint(['--hook'], { input: '{not json' });
   expectClean('hook-broken-stdin', broken);
+}
+
+// --- color tolerance: formatting noise and sub-perceptual drift pass, real drift is caught ---
+withProject({ appCss: '.hero { color: rgba(217,164,65,.90); }\n' }, (root) => {
+  expectClean('tolerance-format-noise', runLint([join(root, 'design', 'system', 'app.css')]));
+});
+withProject({ appCss: '.hero { color: #dba746; }\n' }, (root) => {
+  // The palette's --amber #d9a441 shifted by (+2,+3,+5) — inside the ±6 channel tolerance.
+  expectClean('tolerance-near-channel', runLint([join(root, 'design', 'system', 'app.css')]));
+});
+withProject({ appCss: '.hero { color: rgba(190,164,65,0.9); }\n' }, (root) => {
+  expectFinding('tolerance-far-channel', runLint([join(root, 'design', 'system', 'app.css')]), 'FOREIGN-COLOR');
+});
+
+// --- session dedup: Stop subtracts what PostToolUse already said; no session_id → no dedup ---
+withProject({ appCss: '.hero { color: #ff00aa; }\n' }, (root) => {
+  const sessionId = `check-dedup-${process.pid}`;
+  const storeFile = join(tmpdir(), `mneme-design-lint-${sessionId}.json`);
+  try {
+    const post = runLint(['--hook'], { input: JSON.stringify({ hook_event_name: 'PostToolUse', session_id: sessionId, tool_input: { file_path: join(root, 'design', 'system', 'app.css') }, cwd: root }) });
+    expectClean('dedup-post-exit', post);
+    if (!post.stdout.includes('FOREIGN-COLOR')) {
+      failures.push(`dedup-post: the per-edit pass must show the finding first (got: ${post.stdout.trim().slice(0, 120)})`);
+    }
+    const stop = runLint(['--hook'], { input: JSON.stringify({ hook_event_name: 'Stop', session_id: sessionId, cwd: root }) });
+    expectClean('dedup-stop-exit', stop);
+    if (stop.stdout.trim() !== '') {
+      failures.push(`dedup-stop: the deep pass must not repeat an already-shown finding (got: ${stop.stdout.trim().slice(0, 160)})`);
+    }
+  } finally {
+    rmSync(storeFile, { force: true });
+  }
+});
+withProject({ appCss: '.hero { color: #ff00aa; }\n' }, (root) => {
+  const post = runLint(['--hook'], { input: JSON.stringify({ hook_event_name: 'PostToolUse', tool_input: { file_path: join(root, 'design', 'system', 'app.css') }, cwd: root }) });
+  expectClean('nodedup-post-exit', post);
+  const stop = runLint(['--hook'], { input: JSON.stringify({ hook_event_name: 'Stop', cwd: root }) });
+  expectClean('nodedup-stop-exit', stop);
+  if (!stop.stdout.includes('FOREIGN-COLOR')) {
+    failures.push('nodedup-stop: without a session_id dedup is honestly OFF — the deep pass must repeat the finding');
+  }
+});
+
+// --- node guard: the REAL hooks.json command under sh, with and without node on PATH ---
+{
+  const hooksJson = JSON.parse(readFileSync(resolve(scriptsDir, '..', 'plugin', 'hooks', 'hooks.json'), 'utf8'));
+  const guardCommand = hooksJson.hooks.PostToolUse[0].hooks[0].command;
+  const pluginRoot = resolve(scriptsDir, '..', 'plugin');
+  const guardBin = mkdtempSync(join(tmpdir(), 'design-lint-guardbin-'));
+  const guardHome = mkdtempSync(join(tmpdir(), 'design-lint-guardhome-'));
+  try {
+    // A PATH with the shell utilities the guard needs but NO node.
+    symlinkSync('/bin/mkdir', join(guardBin, 'mkdir'));
+    const runGuard = (env) => spawnSync('/bin/sh', ['-c', guardCommand], {
+      encoding: 'utf8',
+      input: '{}',
+      env: { PATH: env.PATH, HOME: guardHome, CLAUDE_PLUGIN_ROOT: pluginRoot },
+    });
+    const first = runGuard({ PATH: guardBin });
+    if (first.status !== 0) failures.push(`guard-first: must exit 0 without node, got ${first.status}`);
+    if (!first.stdout.includes('systemMessage')) {
+      failures.push(`guard-first: the one-time systemMessage must be printed when node is missing (got: ${first.stdout.trim().slice(0, 120)})`);
+    }
+    if (!existsSync(join(guardHome, '.mneme', 'design-lint-no-node'))) {
+      failures.push('guard-first: the marker file must be created under $HOME/.mneme');
+    }
+    const second = runGuard({ PATH: guardBin });
+    if (second.status !== 0 || second.stdout.trim() !== '') {
+      failures.push(`guard-second: with the marker present the guard must stay silent (exit ${second.status}, out: ${second.stdout.trim().slice(0, 120)})`);
+    }
+    const withNode = runGuard({ PATH: process.env.PATH });
+    if (withNode.status !== 0) {
+      failures.push(`guard-with-node: with node on PATH the lint must run and exit 0 (got ${withNode.status}: ${withNode.stderr.trim().slice(0, 160)})`);
+    }
+  } finally {
+    rmSync(guardBin, { recursive: true, force: true });
+    rmSync(guardHome, { recursive: true, force: true });
+  }
 }
 
 if (failures.length > 0) {

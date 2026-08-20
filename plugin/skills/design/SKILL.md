@@ -104,7 +104,17 @@ external dependencies). The etalon declares its fixtures and states in a machine
 EMPTY-LIBRARY: an absent or empty `design/system/` is initialized HERE with a minimal scaffold
 (tokens.css with a base scale, an empty components.html, DESIGN.md with the mandatory
 anti-patterns-and-rules section) — announced EXPLICITLY in the turn. This is initialization of an
-empty layer, NOT bootstrap-extraction from existing pages (that is out of scope).
+empty layer, NOT bootstrap-extraction from existing pages (that is out of scope). The scaffold
+DESIGN.md's anti-patterns section SEEDS fifteen one-liners (data for humans and review — no
+detector exists for them; each written as "name — why", own wording): nested-cards (a card
+inside a card reads as chrome, not content), gradient-text (decorates the words instead of the
+message), ai-color-palette (purple-teal-on-dark reads as generated), pulsing-dot (fake
+liveness), marketing-buzzword (streamline/empower say nothing literal), low-contrast (style
+that costs readability), tight-leading (dense lines exhaust the eye), justified-text (rivers of
+whitespace on the web), all-caps-body (shouting body copy), oversized-h1 (a heading that crowds
+out the content), dark-glow (halo effects around panels), marquee (motion that steals attention
+from reading), icon-tile-stack (rows of icon tiles as filler), cream-palette (the safe beige
+default of generated pages), flat-type-hierarchy (every line the same weight — nothing leads).
 
 END THE TURN; the user reviews the detailed etalon (open the file, flip fixtures) and confirms or
 iterates (replace/branch).
@@ -222,6 +232,11 @@ governs structure only. Etalon annotations follow the target project's language 
 - PAGE = FOLDER, INDEX AT FIXATION — every page lives in `design/pages/<slug>/` (etalon + its
   drafts; the slug `index` is reserved); fixation updates `design/pages/index.html` (PAGES-INDEX)
   and the checker's NO-INDEX-LINK error turns a forgotten link into a red fixation.
+- ETALON-ACCEPTANCE — an implementation built from an etalon is accepted by a CHECKLIST compared
+  AGAINST `design/pages/<slug>/`: section structure, the full state set, the accent-dosage rule,
+  and the measurement units all match the etalon. This closes the etalon↔implementation parity
+  gap by PROCEDURE (a human checklist at acceptance), not by a machine or an agent; the plan
+  skill's generator plants the same checklist into implement-by-etalon specs.
 - LINT-LAYERS — the design discipline has THREE machine layers, catching different failures:
   (1) the skill's fixation checklist (agent-run), (2) check-design-etalon.mjs — the BLOCKING
   fixation gate, (3) design-lint (the plugin's PostToolUse/Stop hook) — the ADVISORY drift
