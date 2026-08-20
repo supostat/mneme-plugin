@@ -222,6 +222,12 @@ governs structure only. Etalon annotations follow the target project's language 
 - PAGE = FOLDER, INDEX AT FIXATION — every page lives in `design/pages/<slug>/` (etalon + its
   drafts; the slug `index` is reserved); fixation updates `design/pages/index.html` (PAGES-INDEX)
   and the checker's NO-INDEX-LINK error turns a forgotten link into a red fixation.
+- LINT-LAYERS — the design discipline has THREE machine layers, catching different failures:
+  (1) the skill's fixation checklist (agent-run), (2) check-design-etalon.mjs — the BLOCKING
+  fixation gate, (3) design-lint (the plugin's PostToolUse/Stop hook) — the ADVISORY drift
+  watcher BETWEEN fixations; it never blocks and never replaces the gate. Its exceptions file
+  `design/system/lint-intentional.json` is curated ONLY on the user's explicit word — the agent
+  NEVER adds an entry on its own to silence a finding.
 - EMPTY-LIBRARY — an absent shared layer is initialized with the minimal scaffold at stage 3,
   announced explicitly; bootstrap-extraction stays out of scope.
 - PATTERN PROMOTION BY CONFIRMATION — 2-3 repetitions make a candidate; the user's digit promotes

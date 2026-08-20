@@ -11,6 +11,31 @@
           }
         ]
       }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "Edit|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node ${CLAUDE_PLUGIN_ROOT}/scripts/design-lint.mjs --hook",
+            "timeout": 5,
+            "statusMessage": "design-lint: checking the edited design file"
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node ${CLAUDE_PLUGIN_ROOT}/scripts/design-lint.mjs --hook",
+            "timeout": 15,
+            "statusMessage": "design-lint: sweeping design/ for drift"
+          }
+        ]
+      }
     ]
   }
 }

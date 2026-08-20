@@ -28,6 +28,7 @@
 
 import { existsSync, readFileSync } from 'node:fs';
 import { basename, dirname, join } from 'node:path';
+import { collectStyleContexts, scanRawValues } from './design-rules.mjs';
 
 const etalonPath = process.argv[2];
 if (etalonPath === undefined) {
@@ -93,21 +94,13 @@ if (states === null) {
   }
 }
 
-// (3) values bypassing tokens.css inside style context: <style> blocks + style="…" attributes
-const styleContexts = [];
-for (const match of html.matchAll(/<style[^>]*>([\s\S]*?)<\/style>/g)) styleContexts.push(match[1]);
-for (const match of html.matchAll(/style="([^"]*)"/g)) styleContexts.push(match[1]);
-
-for (const context of styleContexts) {
-  // Split into DECLARATIONS, not lines: `padding: 16px; color: var(--x)` on one line must still
-  // flag the px — a neighboring token on the same line must not mask a raw value.
-  for (const declaration of context.split(/[;{}\n]/)) {
-    if (/#[0-9a-fA-F]{3,8}\b/.test(declaration)) {
-      failures.push(`RAW-HEX: raw hex color in style context («${declaration.trim().slice(0, 60)}») — colors come from tokens.css via var(--…)`);
-    }
-    if (/\b\d+px\b/.test(declaration) && !declaration.includes('var(--')) {
-      failures.push(`RAW-PX: raw px literal without var(--…) in the declaration («${declaration.trim().slice(0, 60)}») — sizes come from tokens.css`);
-    }
+// (3) values bypassing tokens.css inside style contexts — the shared heuristic from
+// design-rules.mjs (single source for the checker AND design-lint; declaration-granular).
+for (const finding of scanRawValues(collectStyleContexts(html))) {
+  if (finding.name === 'RAW-HEX') {
+    failures.push(`RAW-HEX: raw hex color in style context («${finding.declaration}») — colors come from tokens.css via var(--…)`);
+  } else {
+    failures.push(`RAW-PX: raw px literal without var(--…) in the declaration («${finding.declaration}») — sizes come from tokens.css`);
   }
 }
 
