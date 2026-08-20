@@ -12,7 +12,7 @@ design gate is HUMAN, at the skill level (the two-hard-stop precedent of `/mneme
 engine and the mneme MCP tools are untouched. Its place in the pipeline:
 
 задача/спека → `/mneme:design` (эталоны) → `/mneme:plan` «реализовать страницу по эталону
-`design/pages/<slug>.html`» → migrate → `/mneme:dev`.
+`design/pages/<slug>/<slug>.html`» → migrate → `/mneme:dev`.
 
 design NEVER launches plan — the finale hands over the READY phrase as a fenced block (the grill
 precedent); running it is the user's move.
@@ -29,8 +29,12 @@ No argument → ask for the task in one line (numbered prompt). Never invent a t
 
 ## Artifacts — in the TARGET project's repo, never in the corpus
 
-- **Etalons** `design/pages/<slug>.html` — ONE file per page: all states and fixtures INSIDE,
-  deliberate decisions annotated (HTML comments / data-attributes).
+- **A page is a FOLDER** `design/pages/<slug>/` — the etalon `design/pages/<slug>/<slug>.html`
+  (ONE file per page: all states and fixtures INSIDE, deliberate decisions annotated via HTML
+  comments / data-attributes) plus THAT page's composition drafts (`<slug>-draft-*.html`) and
+  future iterations. The slug `index` is RESERVED for the pages index and FORBIDDEN as a page.
+- **Pages index** `design/pages/index.html` — links to every page folder; maintained at fixation
+  (see PAGES-INDEX in Stage 4) and guarded by the checker's NO-INDEX-LINK error.
 - **Shared layer** `design/system/` — `tokens.css`, `components.html` (a living pattern catalog),
   `DESIGN.md` with a MANDATORY anti-patterns-and-selection-rules section.
 - Etalons LINK the shared layer, they never copy it into themselves — copying = VIOLATION.
@@ -80,7 +84,8 @@ skill's tools and FORBIDDEN.
 
 ### Stage 2: Композиция (rough HTML) → DESIGN-LAYOUT-HARD-STOP
 
-2-3 rough layout variants written to `design/pages/` as clearly-marked drafts. STRUCTURE, not
+2-3 rough layout variants written to the PAGE'S OWN folder `design/pages/<slug>/` as
+clearly-marked drafts (`<slug>-draft-*.html`). STRUCTURE, not
 aesthetics — style adjectives are FORBIDDEN at this stage. The variants close with a DIGIT menu
 (per dev's `## OUTPUT-GRAMMAR`: vertical chips, exactly one reasoned «← рекомендую», silence =
 pause). END THE TURN; the layout choice is the user's digit.
@@ -90,7 +95,7 @@ compare) — never mixed in one pass; the NUMBER of variants is the user's decis
 
 ### Stage 3: Детализация → DESIGN-DETAIL-HARD-STOP
 
-The full HTML of the chosen variant in `design/pages/<slug>.html`: components and tokens from the
+The full HTML of the chosen variant in `design/pages/<slug>/<slug>.html`: components and tokens from the
 shared library, ALL states from stage 1, STRESS FIXTURES — типичная / минимальная / экстремальная
 (long strings, 100-200 items) — with an in-file switcher (inline JS + data-attributes, zero
 external dependencies). The etalon declares its fixtures and states in a machine-readable MANIFEST
@@ -107,26 +112,31 @@ iterates (replace/branch).
 ### Stage 4: Фиксация → finale (FINALE-CLASS-HANDOFF)
 
 1. FIXATION-CHECK — the mechanical postconditions, ONE list checked by BOTH layers:
-   (1) the shared layer is linked (`../system/tokens.css`);
+   (1) the shared layer is linked (`../../system/tokens.css`);
    (2) every DECLARED fixture and state is present (manifest ↔ file);
    (3) no values bypassing tokens.css (raw hex/px outside `var(--…)` — a heuristic; its
    false-negatives are honestly documented in DESIGN.md).
    Layer 1 — the MANDATORY checklist run by the skill itself (Read/Grep, rendered as a verdict
    list). Layer 2 — the bundled machine checker:
-   `node "$CLAUDE_PLUGIN_ROOT/scripts/check-design-etalon.mjs" design/pages/<slug>.html`.
+   `node "$CLAUDE_PLUGIN_ROOT/scripts/check-design-etalon.mjs" design/pages/<slug>/<slug>.html`.
    DEGRADE honestly: if `$CLAUDE_PLUGIN_ROOT` is empty in the Bash environment, SKIP layer 2 WITH
    an explicit message (layer 1 stands) — never fake a machine verdict.
-2. PATTERN-CANDIDATES: anything repeated 2-3 times across etalons is a CANDIDATE for
+2. PAGES-INDEX — a PROPERTY of fixation, like the checklist above: update
+   `design/pages/index.html` with the page's link (`<slug>/<slug>.html` + a human-readable page
+   name); a missing index is CREATED at the first fixation (a minimal link list — the index is
+   utility, linking the system layer is optional). The checker guards this duty with the
+   NO-INDEX-LINK error: a fixation that forgot the index goes red, never silently stale.
+3. PATTERN-CANDIDATES: anything repeated 2-3 times across etalons is a CANDIDATE for
    components.html / DESIGN.md — presented as an explicit item, promoted only on the user's
    confirmation.
-3. MEMORY: `remember(type: "decision")` for ACCEPTED decisions AND for REJECTED proposals with the
+4. MEMORY: `remember(type: "decision")` for ACCEPTED decisions AND for REJECTED proposals with the
    refusal reason; problems noticed on NEIGHBOR pages go as proposal notes too — a silent edit of
    another page is a VIOLATION. Anchors: repo-relative, git-tracked files (existing pages/schemas;
    a freshly created, not-yet-committed etalon is not an anchor).
-4. HANDOFF: the ready phrase, fenced:
+5. HANDOFF: the ready phrase, fenced:
 
 ```
-/mneme:plan "реализовать страницу по эталону design/pages/<slug>.html"
+/mneme:plan "реализовать страницу по эталону design/pages/<slug>/<slug>.html"
 ```
 
 The finale message closes with the HANDOFF-DECISION menu (queue curation + handoff, per the
@@ -209,6 +219,9 @@ governs structure only. Etalon annotations follow the target project's language 
   faked verdict.
 - ETALON MANIFEST — fixtures and states are declared machine-readably in the file; declared ↔
   present is the checker's contract; deliberate decisions are annotated in place.
+- PAGE = FOLDER, INDEX AT FIXATION — every page lives in `design/pages/<slug>/` (etalon + its
+  drafts; the slug `index` is reserved); fixation updates `design/pages/index.html` (PAGES-INDEX)
+  and the checker's NO-INDEX-LINK error turns a forgotten link into a red fixation.
 - EMPTY-LIBRARY — an absent shared layer is initialized with the minimal scaffold at stage 3,
   announced explicitly; bootstrap-extraction stays out of scope.
 - PATTERN PROMOTION BY CONFIRMATION — 2-3 repetitions make a candidate; the user's digit promotes
