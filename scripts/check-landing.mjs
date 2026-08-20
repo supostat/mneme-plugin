@@ -3,6 +3,9 @@
 import { existsSync, readFileSync, statSync } from "node:fs";
 
 const INDEX_PATH = "site/index.html";
+// Secondary pages share ONLY the host invariant (SPEC-METRICS-PAGE): the word/marker
+// invariants below are index-specific and do not extend to them.
+const SECONDARY_PAGES = ["site/metrics.html"];
 const OG_PATH = "site/og.svg";
 // og.png is the RASTER DERIVATIVE of og.svg (1200×630): social-card crawlers
 // reject SVG images, so the absolute og:image URL points at the PNG. When
@@ -65,6 +68,16 @@ if (failures.length === 0) {
   for (const match of indexHtml.matchAll(urlPattern)) {
     const host = match[1];
     check(ALLOWED_HOSTS.has(host), `external host not on the whitelist: ${host}`);
+  }
+
+  for (const pagePath of SECONDARY_PAGES) {
+    check(existsSync(pagePath), `missing file: ${pagePath}`);
+    if (!existsSync(pagePath)) continue;
+    const pageHtml = readFileSync(pagePath, "utf8");
+    for (const match of pageHtml.matchAll(urlPattern)) {
+      const host = match[1];
+      check(ALLOWED_HOSTS.has(host), `external host not on the whitelist in ${pagePath}: ${host}`);
+    }
   }
 
   check(readme.includes("Landing: site/"), `"Landing: site/" line missing from ${README_PATH}`);

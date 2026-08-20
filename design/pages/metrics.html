@@ -1,0 +1,355 @@
+<!doctype html>
+<!--
+  /mneme:design ETALON · human gate metrics (variant B: a three-figure lead + sections
+  mirroring the stats output). All data is SYNTHETIC (an analysis decision: the corpus's
+  live numbers never enter the etalon — measurement neutrality + fixture stability).
+  The data structure is the contract of the engine's stats-gate reader, sections (g)-(j).
+  The fixture/state switcher is etalon tooling, NOT product UI.
+-->
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>mneme · human gate metrics</title>
+  <!-- etalon manifest: the contract with check-design-etalon.mjs — declared ↔ present -->
+  <meta name="design-fixtures" content="typical,minimal,extreme">
+  <meta name="design-states" content="default,empty-era,pre-instrumentation-only,partial">
+  <link rel="stylesheet" href="../system/tokens.css">
+  <style>
+    * { box-sizing: border-box; margin: 0; }
+    body {
+      background: var(--bg);
+      color: var(--paper);
+      font-family: var(--mono);
+      font-size: var(--fs-body);
+      line-height: 1.55;
+      padding: var(--space-4);
+    }
+    .wrap { max-width: var(--page-max); margin: 0 auto; }
+
+    /* the etalon's own fixture/state switcher */
+    .etalon-switch {
+      display: flex; flex-wrap: wrap; gap: var(--space-2);
+      padding: var(--space-2);
+      border: var(--border-w) dashed var(--rule);
+      border-radius: var(--radius);
+      margin-bottom: var(--space-4);
+      font-size: var(--fs-small);
+    }
+    .etalon-switch button {
+      font: inherit; color: var(--paper-60);
+      background: var(--bg-2); border: var(--border-w) solid var(--rule);
+      border-radius: var(--radius); padding: var(--space-1) var(--space-2);
+      cursor: pointer;
+    }
+    .etalon-switch button[aria-pressed="true"] { color: var(--paper); border-color: var(--paper-60); }
+
+    header h1 { font-size: var(--fs-h2); letter-spacing: 0.04em; }
+    header p { color: var(--paper-60); font-size: var(--fs-small); margin-top: var(--space-1); }
+
+    main { display: none; }
+    main.active { display: block; }
+
+    .lead {
+      display: grid; grid-template-columns: repeat(3, 1fr); gap: var(--space-3);
+      margin: var(--space-4) 0;
+    }
+    .lead-figure {
+      background: var(--bg-2); border: var(--border-w) solid var(--rule);
+      border-radius: var(--radius); padding: var(--space-3);
+    }
+    .lead-figure .value { font-size: var(--fs-lead); font-family: var(--serif); display: block; }
+    .lead-figure .label { color: var(--paper-60); font-size: var(--fs-small); }
+    /* the screen's ONLY amber point — overall agreement (the dosage rule) */
+    .lead-figure .value.t-amber { color: var(--amber); }
+    .lead-figure .value.t-muted { color: var(--paper-60); }
+
+    section { margin: var(--space-5) 0; }
+    section h2 { font-size: var(--fs-h2); margin-bottom: var(--space-3); }
+    section h2 .idx { color: var(--paper-60); }
+
+    ul.outcomes { list-style: none; display: grid; gap: var(--space-1); }
+    ul.outcomes li { display: flex; justify-content: space-between; border-bottom: var(--border-w) solid var(--rule); padding: var(--space-1) 0; }
+    .ok { color: var(--green); }          /* accepted outcomes only */
+    .bad { color: var(--rust); }          /* rejected / silence — muted rust, never loud red */
+    .muted { color: var(--paper-60); }
+
+    table { width: 100%; border-collapse: collapse; font-size: var(--fs-small); }
+    th, td { text-align: left; padding: var(--space-1) var(--space-2); border-bottom: var(--border-w) solid var(--rule); }
+    th { color: var(--paper-60); font-weight: 500; }
+    td.num { text-align: right; }
+
+    .bar { background: var(--rule); border-radius: var(--radius); height: var(--bar-h); min-width: var(--space-5); }
+    .bar > span { display: block; height: var(--bar-h); border-radius: var(--radius); background: var(--paper-60); }
+    /* small-sample threshold: total < 5 → the bar is muted, a 1/1 stripe must not shout */
+    .bar-muted > span { background: var(--rule); outline: var(--border-w) solid var(--paper-60); }
+
+    .tail { color: var(--paper-60); font-size: var(--fs-small); margin-top: var(--space-2); }
+
+    .recipe { margin-top: var(--space-2); }
+    .recipe button {
+      font: inherit; font-size: var(--fs-small); color: var(--paper-60);
+      background: none; border: var(--border-w) solid var(--rule);
+      border-radius: var(--radius); padding: var(--space-1) var(--space-2); cursor: pointer;
+    }
+
+    .empty-note { border: var(--border-w) dashed var(--rule); border-radius: var(--radius); padding: var(--space-3); color: var(--paper-60); }
+
+    footer { margin-top: var(--space-5); color: var(--paper-60); font-size: var(--fs-small); border-top: var(--border-w) solid var(--rule); padding-top: var(--space-3); }
+    @media (max-width: 40rem) { .lead { grid-template-columns: 1fr; } }
+  </style>
+</head>
+<body>
+<div class="wrap">
+
+  <!-- etalon tooling: fixtures (data volume at state=default) and states -->
+  <nav class="etalon-switch" aria-label="etalon fixtures and states">
+    <span class="muted">fixtures:</span>
+    <button data-view="typical" aria-pressed="true">typical</button>
+    <button data-view="minimal" aria-pressed="false">minimal</button>
+    <button data-view="extreme" aria-pressed="false">extreme</button>
+    <span class="muted">states:</span>
+    <button data-view="empty-era" aria-pressed="false">empty-era</button>
+    <button data-view="pre-instr" aria-pressed="false">pre-instrumentation-only</button>
+    <button data-view="partial" aria-pressed="false">partial</button>
+  </nav>
+
+  <header>
+    <h1>Human gate metrics</h1>
+    <p>Computed locally from your event log. Nothing is uploaded; every number below is reproducible by hand.</p>
+  </header>
+
+  <!-- ======================= fixture: TYPICAL (state: default) ======================= -->
+  <main id="typical" class="active" data-fixture="typical" data-state="default">
+    <div class="lead">
+      <div class="lead-figure">
+        <!-- decision: amber lives exactly here and nowhere else on the screen -->
+        <span class="value t-amber">7/9</span>
+        <span class="label">recommendation agreement, v14 era</span>
+      </div>
+      <div class="lead-figure">
+        <span class="value">9/11</span>
+        <span class="label">resolves carry a menu (coverage)</span>
+      </div>
+      <div class="lead-figure">
+        <!-- decision: human-readable units, raw ms in the title attribute -->
+        <span class="value" title="17387 ms">17.4 s</span>
+        <span class="label">median active review latency</span>
+      </div>
+    </div>
+
+    <section id="outcomes-typical">
+      <h2><span class="idx">(g)</span> Resolution outcomes</h2>
+      <!-- decision: the closed 7-category taxonomy renders IN FULL, zeros stay visible -->
+      <ul class="outcomes">
+        <li><span class="ok">accepted as-is</span><span>6</span></li>
+        <li><span class="ok">accepted after edit</span><span>2</span></li>
+        <li><span class="bad">rejected</span><span>1</span></li>
+        <li><span>superseded</span><span>2</span></li>
+        <li><span class="muted">deferred</span><span>0</span></li>
+        <li><span class="bad">silence episodes</span><span>0</span></li>
+        <li><span class="muted">accepted pre-instrumentation</span><span>54</span></li>
+      </ul>
+      <div class="recipe"><button data-recipe="jq recipe (g) — see the engine's docs/METRICS.md; verify at implementation">copy jq recipe</button></div>
+    </section>
+
+    <section id="agreement-typical">
+      <h2><span class="idx">(h)</span> Recommendation agreement</h2>
+      <!-- decision: slices sort by total desc; no pagination/search (typically ≤8 rows) -->
+      <table>
+        <thead><tr><th>menu shape (class · rec@ · size)</th><th class="num">agreed / total</th><th>share</th></tr></thead>
+        <tbody>
+          <tr><td>curation · rec@1 · 4 options</td><td class="num">4/5</td><td><div class="bar"><span style="width: 80%"></span></div></td></tr>
+          <tr><td>curation · rec@2 · 3 options</td><td class="num">2/2</td><td><div class="bar bar-muted"><span style="width: 100%"></span></div></td></tr>
+          <tr><td>plan-fan · rec@2 · 3 options</td><td class="num">1/2</td><td><div class="bar bar-muted"><span style="width: 50%"></span></div></td></tr>
+        </tbody>
+      </table>
+      <p class="tail">Muted bars: fewer than 5 decisions — too small to shout.</p>
+      <div class="recipe"><button data-recipe="jq recipe (h) — see the engine's docs/METRICS.md; verify at implementation">copy jq recipe</button></div>
+    </section>
+
+    <section id="coverage-typical">
+      <h2><span class="idx">(i)</span> Menu coverage</h2>
+      <p>9/11 resolves of the v14 era carry a menu.</p>
+      <!-- decision: pre-instrumentation is a separate tail, NEVER in the denominator -->
+      <p class="tail">pre-instrumentation: 54 events (before schema v14 — a separate era, never in the denominator)</p>
+      <div class="recipe"><button data-recipe="jq recipe (i) — see the engine's docs/METRICS.md; verify at implementation">copy jq recipe</button></div>
+    </section>
+
+    <section id="latency-typical">
+      <h2><span class="idx">(j)</span> Active review latency</h2>
+      <p>median <span title="17387 ms">17.4 s</span> · p90 <span title="646781 ms">10.8 min</span> · 30 sittings</p>
+      <div class="recipe"><button data-recipe="jq recipe (j) — see the engine's docs/METRICS.md; verify at implementation">copy jq recipe</button></div>
+    </section>
+  </main>
+
+  <!-- ======================= fixture: MINIMAL (state: default) ======================= -->
+  <!-- a minimal corpus: the first day of instrumentation — 1 slice, 2 resolves -->
+  <main id="minimal" data-fixture="minimal" data-state="default">
+    <div class="lead">
+      <div class="lead-figure"><span class="value t-amber">2/2</span><span class="label">recommendation agreement, v14 era</span></div>
+      <div class="lead-figure"><span class="value">2/2</span><span class="label">resolves carry a menu (coverage)</span></div>
+      <div class="lead-figure"><span class="value" title="288000 ms">4.8 min</span><span class="label">median active review latency</span></div>
+    </div>
+    <section>
+      <h2><span class="idx">(g)</span> Resolution outcomes</h2>
+      <ul class="outcomes">
+        <li><span class="ok">accepted as-is</span><span>2</span></li>
+        <li><span class="ok">accepted after edit</span><span>0</span></li>
+        <li><span class="bad">rejected</span><span>0</span></li>
+        <li><span>superseded</span><span>0</span></li>
+        <li><span class="muted">deferred</span><span>0</span></li>
+        <li><span class="bad">silence episodes</span><span>0</span></li>
+        <li><span class="muted">accepted pre-instrumentation</span><span>0</span></li>
+      </ul>
+    </section>
+    <section>
+      <h2><span class="idx">(h)</span> Recommendation agreement</h2>
+      <table>
+        <thead><tr><th>menu shape (class · rec@ · size)</th><th class="num">agreed / total</th><th>share</th></tr></thead>
+        <tbody>
+          <tr><td>curation · rec@1 · 4 options</td><td class="num">2/2</td><td><div class="bar bar-muted"><span style="width: 100%"></span></div></td></tr>
+        </tbody>
+      </table>
+      <p class="tail">Muted bar: fewer than 5 decisions.</p>
+    </section>
+    <section>
+      <h2><span class="idx">(i)</span> Menu coverage</h2>
+      <p>2/2 resolves of the v14 era carry a menu.</p>
+      <p class="tail">pre-instrumentation: 0 events</p>
+    </section>
+    <section>
+      <h2><span class="idx">(j)</span> Active review latency</h2>
+      <p>median <span title="288000 ms">4.8 min</span> · p90 <span title="288000 ms">4.8 min</span> · 1 sitting</p>
+    </section>
+  </main>
+
+  <!-- ======================= fixture: EXTREME (state: default) ======================= -->
+  <!-- stress: 150 agreement slices (rows are generated by the inline script BELOW — data
+       stays in-file, zero dependencies), huge counters and latencies. Annotated decision:
+       the "long strings" stress does NOT apply to this page — its data model carries no
+       free-text fields (a slice key is formulaic: class · rec@N · size). -->
+  <main id="extreme" data-fixture="extreme" data-state="default">
+    <div class="lead">
+      <div class="lead-figure"><span class="value t-amber">1874/2311</span><span class="label">recommendation agreement, v14 era</span></div>
+      <div class="lead-figure"><span class="value">2311/2394</span><span class="label">resolves carry a menu (coverage)</span></div>
+      <div class="lead-figure"><span class="value" title="43200000 ms">12 h</span><span class="label">median active review latency</span></div>
+    </div>
+    <section>
+      <h2><span class="idx">(g)</span> Resolution outcomes</h2>
+      <ul class="outcomes">
+        <li><span class="ok">accepted as-is</span><span>1502</span></li>
+        <li><span class="ok">accepted after edit</span><span>391</span></li>
+        <li><span class="bad">rejected</span><span>288</span></li>
+        <li><span>superseded</span><span>130</span></li>
+        <li><span class="muted">deferred</span><span>47</span></li>
+        <li><span class="bad">silence episodes</span><span>36</span></li>
+        <li><span class="muted">accepted pre-instrumentation</span><span>54</span></li>
+      </ul>
+    </section>
+    <section>
+      <h2><span class="idx">(h)</span> Recommendation agreement — 150 slices</h2>
+      <table>
+        <thead><tr><th>menu shape (class · rec@ · size)</th><th class="num">agreed / total</th><th>share</th></tr></thead>
+        <tbody id="extreme-slices"><!-- 150 rows, deterministic generation, see the script --></tbody>
+      </table>
+      <p class="tail">Sorted by total, descending — the long tail of rare menu shapes sinks; no pagination by design.</p>
+    </section>
+    <section>
+      <h2><span class="idx">(i)</span> Menu coverage</h2>
+      <p>2311/2394 resolves of the v14 era carry a menu.</p>
+      <p class="tail">pre-instrumentation: 54 events</p>
+    </section>
+    <section>
+      <h2><span class="idx">(j)</span> Active review latency</h2>
+      <p>median <span title="43200000 ms">12 h</span> · p90 <span title="112601699 ms">31.3 h</span> · 812 sittings</p>
+    </section>
+  </main>
+
+  <!-- ======================= state: EMPTY-ERA ======================= -->
+  <!-- the v14 era is empty: "not measured", NOT 0% — the reader's honesty rule carried into UI -->
+  <main id="empty-era" data-state="empty-era" data-fixture="typical">
+    <div class="lead">
+      <div class="lead-figure"><span class="value t-muted">—</span><span class="label">recommendation agreement: not measured yet</span></div>
+      <div class="lead-figure"><span class="value t-muted">—</span><span class="label">coverage: no v14-era resolves yet</span></div>
+      <div class="lead-figure"><span class="value t-muted">—</span><span class="label">latency: no sittings yet</span></div>
+    </div>
+    <div class="empty-note">
+      The instrumented era has not started: no resolves since schema v14. This reads as
+      <em>not measured</em> — never as 0%. Numbers appear with your first curated note.
+    </div>
+  </main>
+
+  <!-- ======================= state: PRE-INSTRUMENTATION-ONLY ======================= -->
+  <main id="pre-instr" data-state="pre-instrumentation-only" data-fixture="typical">
+    <div class="lead">
+      <div class="lead-figure"><span class="value t-muted">—</span><span class="label">recommendation agreement: not measured</span></div>
+      <div class="lead-figure"><span class="value t-muted">—</span><span class="label">coverage: era empty</span></div>
+      <div class="lead-figure"><span class="value t-muted">—</span><span class="label">latency: no instrumented sittings</span></div>
+    </div>
+    <section>
+      <h2><span class="idx">(g)</span> Resolution outcomes</h2>
+      <ul class="outcomes">
+        <li><span class="muted">accepted pre-instrumentation</span><span>54</span></li>
+      </ul>
+      <p class="tail">Only pre-v14 history exists — honestly unmeasurable, shown as its own tail, never folded into the era.</p>
+    </section>
+  </main>
+
+  <!-- ======================= state: PARTIAL ======================= -->
+  <!-- era resolves exist (coverage counts), but agreement decisions are still 0 -->
+  <main id="partial" data-state="partial" data-fixture="typical">
+    <div class="lead">
+      <div class="lead-figure"><span class="value t-muted">0/0</span><span class="label">recommendation agreement: no decisions yet</span></div>
+      <div class="lead-figure"><span class="value">3/3</span><span class="label">resolves carry a menu (coverage)</span></div>
+      <div class="lead-figure"><span class="value" title="121000 ms">2 min</span><span class="label">median active review latency</span></div>
+    </div>
+    <section>
+      <h2><span class="idx">(h)</span> Recommendation agreement</h2>
+      <div class="empty-note">Resolves exist, but consecutive identical batch payloads collapsed into decisions still pending — the table appears with the first counted decision.</div>
+    </section>
+  </main>
+
+  <footer>
+    Recipes: docs/METRICS.md of the mneme engine (v0.1.7) — the hand-runnable jq per metric.
+    <!-- risk annotation (P1): the button recipes DUPLICATE METRICS.md; the canon is
+         METRICS.md — verify at implementation and on every engine update. There is no
+         sync guard — the risk is accepted deliberately (a note in memory records it). -->
+  </footer>
+
+</div>
+
+<script>
+  // Etalon switcher: shows one view; buttons carry aria-pressed.
+  const views = document.querySelectorAll('main');
+  const buttons = document.querySelectorAll('.etalon-switch button');
+  for (const button of buttons) {
+    button.addEventListener('click', () => {
+      for (const view of views) view.classList.toggle('active', view.id === button.dataset.view);
+      for (const other of buttons) other.setAttribute('aria-pressed', String(other === button));
+    });
+  }
+
+  // EXTREME: 150 slices, deterministic generation (no Math.random — the fixture is stable).
+  const tbody = document.getElementById('extreme-slices');
+  const classes = ['curation', 'plan-fan'];
+  let rows = '';
+  for (let index = 0; index < 150; index++) {
+    const total = Math.max(1, Math.round(400 / (index + 1)));
+    const agreed = Math.round(total * (0.6 + (index % 5) * 0.08));
+    const share = Math.round((agreed / total) * 100);
+    const muted = total < 5 ? ' bar-muted' : '';
+    rows += `<tr><td>${classes[index % 2]} · rec@${(index % 4) + 1} · ${(index % 4) + 2} options</td>`
+      + `<td class="num">${Math.min(agreed, total)}/${total}</td>`
+      + `<td><div class="bar${muted}"><span style="width: ${Math.min(share, 100)}%"></span></div></td></tr>`;
+  }
+  tbody.innerHTML = rows;
+
+  // P1: copy the jq recipe (the canon is METRICS.md, see the footer annotation).
+  for (const recipeButton of document.querySelectorAll('.recipe button')) {
+    recipeButton.addEventListener('click', () => navigator.clipboard.writeText(recipeButton.dataset.recipe));
+  }
+</script>
+
+</body>
+</html>

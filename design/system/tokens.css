@@ -1,0 +1,40 @@
+/* design/system/tokens.css — the shared layer of the etalons. Initialized by
+   /mneme:design (EMPTY-LIBRARY: a minimal scaffold, not an extraction from existing
+   pages). Etalons take ALL colors/sizes from here via var(--…); a raw hex/px in an
+   etalon is a violation caught by check-design-etalon.mjs. */
+
+:root {
+  /* surfaces */
+  --bg: #101210;
+  --bg-2: #161916;
+  --paper: #e8e6df;
+  --paper-60: rgba(232, 230, 223, 0.6);
+  --rule: #2a2e2a;
+
+  /* status semantics: amber is the screen's ONLY accent; green is reserved for
+     pass/accepted; failures use muted rust (the landing's dosage rule) */
+  --amber: #d9a441;
+  --green: #7fb069;
+  --rust: #c4694e;
+
+  /* spacing scale */
+  --space-1: 0.25rem;
+  --space-2: 0.5rem;
+  --space-3: 1rem;
+  --space-4: 1.75rem;
+  --space-5: 3rem;
+
+  /* typography */
+  --mono: ui-monospace, "SF Mono", Menlo, monospace;
+  --serif: Georgia, "Times New Roman", serif;
+  --fs-small: 0.8rem;
+  --fs-body: 0.95rem;
+  --fs-lead: 2.2rem;
+  --fs-h2: 1.15rem;
+
+  /* component sizes */
+  --bar-h: 0.5rem;
+  --radius: 6px;
+  --border-w: 1px;
+  --page-max: 52rem;
+}

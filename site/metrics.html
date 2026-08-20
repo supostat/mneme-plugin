@@ -1,0 +1,229 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>mneme — human gate metrics</title>
+<meta name="description" content="What mneme's human-gate instrumentation gives you: resolution outcomes, recommendation agreement, menu coverage and active review latency — computed locally, reproducible by hand.">
+<meta name="theme-color" content="#141210">
+<link rel="icon" href="data:image/svg+xml,%3Csvg%20xmlns%3D'http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg'%20viewBox%3D'0%200%2032%2032'%3E%3Crect%20width%3D'32'%20height%3D'32'%20rx%3D'6'%20fill%3D'%23141210'%2F%3E%3Ccircle%20cx%3D'16'%20cy%3D'16'%20r%3D'6'%20fill%3D'%23D9A441'%2F%3E%3C%2Fsvg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&amp;family=IBM+Plex+Serif:ital,wght@0,500;0,600;1,500&amp;family=JetBrains+Mono:wght@400;500&amp;display=swap">
+<style>
+/* Structure follows the etalon design/pages/metrics.html (layout B); style is the index.html palette. */
+:root{
+  --bg:#141210;
+  --bg-2:#191613;
+  --bg-3:#1e1a16;
+  --paper:#EDE6D6;
+  --paper-72:rgba(237,230,214,.72);
+  --paper-60:rgba(237,230,214,.62);
+  --paper-dim:rgba(237,230,214,.55);
+  --rule:rgba(237,230,214,.12);
+  --rule-soft:rgba(237,230,214,.07);
+  --amber:#D9A441;
+  --green:#8FAE6B;
+  --rust:#C4694E;
+  --serif:'IBM Plex Serif',Georgia,'Times New Roman',serif;
+  --sans:'IBM Plex Sans',system-ui,-apple-system,'Segoe UI',sans-serif;
+  --mono:'JetBrains Mono',ui-monospace,SFMono-Regular,Menlo,monospace;
+}
+*,*::before,*::after{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--paper);font:400 1rem/1.65 var(--sans);-webkit-font-smoothing:antialiased}
+a{color:var(--paper);text-decoration-color:rgba(237,230,214,.35);text-underline-offset:3px}
+a:hover{text-decoration-color:var(--paper)}
+:focus-visible{outline:2px solid var(--amber);outline-offset:3px;border-radius:2px}
+.wrap{max-width:880px;margin:0 auto;padding:0 clamp(1.1rem,4vw,2.5rem)}
+header.page{padding:clamp(2.6rem,6vw,4.5rem) 0 0}
+.kicker{font:500 .7rem/1 var(--mono);letter-spacing:.22em;text-transform:uppercase;color:var(--paper-dim);margin:0 0 1.1rem}
+h1{font-family:var(--serif);font-weight:600;letter-spacing:-.01em;margin:0;font-size:clamp(1.9rem,4.6vw,3rem);line-height:1.15}
+.context{color:var(--paper-60);font-size:.92rem;margin:.7rem 0 0}
+.demo-note{color:var(--paper-dim);font:400 .8rem/1.6 var(--mono);margin:.4rem 0 0}
+
+.lead{display:grid;grid-template-columns:repeat(3,1fr);gap:1px;background:var(--rule);border:1px solid var(--rule);border-radius:8px;overflow:hidden;margin:clamp(1.8rem,4vw,2.6rem) 0}
+.lead-figure{background:var(--bg-2);padding:1.2rem 1.1rem 1.35rem}
+.lead-figure .value{font-family:var(--serif);font-weight:600;font-size:clamp(1.7rem,3.4vw,2.4rem);display:block;line-height:1.1}
+.lead-figure .label{color:var(--paper-60);font-size:.82rem}
+/* the page's single amber point — overall agreement (the landing's dosage rule) */
+.t-amber{color:var(--amber)}
+
+section.metric{padding:clamp(1.6rem,3.5vw,2.4rem) 0;border-top:1px solid var(--rule-soft)}
+section.metric h2{font-family:var(--serif);font-weight:600;font-size:1.35rem;margin:0 0 1rem}
+section.metric h2 .idx{color:var(--paper-dim);font-family:var(--mono);font-size:.85rem;letter-spacing:.08em;margin-right:.5rem}
+
+ul.outcomes{list-style:none;margin:0;padding:0;display:grid;gap:.15rem;max-width:34rem}
+ul.outcomes li{display:flex;justify-content:space-between;border-bottom:1px solid var(--rule-soft);padding:.35rem 0;font-size:.95rem}
+.ok{color:var(--green)}
+.bad{color:var(--rust)}
+.muted{color:var(--paper-60)}
+
+table{width:100%;border-collapse:collapse;font:400 .86rem/1.5 var(--mono)}
+th,td{text-align:left;padding:.4rem .6rem;border-bottom:1px solid var(--rule-soft)}
+th{color:var(--paper-dim);font-weight:500}
+td.num{text-align:right;white-space:nowrap}
+.bar{background:var(--rule-soft);border-radius:4px;height:.45rem;min-width:6rem}
+.bar>span{display:block;height:.45rem;border-radius:4px;background:var(--paper-60)}
+/* small-sample threshold: total < 5 → the bar is muted */
+.bar-muted>span{background:transparent;outline:1px solid var(--rule)}
+.tail{color:var(--paper-60);font-size:.85rem;margin:.8rem 0 0}
+
+.recipe{margin-top:1rem}
+.recipe button{font:500 .78rem/1 var(--mono);color:var(--paper-60);background:var(--bg-3);border:1px solid var(--rule);border-radius:6px;padding:.45rem .7rem;cursor:pointer}
+.recipe button:hover{color:var(--paper)}
+.recipe .copied{color:var(--green)}
+
+footer{border-top:1px solid var(--rule);margin-top:clamp(2rem,5vw,3.5rem)}
+.footer-line{padding:1.4rem 0 1.8rem;font:400 .82rem/1.6 var(--mono);color:var(--paper-dim);text-align:center}
+.footer-line a{color:var(--paper-60)}
+@media (max-width:720px){.lead{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header class="page">
+  <p class="kicker">human gate &middot; measured</p>
+  <h1>Human gate metrics</h1>
+  <p class="context">Computed locally from your event log. Nothing is uploaded; every number is reproducible by hand with the jq recipe next to it.</p>
+  <p class="demo-note">Synthetic example — this is the report you get, not someone's live corpus.</p>
+</header>
+
+<div class="lead">
+  <div class="lead-figure">
+    <span class="value t-amber">7/9</span>
+    <span class="label">recommendation agreement, v14 era</span>
+  </div>
+  <div class="lead-figure">
+    <span class="value">9/11</span>
+    <span class="label">resolves carry a menu (coverage)</span>
+  </div>
+  <div class="lead-figure">
+    <span class="value" title="17387 ms">17.4 s</span>
+    <span class="label">median active review latency</span>
+  </div>
+</div>
+
+<section class="metric" id="outcomes">
+  <h2><span class="idx">(g)</span>Resolution outcomes</h2>
+  <ul class="outcomes">
+    <li><span class="ok">accepted as-is</span><span>6</span></li>
+    <li><span class="ok">accepted after edit</span><span>2</span></li>
+    <li><span class="bad">rejected</span><span>1</span></li>
+    <li><span>superseded</span><span>2</span></li>
+    <li><span class="muted">deferred</span><span>0</span></li>
+    <li><span class="bad">silence episodes</span><span>0</span></li>
+    <li><span class="muted">accepted pre-instrumentation</span><span>54</span></li>
+  </ul>
+  <div class="recipe"><button data-recipe="recipe-g">copy jq recipe</button></div>
+</section>
+
+<section class="metric" id="agreement">
+  <h2><span class="idx">(h)</span>Recommendation agreement</h2>
+  <table>
+    <thead><tr><th>menu shape</th><th class="num">agreed / total</th><th>share</th></tr></thead>
+    <tbody>
+      <tr><td>curation &middot; rec@1 &middot; 4 options</td><td class="num">4/5</td><td><div class="bar"><span style="width:80%"></span></div></td></tr>
+      <tr><td>curation &middot; rec@2 &middot; 3 options</td><td class="num">2/2</td><td><div class="bar bar-muted"><span style="width:100%"></span></div></td></tr>
+      <tr><td>plan-fan &middot; rec@2 &middot; 3 options</td><td class="num">1/2</td><td><div class="bar bar-muted"><span style="width:50%"></span></div></td></tr>
+    </tbody>
+  </table>
+  <p class="tail">Muted bars: fewer than 5 decisions — too small a sample to shout.</p>
+  <div class="recipe"><button data-recipe="recipe-h">copy jq recipe</button></div>
+</section>
+
+<section class="metric" id="coverage">
+  <h2><span class="idx">(i)</span>Menu coverage</h2>
+  <p>9/11 resolves of the v14 era carry a menu.</p>
+  <p class="tail">pre-instrumentation: 54 events — a separate era before schema v14, never counted into the denominator (history must not misread as 0%).</p>
+  <div class="recipe"><button data-recipe="recipe-i">copy jq recipe</button></div>
+</section>
+
+<section class="metric" id="latency">
+  <h2><span class="idx">(j)</span>Active review latency</h2>
+  <p>median <span title="17387 ms">17.4 s</span> &middot; p90 <span title="646781 ms">10.8 min</span> &middot; 30 sittings</p>
+  <p class="tail">The active part only: from the queue being shown to the first resolution of the same sitting — calendar sleep cuts itself off at the session boundary.</p>
+  <div class="recipe"><button data-recipe="recipe-j">copy jq recipe</button></div>
+</section>
+
+<!-- Recipes are VERBATIM from the engine's docs/METRICS.md (v0.1.7); METRICS.md is the canon.
+     Accepted drift risk: re-verify on every engine update (memory note 6cb3fb35). -->
+<script type="text/plain" id="recipe-g">
+EVENTS=~/.mneme/&lt;project-slug&gt;/events
+cat "$EVENTS"/*.jsonl | jq -s '
+  (reduce (.[] | select(.type=="remember" and .dedup.outcome!="noop" and (.body_len|type)=="number")) as $e ({};
+     .[$e.note_id] as $prev | if $prev == null or ($e.ts < $prev.ts) then .[$e.note_id] = {ts: $e.ts, bl: $e.body_len, an: $e.anchors_n} else . end)) as $staged
+  | [.[] | select(.type=="staging_resolve" or .type=="note_accepted")] | group_by(.note_id) | map(min_by(.ts))
+  | map(select(.type=="note_accepted" or .decision=="accept"))
+  | map($staged[.note_id] as $s
+      | if $s == null or (.accepted_body_len|type) != "number" then "pre-instrumentation"
+        elif $s.bl != .accepted_body_len or $s.an != .accepted_anchors_n then "edited"
+        else "as-is" end)
+  | group_by(.) | map({outcome: .[0], count: length})'
+</script>
+<script type="text/plain" id="recipe-h">
+EVENTS=~/.mneme/&lt;project-slug&gt;/events
+cat "$EVENTS"/*.jsonl | jq -s '
+  def ms: sub("\\.[0-9]+Z$";"Z") | fromdateiso8601 * 1000;
+  [.[] | select(.type=="staging_resolve" and (.menu|type)=="object" and .session_id != null and .ts != null)]
+  | group_by(.session_id)
+  | map(sort_by(.ts) | reduce .[] as $r ([];
+      ($r.menu | "\(.decision_class)|\(.options_n)|\(.recommended_position)|\(.chosen_position)") as $key
+      | ($r.ts | ms) as $t
+      | if length > 0 and .[-1].key == $key and ($t - .[-1].t) <= 300000
+        then .[:-1] + [{key: $key, t: $t, menu: .[-1].menu}]
+        else . + [{key: $key, t: $t, menu: $r.menu}] end))
+  | flatten
+  | group_by(.menu.decision_class, .menu.recommended_position, .menu.options_n)
+  | map({class: .[0].menu.decision_class, rec: .[0].menu.recommended_position, options: .[0].menu.options_n,
+         decisions: length,
+         agreed: ([.[] | select(.menu.chosen_position == .menu.recommended_position)] | length)})'
+</script>
+<script type="text/plain" id="recipe-i">
+EVENTS=~/.mneme/&lt;project-slug&gt;/events
+cat "$EVENTS"/*.jsonl | jq -s '
+  [.[] | select(.type=="staging_resolve" or .type=="note_accepted" or .type=="note_rejected" or .type=="note_superseded")]
+  | {pre_instrumentation: ([.[] | select((.schema_version // 0) < 14)] | length),
+     era_resolves: ([.[] | select((.schema_version // 0) >= 14)] | length),
+     with_menu: ([.[] | select((.schema_version // 0) >= 14 and (.menu|type)=="object")] | length)}'
+</script>
+<script type="text/plain" id="recipe-j">
+EVENTS=~/.mneme/&lt;project-slug&gt;/events
+cat "$EVENTS"/*.jsonl | jq -s '
+  def ms: sub("\\.[0-9]+Z$";"Z") | fromdateiso8601 * 1000;
+  [.[] | select(.session_id != null and .ts != null)] | group_by(.session_id)
+  | map(sort_by(.ts)
+      | reduce .[] as $e ({pending: null, samples: []};
+          if $e.type=="staging_listed" and ($e.count // 0) > 0 and .pending == null then .pending = ($e.ts|ms)
+          elif ($e.type=="staging_resolve" or $e.type=="note_accepted" or $e.type=="note_rejected" or $e.type=="note_superseded") and .pending != null
+          then {pending: null, samples: (.samples + [($e.ts|ms) - .pending])}
+          else . end)
+      | .samples)
+  | flatten | sort as $d
+  | {count: ($d|length),
+     median: (if ($d|length)==0 then null else $d[((($d|length)*0.5|ceil)-1)] end),
+     p90:    (if ($d|length)==0 then null else $d[((($d|length)*0.9|ceil)-1)] end)}'
+</script>
+
+<footer>
+  <div class="footer-line">
+    <a href="index.html">mneme</a> &middot; recipes are verbatim from <a href="https://github.com/supostat/mneme/blob/main/docs/METRICS.md">METRICS.md</a> — run them against your own log
+  </div>
+</footer>
+
+</div>
+<script>
+for (const button of document.querySelectorAll('.recipe button')) {
+  button.addEventListener('click', function () {
+    const raw = document.getElementById(button.dataset.recipe).textContent
+      .replaceAll('&lt;', '<').replaceAll('&gt;', '>').trim();
+    navigator.clipboard.writeText(raw).then(function () {
+      button.classList.add('copied');
+      button.textContent = 'copied';
+      setTimeout(function () { button.classList.remove('copied'); button.textContent = 'copy jq recipe'; }, 1500);
+    });
+  });
+}
+</script>
+</body>
+</html>

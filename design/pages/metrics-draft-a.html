@@ -1,0 +1,56 @@
+<!doctype html>
+<!-- DRAFT A — /mneme:design composition stage. Structure, not aesthetics. NOT an etalon. -->
+<!-- Variant A: a single column, section order mirrors the stats output (g)-(j) verbatim. -->
+<html lang="en">
+<head><meta charset="utf-8"><title>DRAFT A · human gate metrics</title></head>
+<body>
+
+<header>
+  <h1>Human gate metrics</h1>
+  <p><!-- one context line: what these numbers are, the source (event log), the period --></p>
+</header>
+
+<main>
+  <section id="outcomes"><!-- (g) -->
+    <h2>Resolution outcomes</h2>
+    <ul>
+      <li>accepted as-is — N</li>
+      <li>accepted after edit — N</li>
+      <li>rejected — N</li>
+      <li>superseded — N</li>
+      <li>deferred — N</li>
+      <li>silence episodes — N</li>
+      <li>accepted pre-instrumentation — N</li>
+      <!-- all 7 categories always visible, zeros shown -->
+    </ul>
+    <button>copy jq recipe</button>
+  </section>
+
+  <section id="agreement"><!-- (h) -->
+    <h2>Recommendation agreement</h2>
+    <p>overall: A/T</p>
+    <table>
+      <thead><tr><th>menu shape (class · rec@ · size)</th><th>agreed/total</th><th>bar</th></tr></thead>
+      <tbody><!-- slices, sorted by total desc; the bar is muted below the threshold --></tbody>
+    </table>
+    <button>copy jq recipe</button>
+  </section>
+
+  <section id="coverage"><!-- (i) -->
+    <h2>Menu coverage</h2>
+    <p>v14 era: I/E resolves carry a menu</p>
+    <p>pre-instrumentation: P events <!-- a separate tail, NEVER in the denominator --></p>
+    <button>copy jq recipe</button>
+  </section>
+
+  <section id="latency"><!-- (j) -->
+    <h2>Active review latency</h2>
+    <p>median H (human units, raw ms in title) · p90 H · S sittings</p>
+    <button>copy jq recipe</button>
+  </section>
+</main>
+
+<footer><!-- link to METRICS.md as the recipe canon + version --></footer>
+
+</body>
+</html>
