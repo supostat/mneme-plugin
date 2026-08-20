@@ -42,6 +42,7 @@ const EXPECTED_FINALE_CLASS = {
   plan: HANDOFF,
   fix: HANDOFF,
   migrate: HANDOFF,
+  design: HANDOFF,
   arch: INFORMATIONAL,
   resume: INFORMATIONAL,
   setup: INFORMATIONAL,
