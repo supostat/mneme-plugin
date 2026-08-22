@@ -16,7 +16,11 @@
 //
 // Boundaries: only files inside design/ are ever checked — anything else is a silent exit 0,
 // and a project without design/ is an instant no-op (the hook is installed for every mneme
-// user). Skipped: names containing -draft-, design/dist/**, design/system/fonts.css.
+// user). The hooks.json commands put a shell-guard — `[ -d design ] || exit 0;` — FIRST, so a
+// project without design/ never even spawns node; the guard tests design/ in the hook process
+// cwd, the same "design/ under cwd" semantics this lint applies, so in a monorepo whose design/
+// lives deeper than the root both layers stay honestly silent.
+// Skipped: names containing -draft-, design/dist/**, design/system/fonts.css.
 // Fail-open: unreadable stdin, unknown events, missing fields — silent exit 0; an advisor
 // has no right to break someone's session.
 //

@@ -290,6 +290,67 @@ withProject({ appCss: '.hero { color: #ff00aa; }\n' }, (root) => {
   }
 }
 
+// --- shell guard: [ -d design ] must come FIRST in BOTH hook commands (GUARD-ORDER) ---
+{
+  const hooksJson = JSON.parse(readFileSync(resolve(scriptsDir, '..', 'plugin', 'hooks', 'hooks.json'), 'utf8'));
+  const GUARD_PREFIX = '[ -d design ] || exit 0; ';
+  const lintCommands = {
+    PostToolUse: hooksJson.hooks.PostToolUse[0].hooks[0].command,
+    Stop: hooksJson.hooks.Stop[0].hooks[0].command,
+  };
+  for (const [hookName, command] of Object.entries(lintCommands)) {
+    if (!command.startsWith(GUARD_PREFIX)) {
+      failures.push(`GUARD-ORDER: the ${hookName} lint command must START with "${GUARD_PREFIX}" — the design guard comes before the node guard, so a project without design/ never spawns node`);
+    }
+  }
+
+  const pluginRoot = resolve(scriptsDir, '..', 'plugin');
+  const noNodeBin = mkdtempSync(join(tmpdir(), 'design-lint-ordbin-'));
+  const cleanHome = mkdtempSync(join(tmpdir(), 'design-lint-ordhome-'));
+  const bareCwd = mkdtempSync(join(tmpdir(), 'design-lint-ordcwd-'));
+  try {
+    symlinkSync('/bin/mkdir', join(noNodeBin, 'mkdir'));
+    const runHook = (command, { PATH, input }) => spawnSync('/bin/sh', ['-c', command], {
+      encoding: 'utf8',
+      input,
+      cwd: bareCwd,
+      env: { PATH, HOME: cleanHome, CLAUDE_PLUGIN_ROOT: pluginRoot },
+    });
+
+    // No design/, no node, clean HOME: total silence and no marker are possible ONLY when the
+    // design guard fires before the node guard — otherwise the systemMessage and marker appear.
+    // The guard tests design/ in the hook process cwd (the lint's own "design/ under cwd"
+    // semantics), so this also proves a non-UI repo pays nothing and sees no no-node notice.
+    for (const [hookName, command] of Object.entries(lintCommands)) {
+      const silent = runHook(command, { PATH: noNodeBin, input: '{}' });
+      if (silent.status !== 0 || silent.stdout.trim() !== '') {
+        failures.push(`no-design-silence (${hookName}): without design/ the command must exit 0 with no output (exit ${silent.status}, out: ${silent.stdout.trim().slice(0, 120)})`);
+      }
+    }
+    if (existsSync(join(cleanHome, '.mneme', 'design-lint-no-node'))) {
+      failures.push('no-design-silence: the no-node marker must NOT be created in a project without design/ — the design guard must fire before the node guard');
+    }
+
+    // EMPTY-LIBRARY revival: design/ appears mid-session; the next hook event re-reads the
+    // guard in a fresh shell and the lint comes alive without a session restart.
+    buildProject(bareCwd, { appCss: '.hero { color: #ff00aa; }\n' });
+    const revived = runHook(lintCommands.PostToolUse, {
+      PATH: process.env.PATH,
+      input: JSON.stringify({ hook_event_name: 'PostToolUse', tool_input: { file_path: join(bareCwd, 'design', 'system', 'app.css') }, cwd: bareCwd }),
+    });
+    if (revived.status !== 0) {
+      failures.push(`empty-library-revival: with design/ created mid-session the hook must run the lint and exit 0 (got ${revived.status}: ${revived.stderr.trim().slice(0, 160)})`);
+    }
+    if (!revived.stdout.includes('FOREIGN-COLOR')) {
+      failures.push(`empty-library-revival: the revived lint must actually run and report the planted finding (got: ${revived.stdout.trim().slice(0, 160)})`);
+    }
+  } finally {
+    rmSync(noNodeBin, { recursive: true, force: true });
+    rmSync(cleanHome, { recursive: true, force: true });
+    rmSync(bareCwd, { recursive: true, force: true });
+  }
+}
+
 if (failures.length > 0) {
   console.error('Design-lint check FAILED:');
   for (const failure of failures) console.error(`  - ${failure}`);

@@ -18,7 +18,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "if command -v node >/dev/null 2>&1; then node \"${CLAUDE_PLUGIN_ROOT}/scripts/design-lint.mjs\" --hook; else M=\"$HOME/.mneme/design-lint-no-node\"; if [ ! -f \"$M\" ]; then mkdir -p \"$HOME/.mneme\" 2>/dev/null; : > \"$M\" 2>/dev/null; printf '%s' '{\"systemMessage\":\"design-lint is not running: no node on PATH. Install Node.js to enable the mneme design advisory hook; this notice appears once.\"}'; fi; fi",
+            "command": "[ -d design ] || exit 0; if command -v node >/dev/null 2>&1; then node \"${CLAUDE_PLUGIN_ROOT}/scripts/design-lint.mjs\" --hook; else M=\"$HOME/.mneme/design-lint-no-node\"; if [ ! -f \"$M\" ]; then mkdir -p \"$HOME/.mneme\" 2>/dev/null; : > \"$M\" 2>/dev/null; printf '%s' '{\"systemMessage\":\"design-lint is not running: no node on PATH. Install Node.js to enable the mneme design advisory hook; this notice appears once.\"}'; fi; fi",
             "timeout": 5,
             "statusMessage": "design-lint: checking the edited design file"
           }
@@ -30,7 +30,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "if command -v node >/dev/null 2>&1; then node \"${CLAUDE_PLUGIN_ROOT}/scripts/design-lint.mjs\" --hook; else M=\"$HOME/.mneme/design-lint-no-node\"; if [ ! -f \"$M\" ]; then mkdir -p \"$HOME/.mneme\" 2>/dev/null; : > \"$M\" 2>/dev/null; printf '%s' '{\"systemMessage\":\"design-lint is not running: no node on PATH. Install Node.js to enable the mneme design advisory hook; this notice appears once.\"}'; fi; fi",
+            "command": "[ -d design ] || exit 0; if command -v node >/dev/null 2>&1; then node \"${CLAUDE_PLUGIN_ROOT}/scripts/design-lint.mjs\" --hook; else M=\"$HOME/.mneme/design-lint-no-node\"; if [ ! -f \"$M\" ]; then mkdir -p \"$HOME/.mneme\" 2>/dev/null; : > \"$M\" 2>/dev/null; printf '%s' '{\"systemMessage\":\"design-lint is not running: no node on PATH. Install Node.js to enable the mneme design advisory hook; this notice appears once.\"}'; fi; fi",
             "timeout": 15,
             "statusMessage": "design-lint: sweeping design/ for drift"
           }
