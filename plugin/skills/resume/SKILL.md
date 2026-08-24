@@ -129,11 +129,13 @@ suggest the entry path `/mneme:plan` → migrate → `/mneme:dev`. Never fabrica
 
 ### Pinned sources & caveats
 
-- Event schema is pinned to mneme `schema_version` 5:
+- Event schema is pinned to the engine's own stability contract, not a version number: workflow
+  events are readable from any producer with `schema_version` >= 4 (the engine's
+  `WORKFLOW_EVENTS_MIN_SCHEMA_VERSION`; later schema bumps have not touched this surface):
   `workflow_run_started.definition.phases[].{id,deps}` and
   `workflow_step_applied.{run_id,branch,phase_id,result_kind∈{execute_step,harvest,recall},gates.passed,harvested_n}`;
-  CLOSED ⇔ a `harvest` step_applied. If a log's `schema_version` differs, FLAG it and re-pin these
-  field names rather than guessing.
+  CLOSED ⇔ a `harvest` step_applied. FLAG a log only when its `schema_version` is below 4 or a
+  pinned field name is absent — then re-pin against the engine, never guess at renamed fields.
 - slug derivation, month-file selection, and run↔branch matching are exactly as in Step 2.
 - staged-unaccepted comes from `<corpus>/staging/` (one file per queued note) — a read-only listing;
   resolution happens elsewhere (a `/mneme:dev` boundary stop or the user's own word), never here.
