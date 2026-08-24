@@ -1,7 +1,7 @@
 ---
 name: migrate
 description: convert an externally-authored spec into runnable workflow phase files and render the graph map with boundary candidates, without running anything
-allowed-tools: [Read, mcp__plugin_mneme_memory__workflow_migrate]
+allowed-tools: [Read, Bash, mcp__plugin_mneme_memory__workflow_migrate]
 disable-model-invocation: true
 ---
 
@@ -29,6 +29,8 @@ not readable, say so and stop.
   TOOL writes the phase files; the skill itself writes nothing.
 - Edit / Write / Bash / Grep: FORBIDDEN — no hand-authored phase files, no hand-fixes of conflicts,
   no directory surgery. Conflict resolution is the USER's move, guided by the options below.
+  ONE carve-out: Bash ТОЛЬКО for the read-only session-tokens call before rendering a
+  DECISION block (the TOKEN-LINE replica in Output format) — any other Bash stays FORBIDDEN.
 - `workflow_start` / `workflow_step` / `/mneme:dev`: FORBIDDEN — the skill ENDS at the map;
   running the phases is the user's next move.
 - `recall` / `remember` / any memory tool: FORBIDDEN.
@@ -132,6 +134,13 @@ Russian runtime output (per the user's global ru-RU rule); protocol tokens (`wor
 - на conflict/ошибке — что именно разошлось и нумерованные выходы (см. Step 2);
 - в конце карты — готовые команды `/mneme:dev` (полный прогон + until-кандидаты). Это ПОДСКАЗКА:
   скилл сам ничего не запускает.
+
+TOKEN-LINE — compact replica (norm: dev's `### TOKEN-LINE`): every DECISION block OPENS with the
+token-spend line — before rendering the menu run the read-only call
+`node <base-dir-скилла>/../../scripts/session-tokens.mjs --cwd <корень-проекта>` and paste its
+output VERBATIM above the chips (`≈168k в окне · сессия 52k in / 9k out`, or a degradation
+`окно: н/д — <причина>`); EMPTY output → no line. Fail-open is absolute: the script always exits
+0 and NEVER delays or breaks a menu — a missing line is the degradation, never a wait.
 
 ## Rules
 

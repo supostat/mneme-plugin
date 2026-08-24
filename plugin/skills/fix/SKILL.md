@@ -36,8 +36,9 @@ question), then proceed. Never invent a bug.
 
 - Read / Grep: YES — recon and evidence gathering.
 - Bash: YES, but ONLY to REPRODUCE and MINIMIZE (run the failing command, run tests, bisect an
-  input, add throwaway instrumentation runs). Bash that CHANGES project state beyond a repro
-  artifact is a VIOLATION.
+  input, add throwaway instrumentation runs) — plus the read-only session-tokens call before
+  rendering a DECISION block (the TOKEN-LINE replica in Output format). Bash that CHANGES project
+  state beyond a repro artifact is a VIOLATION.
 - `mcp__plugin_mneme_memory__recall`: YES — prior `resolved_error` / `bugfix` notes on the same
   area are the highest-value context a diagnosis can get.
 - Write: ONLY two artifacts — (a) the red minimal REPRO TEST file (see `### FIX-REPRO-FIRST`;
@@ -219,6 +220,13 @@ the queued diagnosis shown WHOLE as a numbered list + the closing digit menu
 - NEVER tell the user to operate `staging_list` / `staging_resolve` — the agent calls the tools on
   the user's digit; every per-note decision stays the human's. Details: dev's
   `### BOUNDARY-CURATION`.
+
+TOKEN-LINE — compact replica (norm: dev's `### TOKEN-LINE`): every DECISION block OPENS with the
+token-spend line — before rendering the menu run the read-only call
+`node <base-dir-скилла>/../../scripts/session-tokens.mjs --cwd <корень-проекта>` and paste its
+output VERBATIM above the chips (`≈168k в окне · сессия 52k in / 9k out`, or a degradation
+`окно: н/д — <причина>`); EMPTY output → no line. Fail-open is absolute: the script always exits
+0 and NEVER delays or breaks a menu — a missing line is the degradation, never a wait.
 
 MENU-CONTEXT — compact replica (norm: dev's `### MENU-CONTEXT`):
 

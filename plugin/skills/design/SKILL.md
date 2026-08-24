@@ -46,8 +46,9 @@ No argument → ask for the task in one line (numbered prompt). Never invent a t
 - Write: YES, but ONLY under `design/` of the target repo (pages/ and system/), and each file only
   at the stage that owns it (stage 2 rough variants, stage 3 the detailed etalon + EMPTY-LIBRARY
   scaffold, stage 4 annotations/final touches). Writing anywhere outside `design/` is a VIOLATION.
-- Bash: ONLY to invoke the bundled etalon checker at stage 4 (see FIXATION-CHECK). Any other Bash
-  use is a VIOLATION.
+- Bash: ONLY to invoke the bundled etalon checker at stage 4 (see FIXATION-CHECK) and the
+  read-only session-tokens call before rendering a DECISION block (the TOKEN-LINE replica in
+  Output format). Any other Bash use is a VIOLATION.
 - `mcp__plugin_mneme_memory__recall`: YES — at the ENTRY of stage 1 (selection rules and prior
   decisions are the most valuable context; render findings as «prior experience»).
 - `mcp__plugin_mneme_memory__remember`: YES, but ONLY at stage 4 (fixation) — it QUEUES notes for
@@ -186,6 +187,13 @@ text is RUSSIAN.
 - NEVER tell the user to operate `staging_list` / `staging_resolve` — the agent calls the tools on
   the user's digit; every per-note decision stays the human's. Details: dev's
   `### BOUNDARY-CURATION`.
+
+TOKEN-LINE — compact replica (norm: dev's `### TOKEN-LINE`): every DECISION block OPENS with the
+token-spend line — before rendering the menu run the read-only call
+`node <base-dir-скилла>/../../scripts/session-tokens.mjs --cwd <корень-проекта>` and paste its
+output VERBATIM above the chips (`≈168k в окне · сессия 52k in / 9k out`, or a degradation
+`окно: н/д — <причина>`); EMPTY output → no line. Fail-open is absolute: the script always exits
+0 and NEVER delays or breaks a menu — a missing line is the degradation, never a wait.
 
 MENU-CONTEXT — compact replica (norm: dev's `### MENU-CONTEXT`):
 

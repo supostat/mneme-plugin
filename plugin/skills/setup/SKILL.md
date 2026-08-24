@@ -31,8 +31,9 @@ changes.
 ## Permissions (VIOLATION = ABORT)
 
 - Read / Grep / Bash: YES — for DIAGNOSE probes only (`git rev-parse`, reading `.mneme.json`,
-  grepping the project's `CLAUDE.md`). Bash MUTATES nothing except the digit-consented first
-  commit below.
+  grepping the project's `CLAUDE.md`) plus the read-only session-tokens call before rendering a
+  DECISION block (the TOKEN-LINE replica in Output format). Bash MUTATES nothing except the
+  digit-consented first commit below.
 - Write / Edit into the project tree: ONLY as a digit-consented offer — the `CLAUDE.md` block
   insert, or `.mneme.json` when the user chose non-default values. ANY project-tree write without
   an explicit digit is a VIOLATION.
@@ -110,6 +111,13 @@ queue → the HUMAN decides by digit (`1 прими · 2 отклони · 3 п�
 digit → a control `recall` query returns the accepted note → declare the loop green: remember →
 human gate → recall works in this repository. No throwaway probe notes — the note staged is the
 real record of this setup.
+
+TOKEN-LINE — compact replica (norm: dev's `### TOKEN-LINE`): every DECISION block OPENS with the
+token-spend line — before rendering the menu run the read-only call
+`node <base-dir-скилла>/../../scripts/session-tokens.mjs --cwd <корень-проекта>` and paste its
+output VERBATIM above the chips (`≈168k в окне · сессия 52k in / 9k out`, or a degradation
+`окно: н/д — <причина>`); EMPTY output → no line. Fail-open is absolute: the script always exits
+0 and NEVER delays or breaks a menu — a missing line is the degradation, never a wait.
 
 MENU-CONTEXT — compact replica (norm: dev's `### MENU-CONTEXT`):
 

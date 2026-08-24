@@ -1,7 +1,7 @@
 ---
 name: plan
 description: turn a task described in words into a reviewed delta-spec through option fan and user confirmation
-allowed-tools: [Read, Grep, mcp__plugin_mneme_memory__recall, mcp__plugin_mneme_memory__remember, mcp__plugin_mneme_memory__workflow_migrate, mcp__plugin_mneme_memory__staging_list, mcp__plugin_mneme_memory__staging_resolve, Write]
+allowed-tools: [Read, Grep, Bash, mcp__plugin_mneme_memory__recall, mcp__plugin_mneme_memory__remember, mcp__plugin_mneme_memory__workflow_migrate, mcp__plugin_mneme_memory__staging_list, mcp__plugin_mneme_memory__staging_resolve, Write]
 disable-model-invocation: true
 ---
 
@@ -45,6 +45,8 @@ task.
   VIOLATION.
 - Edit files / Bash / any code change: FORBIDDEN — plan plans, it never implements. It does not
   write code and does not call `/mneme:dev`. Its artifact ENDS at the migrated phases plus the map.
+  ONE carve-out: Bash ТОЛЬКО for the read-only session-tokens call before rendering a
+  DECISION block (the TOKEN-LINE replica in Output format) — any other Bash stays FORBIDDEN.
 - `mcp__plugin_mneme_memory__workflow_migrate`: YES, but ONLY in Step 7 (PLAN-AUTOMIGRATE), AFTER
   the Step 6 approval and Write — never on a draft. The TOOL writes the phase files; the skill
   itself writes nothing outside the approved spec (and its Step 7 format repairs).
@@ -315,6 +317,13 @@ plan does not move without a digit)
   the user's digit; every per-note decision stays the human's.
 - Per-note mode and the mandatory full-body branch live in dev's `### BOUNDARY-CURATION`; this
   replica defers to it for details.
+
+TOKEN-LINE — compact replica (norm: dev's `### TOKEN-LINE`): every DECISION block OPENS with the
+token-spend line — before rendering the menu run the read-only call
+`node <base-dir-скилла>/../../scripts/session-tokens.mjs --cwd <корень-проекта>` and paste its
+output VERBATIM above the chips (`≈168k в окне · сессия 52k in / 9k out`, or a degradation
+`окно: н/д — <причина>`); EMPTY output → no line. Fail-open is absolute: the script always exits
+0 and NEVER delays or breaks a menu — a missing line is the degradation, never a wait.
 
 MENU-CONTEXT — compact replica (norm: dev's `### MENU-CONTEXT`):
 

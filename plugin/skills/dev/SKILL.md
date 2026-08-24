@@ -521,6 +521,32 @@ ORIENT-ONLY map, arch owns its fan render. The rule: FILL the placeholders, NEVE
 structure. A case no template covers is composed from layer-1 blocks per layer 2 — the vocabulary
 is EXTENSIBLE, the grammar is NOT.
 
+### TOKEN-LINE — the token-spend header of every DECISION block (norm)
+
+Every DECISION block OPENS with a token-spend line: BEFORE rendering the menu, the skill calls the
+session-tokens script and pastes whatever it printed VERBATIM as the line directly above the
+chips; EMPTY output → no line, the menu renders as is. The line is a layer-3 VOCABULARY addition —
+a header of the DECISION block, never an option: chips, vertical layout, the single reasoned
+«← рекомендую» and silence = pause are untouched. The norm is GENERATIVE: it covers every
+DECISION anywhere (boundary menus, commit menus, clarifying questions), not just the templates
+below. Replicas live in the menu-template-owning skills (plan, fix, migrate, setup, design);
+arch/resume/grill carry none — their rare clarifying menus are covered by this norm.
+
+The literal invocation (dev's base dir is `plugin/skills/dev`, so the script is two levels up):
+
+```
+node <base-dir-скилла>/../../scripts/session-tokens.mjs --cwd <корень-проекта>
+```
+
+Fail-open is ABSOLUTE: the script always exits 0 and may print nothing — a menu is NEVER delayed,
+blocked, or broken by it; a missing line is the degradation. Known refusals print verbatim:
+`окно: н/д — транскрипт не найден` / `окно: н/д — две активные сессии` / `окно: н/д — пустой
+usage`. The normal form (paste as printed, never recompute or reformat):
+
+```
+≈168k в окне · сессия 52k in / 9k out
+```
+
 ### The limit — stated honestly
 
 SKILL.md is an instruction, not a renderer: nothing here machine-guarantees the form. The bet is
@@ -627,6 +653,10 @@ clean and coherent)
   step (`### MENU-CONTEXT`): resolve после меню без menu-поля = VIOLATION; the visible menu form
   never changes; non-events and silence write nothing; request resolutions
   (retag / retire / reanchor) ride WITHOUT menu.
+- TOKEN-LINE — every DECISION block opens with the token-spend line (`### TOKEN-LINE`): call
+  session-tokens before the render, paste its output verbatim as the menu header; empty output =
+  no line, and fail-open is absolute — the script never delays or breaks a menu. The grammar
+  itself is untouched: the line is a DECISION header, never an option.
 - OUTPUT-GRAMMAR — `## OUTPUT-GRAMMAR` here is the SINGLE source of truth for the five-block
   grammar of every mneme skill's output: at most one DECISION per message and nothing after it; a
   turn that leaves the user objects it just created closes with HANDOFF-DECISION (informational
