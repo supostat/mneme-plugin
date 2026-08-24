@@ -15,8 +15,12 @@
 //   (7) a truncated fixture triggers a full recompute (numbers match the new content).
 // The exit code of the script under test must be 0 in EVERY case — fail-open is the contract.
 //
-// ANCHOR part (default mode, added by the wire phase): norm + replicas greps over the real
-// SKILL.md files. Until the wire phase lands it, default mode runs the behavior part only.
+// ANCHOR part (default mode only): greps over the REAL SKILL.md files — the norm in dev, the
+// five replicas (plan, fix, migrate, setup, design), the Bash carve-out and frontmatter grant in
+// each replica skill, shared anchor lines that must not diverge between norm and replicas, and a
+// negation guard: text that weakens fail-open («задержать меню», «троттлинг»/throttling) fails.
+// The search corpus is the six SKILL.md files ONLY — never this checker, its fixtures, or the
+// docs/ specs (the self-match trap: the spec legitimately DISCUSSES the rejected throttling).
 //
 // Dev tooling: lives at the repo ROOT, never inside plugin/ (same rule as the other check-*).
 //
@@ -157,7 +161,64 @@ rmSync(fixtureRoot, { recursive: true, force: true });
 
 const behaviorOnly = process.argv.includes('--behavior');
 if (!behaviorOnly) {
-  // Anchor checks over the real SKILL.md files are added by the wire phase.
+  const skillText = (name) => readFileSync(join(repoRoot, 'plugin', 'skills', name, 'SKILL.md'), 'utf8');
+  const REPLICA_SKILLS = ['plan', 'fix', 'migrate', 'setup', 'design'];
+
+  // Shared anchor lines: present in the dev norm AND in every replica, byte-for-byte (the
+  // diverged-replica detector, the check-skill-handoff (d) pattern).
+  const SHARED_ANCHORS = [
+    'scripts/session-tokens.mjs --cwd',
+    '≈168k в окне · сессия 52k in / 9k out',
+    'окно: н/д',
+  ];
+
+  const dev = skillText('dev');
+  if (!dev.includes('### TOKEN-LINE')) {
+    failures.push('dev: the TOKEN-LINE norm section (### TOKEN-LINE) is missing from OUTPUT-GRAMMAR');
+  }
+  if (!/^- TOKEN-LINE — /m.test(dev)) {
+    failures.push('dev: the TOKEN-LINE bullet is missing from the Rules section');
+  }
+  for (const anchor of SHARED_ANCHORS) {
+    if (!dev.includes(anchor)) failures.push(`dev: norm anchor line "${anchor}" is missing`);
+  }
+
+  for (const name of REPLICA_SKILLS) {
+    const text = skillText(name);
+    if (!text.includes('TOKEN-LINE — compact replica')) {
+      failures.push(`${name}: the TOKEN-LINE compact replica is missing`);
+      continue;
+    }
+    for (const anchor of SHARED_ANCHORS) {
+      if (!text.includes(anchor)) failures.push(`${name}: replica anchor line "${anchor}" diverged or is missing`);
+    }
+    const frontmatter = text.slice(0, text.indexOf('\n---', 3));
+    if (!/allowed-tools:.*\bBash\b/.test(frontmatter)) {
+      failures.push(`${name}: allowed-tools frontmatter carries no Bash — the replica's call is mechanically impossible`);
+    }
+    const permissionsStart = text.indexOf('## Permissions');
+    const permissions = permissionsStart === -1 ? '' : text.slice(permissionsStart, text.indexOf('\n## ', permissionsStart + 1));
+    if (permissionsStart === -1) {
+      failures.push(`${name}: no ## Permissions section found`);
+    } else if (!permissions.includes('session-tokens')) {
+      failures.push(`${name}: Permissions carries no session-tokens carve-out — the grant lives in prose AND frontmatter, both`);
+    }
+  }
+
+  // Negation guard (the check-skill-handoff (e)/(g) pattern): a replica must not weaken
+  // fail-open. Word-boundary matching where morphology could false-positive (\b lesson).
+  const WEAKENERS = [
+    { pattern: /задержать меню|задерживает меню|может задержать/i, label: 'menu-delay wording' },
+    { pattern: /троттлинг|\bthrottl/i, label: 'throttling wording' },
+    { pattern: /TOKEN-LINE (опционал|optional)/i, label: 'optional-TOKEN-LINE wording' },
+  ];
+  for (const name of ['dev', ...REPLICA_SKILLS]) {
+    const text = skillText(name);
+    for (const { pattern, label } of WEAKENERS) {
+      const match = text.match(pattern);
+      if (match) failures.push(`${name}: negation guard — fail-open-weakening ${label} ("${match[0]}")`);
+    }
+  }
 }
 
 if (failures.length > 0) {
@@ -165,4 +226,4 @@ if (failures.length > 0) {
   for (const failure of failures) console.error(`  - ${failure}`);
   process.exit(1);
 }
-console.log(`check-session-tokens OK (behavior: 7 cases${behaviorOnly ? '' : ', anchors: pending wire phase'})`);
+console.log(`check-session-tokens OK (behavior: 7 cases${behaviorOnly ? '' : ', anchors: norm + 5 replicas + carve-outs + negation guard'})`);
