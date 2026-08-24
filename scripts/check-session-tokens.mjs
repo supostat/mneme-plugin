@@ -1,18 +1,27 @@
 #!/usr/bin/env node
 //
-// Behavior + anchor test for the TOKEN-LINE machinery (spec-session-tokens).
+// Behavior + anchor test for the TOKEN-LINE / RUN-COST machinery (spec-session-tokens,
+// spec-run-cost).
 //
 // BEHAVIOR part (--behavior, and always): drives the REAL plugin/scripts/session-tokens.mjs
 // against fixtures GENERATED into the OS tmpdir (never into the repo tree), asserting every
-// degradation and the incremental byte-offset cache:
-//   (1) normal tail → the literal format line with correct numbers;
+// degradation, the incremental byte-offset cache, the message.id dedup, the main-model window
+// filter and the mark/delta run-cost modes:
+//   (1) normal tail → the literal menu line with correct window, denominator and percent;
 //   (2) transcript with no usage anywhere → «окно: н/д — пустой usage»;
 //   (3) missing transcript dir → «окно: н/д — транскрипт не найден»;
 //   (4) two jsonl with mtimes ≤300s apart → «окно: н/д — две активные сессии», and the
 //       positive control (>300s apart) → the normal line (the freshest file wins);
 //   (5) cold run == hot run (sums identical, so the cache never skews the numbers);
 //   (6) an appended fixture is read FROM THE OFFSET (cache offset === file size after run);
-//   (7) a truncated fixture triggers a full recompute (numbers match the new content).
+//   (7) a truncated fixture triggers a full recompute (numbers match the new content);
+//   (8) duplicate lines of one message.id count ONCE (delta shows deduped out and turns);
+//   (9) a trailing record of ANOTHER model does not steal the window — the MAIN model
+//       (most unique messages) provides lastUsage, denominator and percent;
+//  (10) an unknown model prints the window with NO denominator (honest degradation);
+//  (11) --mark is silent; a later --delta prints exactly the marked-to-now differences;
+//  (12) subagents/agent-*.jsonl output is deduped and reported as its own figure;
+//  (13) a v1-schema cache (no schema field) triggers a cold recompute, never a failure.
 // The exit code of the script under test must be 0 in EVERY case — fail-open is the contract.
 //
 // ANCHOR part (default mode only): greps over the REAL SKILL.md files — the norm in dev, the
@@ -39,10 +48,12 @@ const uniq = `${process.pid}-${Date.now()}`;
 
 const failures = [];
 
-function usageLine(input, output, cacheRead, cacheCreation) {
+function usageLine(messageId, model, input, output, cacheRead, cacheCreation) {
   return `${JSON.stringify({
     type: 'assistant',
     message: {
+      id: messageId,
+      model,
       usage: {
         input_tokens: input,
         output_tokens: output,
@@ -53,6 +64,7 @@ function usageLine(input, output, cacheRead, cacheCreation) {
   })}\n`;
 }
 
+const FABLE = 'claude-fable-5';
 const noUsageLine = `${JSON.stringify({ type: 'user', message: { content: 'hi' } })}\n`;
 
 let fixtureCounter = 0;
@@ -64,10 +76,12 @@ function makeProject(name) {
   return { cwd, transcriptDir };
 }
 
-function runScript(cwd) {
-  const result = spawnSync('node', [scriptUnderTest, '--cwd', cwd, '--projects-dir', fixtureRoot], {
-    encoding: 'utf8',
-  });
+function runScript(cwd, ...extraArgs) {
+  const result = spawnSync(
+    'node',
+    [scriptUnderTest, '--cwd', cwd, '--projects-dir', fixtureRoot, ...extraArgs],
+    { encoding: 'utf8' },
+  );
   if (result.status !== 0) {
     failures.push(`fail-open broken: exit ${result.status} for --cwd ${cwd} (stderr: ${result.stderr.trim()})`);
   }
@@ -85,15 +99,18 @@ function setMtime(path, msAgo) {
   utimesSync(path, seconds, seconds);
 }
 
-// (1) normal tail: window = last usage input+cache_read+cache_creation; session = Σin / Σout
+// (1) normal tail: window = MAIN model's lastUsage input+cache_read+cache_creation, /limit · %
 {
   const { cwd, transcriptDir } = makeProject('normal');
   const transcript = join(transcriptDir, `session-normal-${uniq}.jsonl`);
   writeFileSync(
     transcript,
-    noUsageLine + usageLine(40_000, 5_000, 0, 0) + usageLine(12_000, 4_000, 100_000, 2_000) + usageLine(2, 255, 150_000, 18_000),
+    noUsageLine +
+      usageLine('msg-n1', FABLE, 40_000, 5_000, 0, 0) +
+      usageLine('msg-n2', FABLE, 12_000, 4_000, 100_000, 2_000) +
+      usageLine('msg-n3', FABLE, 2, 255, 150_000, 18_000),
   );
-  expect('normal-tail', runScript(cwd), '≈168k в окне · сессия 52k in / 9k out');
+  expect('normal-tail', runScript(cwd), 'контекст ≈168k/1M · 17%');
 }
 
 // (2) transcript with no usage anywhere
@@ -113,33 +130,33 @@ function setMtime(path, msAgo) {
   const { cwd, transcriptDir } = makeProject('parallel');
   const fresh = join(transcriptDir, `session-fresh-${uniq}.jsonl`);
   const stale = join(transcriptDir, `session-stale-${uniq}.jsonl`);
-  writeFileSync(fresh, usageLine(1_000, 2_000, 3_000, 0));
-  writeFileSync(stale, usageLine(9_000_000, 9_000_000, 0, 0));
+  writeFileSync(fresh, usageLine('msg-p1', FABLE, 1_000, 2_000, 3_000, 0));
+  writeFileSync(stale, usageLine('msg-p2', FABLE, 9_000_000, 9_000_000, 0, 0));
   setMtime(fresh, 0);
   setMtime(stale, 100_000);
   expect('two-active-sessions', runScript(cwd), 'окно: н/д — две активные сессии');
   setMtime(stale, 400_000);
-  expect('freshest-wins', runScript(cwd), '≈4k в окне · сессия 1k in / 2k out');
+  expect('freshest-wins', runScript(cwd), 'контекст ≈4k/1M · 0%');
 }
 
 // (5) cold run == hot run
 {
   const { cwd, transcriptDir } = makeProject('cold-hot');
-  writeFileSync(join(transcriptDir, `session-coldhot-${uniq}.jsonl`), usageLine(30_000, 7_000, 60_000, 1_000));
+  writeFileSync(join(transcriptDir, `session-coldhot-${uniq}.jsonl`), usageLine('msg-c1', FABLE, 30_000, 7_000, 60_000, 1_000));
   const cold = runScript(cwd);
   const hot = runScript(cwd);
   expect('cold-equals-hot', hot, cold);
-  expect('cold-run-format', cold, '≈91k в окне · сессия 30k in / 7k out');
+  expect('cold-run-format', cold, 'контекст ≈91k/1M · 9%');
 }
 
 // (6) appended fixture is read from the offset; cache offset lands on the file size
 {
   const { cwd, transcriptDir } = makeProject('append');
   const transcript = join(transcriptDir, `session-append-${uniq}.jsonl`);
-  writeFileSync(transcript, usageLine(10_000, 3_000, 20_000, 0));
-  expect('append-before', runScript(cwd), '≈30k в окне · сессия 10k in / 3k out');
-  appendFileSync(transcript, usageLine(5_000, 2_000, 40_000, 1_000));
-  expect('append-after', runScript(cwd), '≈46k в окне · сессия 15k in / 5k out');
+  writeFileSync(transcript, usageLine('msg-a1', FABLE, 10_000, 3_000, 20_000, 0));
+  expect('append-before', runScript(cwd), 'контекст ≈30k/1M · 3%');
+  appendFileSync(transcript, usageLine('msg-a2', FABLE, 5_000, 2_000, 40_000, 1_000));
+  expect('append-after', runScript(cwd), 'контекст ≈46k/1M · 5%');
   const cache = JSON.parse(readFileSync(join(tmpdir(), `mneme-session-tokens-session-append-${uniq}.jsonl.json`), 'utf8'));
   const fileSize = readFileSync(transcript, 'utf8').length;
   if (cache.offset !== fileSize) {
@@ -151,10 +168,78 @@ function setMtime(path, msAgo) {
 {
   const { cwd, transcriptDir } = makeProject('truncate');
   const transcript = join(transcriptDir, `session-truncate-${uniq}.jsonl`);
-  writeFileSync(transcript, usageLine(50_000, 9_000, 0, 0) + usageLine(50_000, 9_000, 0, 0));
+  writeFileSync(transcript, usageLine('msg-t1', FABLE, 50_000, 9_000, 0, 0) + usageLine('msg-t2', FABLE, 50_000, 9_000, 0, 0));
   runScript(cwd);
-  writeFileSync(transcript, usageLine(1_000, 500, 2_000, 0));
-  expect('truncate-recompute', runScript(cwd), '≈3k в окне · сессия 1k in / 1k out');
+  writeFileSync(transcript, usageLine('msg-t3', FABLE, 1_000, 500, 2_000, 0));
+  expect('truncate-recompute', runScript(cwd), 'контекст ≈3k/1M · 0%');
+}
+
+// (8) message.id dedup: duplicate streaming lines of one message count ONCE (out AND turns)
+{
+  const { cwd, transcriptDir } = makeProject('dedup');
+  const duplicated = usageLine('msg-d1', FABLE, 2, 4_000, 10_000, 0);
+  writeFileSync(
+    join(transcriptDir, `session-dedup-${uniq}.jsonl`),
+    duplicated + duplicated + duplicated + usageLine('msg-d2', FABLE, 2, 1_000, 15_000, 0),
+  );
+  expect('dedup-delta', runScript(cwd, '--delta', 'run-none'), 'прогон (с начала текущей сессии) ~5k out · 2 турн');
+}
+
+// (9) main-model window: a trailing auxiliary record of another model does not steal lastUsage
+{
+  const { cwd, transcriptDir } = makeProject('main-model');
+  writeFileSync(
+    join(transcriptDir, `session-mainmodel-${uniq}.jsonl`),
+    usageLine('msg-m1', FABLE, 2, 3_000, 100_000, 5_000) +
+      usageLine('msg-m2', FABLE, 2, 4_000, 500_000, 74_000) +
+      usageLine('msg-m3', 'claude-opus-5', 2, 641, 24_606, 50_266),
+  );
+  expect('main-model-window', runScript(cwd), 'контекст ≈574k/1M · 57%');
+}
+
+// (10) unknown model: window with NO denominator — a degradation, never a guessed limit
+{
+  const { cwd, transcriptDir } = makeProject('unknown-model');
+  writeFileSync(join(transcriptDir, `session-unknown-${uniq}.jsonl`), usageLine('msg-u1', 'mystery-model-9', 1_000, 500, 3_000, 0));
+  expect('unknown-model', runScript(cwd), 'контекст ≈4k');
+}
+
+// (11) mark → append → delta: --mark is silent, --delta prints the differences since the mark
+{
+  const { cwd, transcriptDir } = makeProject('mark-delta');
+  const transcript = join(transcriptDir, `session-markdelta-${uniq}.jsonl`);
+  writeFileSync(transcript, usageLine('msg-k1', FABLE, 2, 3_000, 10_000, 0));
+  expect('mark-silent', runScript(cwd, '--mark', 'run-x'), '');
+  appendFileSync(transcript, usageLine('msg-k2', FABLE, 2, 2_000, 20_000, 0));
+  expect('delta-after-mark', runScript(cwd, '--delta', 'run-x'), 'прогон ~2k out · 1 турн');
+}
+
+// (12) subagents: deduped Σoutput of <session>/subagents/agent-*.jsonl as a SEPARATE figure
+{
+  const { cwd, transcriptDir } = makeProject('subagents');
+  const sessionName = `session-sub-${uniq}`;
+  writeFileSync(join(transcriptDir, `${sessionName}.jsonl`), usageLine('msg-s1', FABLE, 2, 1_000, 5_000, 0));
+  const subagentsDir = join(transcriptDir, sessionName, 'subagents');
+  mkdirSync(subagentsDir, { recursive: true });
+  const duplicated = usageLine('msg-sa1', FABLE, 2, 5_000, 0, 0);
+  writeFileSync(join(subagentsDir, 'agent-a.jsonl'), duplicated + duplicated + usageLine('msg-sa2', FABLE, 2, 7_000, 0, 0));
+  expect(
+    'subagents-delta',
+    runScript(cwd, '--delta', 'run-none'),
+    'прогон (с начала текущей сессии) ~1k out · 1 турн · субагенты 12k out',
+  );
+}
+
+// (13) v1-schema cache (no schema field) triggers a cold recompute, never a failure
+{
+  const { cwd, transcriptDir } = makeProject('v1-cache');
+  const transcript = join(transcriptDir, `session-v1cache-${uniq}.jsonl`);
+  writeFileSync(transcript, usageLine('msg-v1', FABLE, 1_000, 500, 2_000, 0));
+  writeFileSync(
+    join(tmpdir(), `mneme-session-tokens-session-v1cache-${uniq}.jsonl.json`),
+    JSON.stringify({ offset: 0, input: 999_000, output: 999_000, cacheRead: 0, cacheCreation: 0, lastUsage: null }),
+  );
+  expect('v1-cache-recompute', runScript(cwd), 'контекст ≈3k/1M · 0%');
 }
 
 rmSync(fixtureRoot, { recursive: true, force: true });
@@ -168,7 +253,7 @@ if (!behaviorOnly) {
   // diverged-replica detector, the check-skill-handoff (d) pattern).
   const SHARED_ANCHORS = [
     'scripts/session-tokens.mjs --cwd',
-    '≈168k в окне · сессия 52k in / 9k out',
+    'контекст ≈574k/1M · 57%',
     'окно: н/д',
   ];
 
@@ -181,6 +266,24 @@ if (!behaviorOnly) {
   }
   for (const anchor of SHARED_ANCHORS) {
     if (!dev.includes(anchor)) failures.push(`dev: norm anchor line "${anchor}" is missing`);
+  }
+
+  // RUN-COST norm: dev-only mark/delta — the section, the Rules bullet, the literal modes,
+  // the delta format sample and the named degradation base.
+  if (!dev.includes('### RUN-COST')) {
+    failures.push('dev: the RUN-COST norm section (### RUN-COST) is missing');
+  }
+  if (!/^- RUN-COST — /m.test(dev)) {
+    failures.push('dev: the RUN-COST bullet is missing from the Rules section');
+  }
+  const RUN_COST_ANCHORS = [
+    '--mark <run_id>',
+    '--delta <run_id>',
+    'прогон ~46k out · 31 турн · субагенты 12k out',
+    'прогон (с начала текущей сессии)',
+  ];
+  for (const anchor of RUN_COST_ANCHORS) {
+    if (!dev.includes(anchor)) failures.push(`dev: RUN-COST anchor "${anchor}" is missing`);
   }
 
   for (const name of REPLICA_SKILLS) {
@@ -219,6 +322,21 @@ if (!behaviorOnly) {
       if (match) failures.push(`${name}: negation guard — fail-open-weakening ${label} ("${match[0]}")`);
     }
   }
+
+  // Retired-format guard: the old two-figure sample («≈Xk в окне · сессия Yk in / Zk out»)
+  // must be GONE from the runtime corpus — it was the defect's carrier (a cumulative figure
+  // with no decision question next to the window figure provoked misreading).
+  for (const name of ['dev', ...REPLICA_SKILLS]) {
+    const match = skillText(name).match(/в окне · сессия|сессия \d+k in \/ \d+k out/);
+    if (match) failures.push(`${name}: retired two-figure format sample still present ("${match[0]}")`);
+  }
+
+  // RUN-COST stays dev-only: a mark/delta replica in a menu skill is dead text AND breaks the
+  // «read-only session-tokens call» carve-out truth (--mark writes the cache).
+  for (const name of REPLICA_SKILLS) {
+    const match = skillText(name).match(/--mark|--delta|RUN-COST/);
+    if (match) failures.push(`${name}: RUN-COST replica outside dev ("${match[0]}") — mark/delta is dev-only`);
+  }
 }
 
 if (failures.length > 0) {
@@ -226,4 +344,4 @@ if (failures.length > 0) {
   for (const failure of failures) console.error(`  - ${failure}`);
   process.exit(1);
 }
-console.log(`check-session-tokens OK (behavior: 7 cases${behaviorOnly ? '' : ', anchors: norm + 5 replicas + carve-outs + negation guard'})`);
+console.log(`check-session-tokens OK (behavior: 13 cases${behaviorOnly ? '' : ', anchors: norm + RUN-COST + 5 replicas + carve-outs + negation guards'})`);

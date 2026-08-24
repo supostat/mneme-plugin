@@ -191,7 +191,7 @@ text is RUSSIAN.
 TOKEN-LINE — compact replica (norm: dev's `### TOKEN-LINE`): every DECISION block OPENS with the
 token-spend line — before rendering the menu run the read-only call
 `node <base-dir-скилла>/../../scripts/session-tokens.mjs --cwd <корень-проекта>` and paste its
-output VERBATIM above the chips (`≈168k в окне · сессия 52k in / 9k out`, or a degradation
+output VERBATIM above the chips (`контекст ≈574k/1M · 57%`, or a degradation
 `окно: н/д — <причина>`); EMPTY output → no line. Fail-open is absolute: the script always exits
 0 and NEVER delays or breaks a menu — a missing line is the degradation, never a wait.
 

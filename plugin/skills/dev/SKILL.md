@@ -391,7 +391,9 @@ Do NOT run the gate command yourself; the engine already ran it.
 
 ### Terminals branch
 
-- `RUN COMPLETE` → stop; print a Russian success summary (run_id, phases done, iterations used).
+- `RUN COMPLETE` → stop; print a Russian success summary (run_id, phases done, iterations used)
+  including the run-cost line from `--delta <run_id>` per `### RUN-COST` (pasted verbatim; empty
+  output → no line).
 - `RUN FAILED: <r>` → stop; print the failure reason in Russian.
 - `RUN ESCALATED at <p>/<s>: <r>` → the retry budget is exhausted; SHOW phase / step / reason and
   ASK the user how to proceed (Russian, numbered options — e.g. `1. повторить вручную`,
@@ -541,11 +543,52 @@ node <base-dir-скилла>/../../scripts/session-tokens.mjs --cwd <корен�
 Fail-open is ABSOLUTE: the script always exits 0 and may print nothing — a menu is NEVER delayed,
 blocked, or broken by it; a missing line is the degradation. Known refusals print verbatim:
 `окно: н/д — транскрипт не найден` / `окно: н/д — две активные сессии` / `окно: н/д — пустой
-usage`. The normal form (paste as printed, never recompute or reformat):
+usage`. The normal form (paste as printed, never recompute or reformat) is ONE window figure with
+its denominator and percent — the window comes from the MAIN model's last usage (auxiliary calls
+of other models never steal it), the denominator from the script's model→limit table:
 
 ```
-≈168k в окне · сессия 52k in / 9k out
+контекст ≈574k/1M · 57%
 ```
+
+A model missing from the table prints the window with NO denominator (`контекст ≈574k`) — an
+honest degradation, never a guessed limit.
+
+### RUN-COST — the run's token cost via mark/delta (norm, dev only)
+
+dev is the ONLY skill that leads runs, so dev alone drives the run-cost modes of the same script
+(`--mark` WRITES the script's cache — the read-only carve-outs of the menu skills stay true, and
+they carry NO replica of this norm). Three call points, all with the run_id captured at start:
+
+- ON RUN START — right after `workflow_start` returns the run_id (fresh start and the
+  existing-run resume path alike), call ONCE:
+
+  ```
+  node <base-dir-скилла>/../../scripts/session-tokens.mjs --cwd <корень-проекта> --mark <run_id>
+  ```
+
+  The call is SILENT by design; never wait on or render its output.
+
+- BEFORE RENDERING A COMMIT BLOCK, and ON THE `RUN COMPLETE` TERMINAL — call:
+
+  ```
+  node <base-dir-скилла>/../../scripts/session-tokens.mjs --cwd <корень-проекта> --delta <run_id>
+  ```
+
+  and paste whatever it printed VERBATIM: into the commit block as its данные-строка, and into
+  the terminal's Russian summary. The normal form:
+
+  ```
+  прогон ~46k out · 31 турн · субагенты 12k out
+  ```
+
+  The subagent figure appears only when subagents actually spent tokens. A mark unavailable in
+  THIS session's cache (a resume continued the run, the transcript rotated) degrades honestly by
+  NAMING its base — `прогон (с начала текущей сессии) ~46k out · 31 турн` — never a made-up
+  run-scoped number.
+
+Fail-open is ABSOLUTE here exactly as for TOKEN-LINE: exit 0 always, EMPTY output → no line, and
+no block or terminal is ever delayed or broken by the script.
 
 ### The limit — stated honestly
 
@@ -610,6 +653,8 @@ The render:
 ````
 <diff-stat>
 
+<строка RUN-COST — вывод `--delta <run_id>` дословно, per `### RUN-COST`; пусто — строки нет>
+
 Сообщение коммита:
 
 ```
@@ -624,7 +669,8 @@ The render:
 ````
 
 (the «← рекомендую: <причина>» suffix rides exactly ONE option — typically `1` when the diff is
-clean and coherent)
+clean and coherent; the TOKEN-LINE header still opens the DECISION per its norm — the RUN-COST
+line is DATA of the block, not the menu header)
 
 ## Rules
 
@@ -657,6 +703,11 @@ clean and coherent)
   session-tokens before the render, paste its output verbatim as the menu header; empty output =
   no line, and fail-open is absolute — the script never delays or breaks a menu. The grammar
   itself is untouched: the line is a DECISION header, never an option.
+- RUN-COST — dev alone drives the run-cost modes (`### RUN-COST`): `--mark <run_id>` once when
+  the run_id is captured (silent), `--delta <run_id>` before every commit-block render and on the
+  `RUN COMPLETE` terminal, output pasted verbatim; a mark missing from this session's cache
+  degrades to the NAMED base «прогон (с начала текущей сессии) …»; fail-open absolute, no
+  replicas in other skills.
 - OUTPUT-GRAMMAR — `## OUTPUT-GRAMMAR` here is the SINGLE source of truth for the five-block
   grammar of every mneme skill's output: at most one DECISION per message and nothing after it; a
   turn that leaves the user objects it just created closes with HANDOFF-DECISION (informational
