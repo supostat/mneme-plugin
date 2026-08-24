@@ -145,15 +145,36 @@ export const GENERIC_FAMILIES = new Set([
   '-apple-system', 'inherit', 'initial', 'unset',
 ]);
 
-// Normalize duplicate custom-property names in a css text: returns the names seen twice+.
+// Duplicate custom-property names in a css text: returns the names declared
+// twice+ within ONE cascade context — the same stack of block headers
+// (selector plus enclosing at-rules). A fallback re-declaration inside
+// @supports/@media, or under a different selector, is a legitimate cascade
+// layer, not a duplicate; two declarations in the very same block still are.
 export function findDuplicateTokens(css) {
   const seen = new Set();
   const duplicates = new Set();
-  for (const declaration of css.split(/[;{}\n]/)) {
-    const custom = declaration.match(/^\s*(--[\w-]+)\s*:/);
-    if (custom === null) continue;
-    if (seen.has(custom[1])) duplicates.add(custom[1]);
-    seen.add(custom[1]);
+  const blockStack = [];
+  let buffer = '';
+  const flush = () => {
+    const custom = buffer.match(/^\s*(--[\w-]+)\s*:/);
+    buffer = '';
+    if (custom === null) return;
+    const contextKey = `${blockStack.join(' > ')}|${custom[1]}`;
+    if (seen.has(contextKey)) duplicates.add(custom[1]);
+    seen.add(contextKey);
+  };
+  for (const char of css.replace(/\/\*[\s\S]*?\*\//g, '')) {
+    if (char === '{') {
+      blockStack.push(buffer.trim().replace(/\s+/g, ' '));
+      buffer = '';
+    } else if (char === '}') {
+      flush();
+      blockStack.pop();
+    } else if (char === ';') {
+      flush();
+    } else {
+      buffer += char;
+    }
   }
   return [...duplicates];
 }
