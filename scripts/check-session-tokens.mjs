@@ -336,6 +336,23 @@ if (!behaviorOnly) {
     }
   }
 
+  // The mark call is embedded in the dossier PROCEDURE itself, not only in the norm section
+  // below it — an agent walking the numbered step list must meet the call in place (the
+  // first-live-run finding: order stated in prose three times is still absent from the list).
+  {
+    // Heading match is LINE-ANCHORED: a backticked inline mention of the section name in
+    // Permissions must not become the slice start (the retire/RETIRED word-boundary lesson).
+    const ga = skillText('grill-agent');
+    const heading = ga.match(/^### DOSSIER-ROUND.*$/m);
+    const dossierStart = heading === null ? -1 : heading.index;
+    const nextHeading = dossierStart === -1 ? null : /^### /m.exec(ga.slice(dossierStart + heading[0].length));
+    const dossierEnd = nextHeading === null ? undefined : dossierStart + heading[0].length + nextHeading.index;
+    const dossier = dossierStart === -1 ? '' : ga.slice(dossierStart, dossierEnd);
+    if (!dossier.includes('--mark grill-')) {
+      failures.push('grill-agent: the DOSSIER-ROUND step list does not carry the --mark call — mark-before-dossier lives only in prose');
+    }
+  }
+
   for (const name of REPLICA_SKILLS) {
     const text = skillText(name);
     if (!text.includes('TOKEN-LINE — compact replica')) {

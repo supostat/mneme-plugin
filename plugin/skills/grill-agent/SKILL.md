@@ -74,17 +74,20 @@ path that does not exist → say so and proceed WITHOUT it (the default role alw
 
 ### DOSSIER-ROUND — round zero: one researcher spawn builds the dossier
 
-1. Call `recall` once with the topic's key concepts.
-2. Spawn ONE researcher (Task) whose prompt carries: the topic; the instruction to investigate
+1. MARK THE COST FIRST (`### RUN-COST` — the dossier is part of the interrogation's cost):
+   silently call
+   `node <base-dir-скилла>/../../scripts/session-tokens.mjs --cwd <корень-проекта> --mark grill-<slug-темы>`.
+2. Call `recall` once with the topic's key concepts.
+3. Spawn ONE researcher (Task) whose prompt carries: the topic; the instruction to investigate
    the CODE (schemas, invariants, addresses) and write a conspectus with `file:line` for every
    claim into `<tmpdir>/mneme-grill-agent-<slug>-<pid>/dossier.md`; the recall bundle WHOLE AND
    VERBATIM — every note, byte for byte, no selection, no summary (the D4 verbatim-bundle rule:
    a paraphrased bundle is the lossy hop this design exists to avoid) — with the grounding rule
    stated verbatim: «заземляй на текущий код; заметки корпуса — история решений, не замена
    кода».
-3. Dossier form is FREE with RECOMMENDED sections — схемы / инварианты / адреса / открытое.
+4. Dossier form is FREE with RECOMMENDED sections — схемы / инварианты / адреса / открытое.
    The readers are spawns; machine-readability is not a goal.
-4. Dossier spawn failure → `### SPAWN-FAILOPEN` (the loop can still run; every FACT answer just
+5. Dossier spawn failure → `### SPAWN-FAILOPEN` (the loop can still run; every FACT answer just
    has less ground — say so honestly in the transcript).
 
 ### Step 2: the interrogation loop
