@@ -531,8 +531,9 @@ chips; EMPTY output → no line, the menu renders as is. The line is a layer-3 V
 a header of the DECISION block, never an option: chips, vertical layout, the single reasoned
 «← рекомендую» and silence = pause are untouched. The norm is GENERATIVE: it covers every
 DECISION anywhere (boundary menus, commit menus, clarifying questions), not just the templates
-below. Replicas live in the menu-template-owning skills (plan, fix, migrate, setup, design);
-arch/resume/grill carry none — their rare clarifying menus are covered by this norm.
+below. Replicas live in the menu-template-owning skills (plan, fix, migrate, setup, design,
+grill-agent); arch/resume/grill carry none — their rare clarifying menus are covered by this
+norm.
 
 The literal invocation (dev's base dir is `plugin/skills/dev`, so the script is two levels up):
 
@@ -554,11 +555,18 @@ of other models never steal it), the denominator from the script's model→limit
 A model missing from the table prints the window with NO denominator (`контекст ≈574k`) — an
 honest degradation, never a guessed limit.
 
-### RUN-COST — the run's token cost via mark/delta (norm, dev only)
+### RUN-COST — the cycle's token cost via mark/delta (norm, bearers registry)
 
-dev is the ONLY skill that leads runs, so dev alone drives the run-cost modes of the same script
-(`--mark` WRITES the script's cache — the read-only carve-outs of the menu skills stay true, and
-they carry NO replica of this norm). Three call points, all with the run_id captured at start:
+The norm's BEARERS are the skills that lead multi-step cycles — the registry
+RUN_COST_BEARERS: **dev** (workflow runs) and **grill-agent** (interrogations). Each bearer
+drives the run-cost modes of the same session-tokens script under its OWN replica: dev's call
+points are defined below; grill-agent's (mark `grill-<slug>` before the dossier spawn, delta
+with `--label допрос` on its finale terminal) live in its SKILL.md. `--mark` WRITES the
+script's cache, so the read-only carve-outs of NON-bearer menu skills stay true and they carry
+NO replica of this norm — the checker enforces both directions (a bearer must carry its
+replica's literal calls; a non-bearer must not mention the modes at all).
+
+dev's three call points, all with the run_id captured at start:
 
 - ON RUN START — right after `workflow_start` returns the run_id (fresh start and the
   existing-run resume path alike), call ONCE:
@@ -703,11 +711,12 @@ line is DATA of the block, not the menu header)
   session-tokens before the render, paste its output verbatim as the menu header; empty output =
   no line, and fail-open is absolute — the script never delays or breaks a menu. The grammar
   itself is untouched: the line is a DECISION header, never an option.
-- RUN-COST — dev alone drives the run-cost modes (`### RUN-COST`): `--mark <run_id>` once when
-  the run_id is captured (silent), `--delta <run_id>` before every commit-block render and on the
-  `RUN COMPLETE` terminal, output pasted verbatim; a mark missing from this session's cache
-  degrades to the NAMED base «прогон (с начала текущей сессии) …»; fail-open absolute, no
-  replicas in other skills.
+- RUN-COST — the mark/delta modes belong to the RUN_COST_BEARERS registry (`### RUN-COST`: dev
+  for runs, grill-agent for interrogations, each under its own replica). dev's points:
+  `--mark <run_id>` once when the run_id is captured (silent), `--delta <run_id>` before every
+  commit-block render and on the `RUN COMPLETE` terminal, output pasted verbatim; a mark missing
+  from this session's cache degrades to the NAMED base «прогон (с начала текущей сессии) …»;
+  fail-open absolute; non-bearer skills carry no replica.
 - OUTPUT-GRAMMAR — `## OUTPUT-GRAMMAR` here is the SINGLE source of truth for the five-block
   grammar of every mneme skill's output: at most one DECISION per message and nothing after it; a
   turn that leaves the user objects it just created closes with HANDOFF-DECISION (informational

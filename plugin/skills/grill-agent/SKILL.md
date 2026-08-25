@@ -43,8 +43,11 @@ artifact is the finale protocol in `docs/` — exactly like grill.
   to the dossier spawn WHOLE AND VERBATIM (`### DOSSIER-ROUND`).
 - Task: YES, but ONLY to spawn the dossier researcher (round zero) and one respondent per FACT
   round. Spawning anything else — a co-interviewer, a decision-maker, a reviewer — is a VIOLATION.
-- Bash: ONE carve-out — ТОЛЬКО the read-only session-tokens call before rendering a DECISION
-  block (the TOKEN-LINE replica below); any other Bash is FORBIDDEN.
+- Bash: TWO carve-outs, both session-tokens only — (1) the read-only call before rendering a
+  DECISION block (the TOKEN-LINE replica below); (2) the RUN-COST bearer calls of this skill's
+  own replica (`### RUN-COST`): `--mark` before the dossier spawn and `--delta … --label` on
+  the finale terminal (`--mark` writes the script's tmpdir cache — nothing else). Any other
+  Bash is FORBIDDEN.
 - Write: ONLY the finale protocol `docs/GRILL-<slug>.md` (grill's file shape), ONLY at the
   finale; the dossier and journal in the tmpdir are written BY SPAWNS or via the same finale
   path — never anywhere in the project tree.
@@ -174,6 +177,37 @@ USER as a DECISION menu, and the loop LIVES. No automatic retry in v1 — a seco
 same question is added only if live practice shows transient failures worth it (recorded as a
 deliberate deferral, not an oversight).
 
+### RUN-COST — the interrogation's token cost (bearer replica; norm: dev's `### RUN-COST`)
+
+grill-agent is a BEARER in the RUN_COST_BEARERS registry (dev — runs; grill-agent —
+interrogations): it drives the mark/delta modes of the session-tokens script for its own cycle.
+Two call points:
+
+- BEFORE THE DOSSIER SPAWN (the dossier is part of the interrogation's cost — a live first-run
+  fact: the dossier spawn alone burned 109k out), call ONCE, silently:
+
+  ```
+  node <base-dir-скилла>/../../scripts/session-tokens.mjs --cwd <корень-проекта> --mark grill-<slug-темы>
+  ```
+
+  The key is `grill-<slug-темы>` — deterministic; re-interrogating the same topic in one
+  session silently OVERWRITES the snapshot, which matches the semantics «стоимость ТЕКУЩЕГО
+  допроса».
+
+- ON THE FINALE TERMINAL, call:
+
+  ```
+  node <base-dir-скилла>/../../scripts/session-tokens.mjs --cwd <корень-проекта> --delta grill-<slug-темы> --label допрос
+  ```
+
+  and paste the output VERBATIM as the finale's second line. The normal form:
+  `допрос ~Xk out · M турн · субагенты Yk out` (the respondent spawns ARE the subagent
+  figure); a mark unavailable in this session's cache degrades honestly by naming its base —
+  `допрос (с начала текущей сессии) ~Xk out · M турн`.
+
+Fail-open is ABSOLUTE exactly as everywhere: exit 0 always, EMPTY output → no line, the finale
+is never delayed or broken by the script.
+
 ### The finale — protocol with provenance, staged decisions, curation
 
 Fires on early exit, on the exhaustion menu's «стоп», or on the user's explicit «финализируй»:
@@ -185,9 +219,10 @@ Fires on early exit, on the exhaustion menu's «стоп», or on the user's exp
 2. Stage each USER-decided branch as a decision note via `remember` (body: the fork and the
    user's answer; anchors: the git-tracked files the decision touches). Staging QUEUES only —
    the human gate is untouched.
-3. Terminal line of the summary: `раундов N · failed K` (the skill counts its own rounds — no
-   token figure here; the run-cost machinery belongs to dev by the accepted corpus decision,
-   and extending it is a separate amendment).
+3. Terminal lines of the summary — TWO lines with different roles (the commit-block precedent
+   «две токен-строки не склеиваются»): the skill's own `раундов N · failed K` (it counts its
+   rounds itself), then the VERBATIM output of the `--delta … --label допрос` call per
+   `### RUN-COST` (empty output → no second line).
 4. Close with the curation menu over the staged notes (FINALE-CLASS-HANDOFF, per the
    HANDOFF-DECISION norm in dev's OUTPUT-GRAMMAR): the queue rendered whole as a numbered list,
    then the batch menu — the agent CAN act on a digit (accept/reject notes).
@@ -253,7 +288,12 @@ MENU-CONTEXT — compact replica (norm: dev's `### MENU-CONTEXT`):
 - FULL JOURNAL — every spawn sees every prior pair; a sliding window is rejected by design.
 - FINALE — grill's protocol file with three-class provenance on every closed branch; user
   decisions staged via remember (queue only, human gate untouched); terminal `раундов N ·
-  failed K`; HANDOFF finale closing with the staged-note curation menu.
+  failed K` plus the verbatim `--delta` line per `### RUN-COST`; HANDOFF finale closing with
+  the staged-note curation menu.
+- RUN-COST BEARER — mark `grill-<slug-темы>` once BEFORE the dossier spawn (silent), delta with
+  `--label допрос` on the finale terminal, output pasted verbatim; the key overwrites silently
+  on a repeated topic (the cost of the CURRENT interrogation); fail-open absolute
+  (`### RUN-COST`).
 - OUTPUT-GRAMMAR / TOKEN-LINE / MENU-CONTEXT — per the replicas above; defined once in dev.
 - LANGUAGE — English body + Russian runtime user-facing output; the protocol file follows the
   docs/ directory's existing language.

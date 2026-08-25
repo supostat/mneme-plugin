@@ -21,7 +21,9 @@
 //  (10) an unknown model prints the window with NO denominator (honest degradation);
 //  (11) --mark is silent; a later --delta prints exactly the marked-to-now differences;
 //  (12) subagents/agent-*.jsonl output is deduped and reported as its own figure;
-//  (13) a v1-schema cache (no schema field) triggers a cold recompute, never a failure.
+//  (13) a v1-schema cache (no schema field) triggers a cold recompute, never a failure;
+//  (14) --label signs the delta line; (15) --label signs the degradation base too;
+//  (16) no --label keeps the historic «прогон» prefix byte for byte.
 // The exit code of the script under test must be 0 in EVERY case — fail-open is the contract.
 //
 // ANCHOR part (default mode only): greps over the REAL SKILL.md files — the norm in dev, the
@@ -230,6 +232,34 @@ function setMtime(path, msAgo) {
   );
 }
 
+// (14) --label signs the delta line: «допрос ~Xk out · N турн» after a mark
+{
+  const { cwd, transcriptDir } = makeProject('label-mark');
+  const transcript = join(transcriptDir, `session-labelmark-${uniq}.jsonl`);
+  writeFileSync(transcript, usageLine('msg-l1', FABLE, 2, 3_000, 10_000, 0));
+  expect('label-mark-silent', runScript(cwd, '--mark', 'grill-topic'), '');
+  appendFileSync(transcript, usageLine('msg-l2', FABLE, 2, 2_000, 20_000, 0));
+  expect('label-delta-after-mark', runScript(cwd, '--delta', 'grill-topic', '--label', 'допрос'), 'допрос ~2k out · 1 турн');
+}
+
+// (15) --label signs the degradation base too: «допрос (с начала текущей сессии) …»
+{
+  const { cwd, transcriptDir } = makeProject('label-nomark');
+  writeFileSync(join(transcriptDir, `session-labelnomark-${uniq}.jsonl`), usageLine('msg-n1', FABLE, 2, 4_000, 10_000, 0));
+  expect(
+    'label-delta-without-mark',
+    runScript(cwd, '--delta', 'grill-missing', '--label', 'допрос'),
+    'допрос (с начала текущей сессии) ~4k out · 1 турн',
+  );
+}
+
+// (16) no --label → the historic «прогон» prefix, byte for byte (regression)
+{
+  const { cwd, transcriptDir } = makeProject('label-absent');
+  writeFileSync(join(transcriptDir, `session-labelabsent-${uniq}.jsonl`), usageLine('msg-r1', FABLE, 2, 6_000, 10_000, 0));
+  expect('no-label-regression', runScript(cwd, '--delta', 'run-none'), 'прогон (с начала текущей сессии) ~6k out · 1 турн');
+}
+
 // (13) v1-schema cache (no schema field) triggers a cold recompute, never a failure
 {
   const { cwd, transcriptDir } = makeProject('v1-cache');
@@ -268,22 +298,42 @@ if (!behaviorOnly) {
     if (!dev.includes(anchor)) failures.push(`dev: norm anchor line "${anchor}" is missing`);
   }
 
-  // RUN-COST norm: dev-only mark/delta — the section, the Rules bullet, the literal modes,
-  // the delta format sample and the named degradation base.
+  // RUN-COST norm: the mark/delta modes belong to the BEARERS registry — every bearer must
+  // carry its own replica (section + literal call anchors), and only bearers may mention the
+  // modes at all (the guard below).
+  const RUN_COST_BEARERS = ['dev', 'grill-agent'];
   if (!dev.includes('### RUN-COST')) {
     failures.push('dev: the RUN-COST norm section (### RUN-COST) is missing');
   }
   if (!/^- RUN-COST — /m.test(dev)) {
     failures.push('dev: the RUN-COST bullet is missing from the Rules section');
   }
-  const RUN_COST_ANCHORS = [
-    '--mark <run_id>',
-    '--delta <run_id>',
-    'прогон ~46k out · 31 турн · субагенты 12k out',
-    'прогон (с начала текущей сессии)',
-  ];
-  for (const anchor of RUN_COST_ANCHORS) {
-    if (!dev.includes(anchor)) failures.push(`dev: RUN-COST anchor "${anchor}" is missing`);
+  if (!dev.includes('RUN_COST_BEARERS')) {
+    failures.push('dev: the norm does not name the RUN_COST_BEARERS registry');
+  }
+  const RUN_COST_ANCHORS = {
+    dev: [
+      '--mark <run_id>',
+      '--delta <run_id>',
+      'прогон ~46k out · 31 турн · субагенты 12k out',
+      'прогон (с начала текущей сессии)',
+    ],
+    'grill-agent': [
+      '--mark grill-',
+      '--delta grill-',
+      '--label допрос',
+      'раундов N · failed K',
+      'допрос (с начала текущей сессии)',
+    ],
+  };
+  for (const bearer of RUN_COST_BEARERS) {
+    const text = skillText(bearer);
+    if (!text.includes('### RUN-COST')) {
+      failures.push(`${bearer}: bearer without its own ### RUN-COST replica section`);
+    }
+    for (const anchor of RUN_COST_ANCHORS[bearer]) {
+      if (!text.includes(anchor)) failures.push(`${bearer}: RUN-COST anchor "${anchor}" is missing`);
+    }
   }
 
   for (const name of REPLICA_SKILLS) {
@@ -331,11 +381,12 @@ if (!behaviorOnly) {
     if (match) failures.push(`${name}: retired two-figure format sample still present ("${match[0]}")`);
   }
 
-  // RUN-COST stays dev-only: a mark/delta replica in a menu skill is dead text AND breaks the
-  // «read-only session-tokens call» carve-out truth (--mark writes the cache).
-  for (const name of REPLICA_SKILLS) {
+  // RUN-COST stays with the bearers: a mark/delta mention in a NON-bearer menu skill is dead
+  // text AND breaks the «read-only session-tokens call» carve-out truth (--mark writes the
+  // cache). Bearers are exempt — their replicas are anchor-checked above instead.
+  for (const name of REPLICA_SKILLS.filter((skill) => !RUN_COST_BEARERS.includes(skill))) {
     const match = skillText(name).match(/--mark|--delta|RUN-COST/);
-    if (match) failures.push(`${name}: RUN-COST replica outside dev ("${match[0]}") — mark/delta is dev-only`);
+    if (match) failures.push(`${name}: RUN-COST mention outside the bearers registry ("${match[0]}")`);
   }
 }
 
@@ -344,4 +395,4 @@ if (failures.length > 0) {
   for (const failure of failures) console.error(`  - ${failure}`);
   process.exit(1);
 }
-console.log(`check-session-tokens OK (behavior: 13 cases${behaviorOnly ? '' : ', anchors: norm + RUN-COST + 6 replicas + carve-outs + negation guards'})`);
+console.log(`check-session-tokens OK (behavior: 16 cases${behaviorOnly ? '' : ', anchors: norm + RUN-COST + 6 replicas + carve-outs + negation guards'})`);

@@ -32,7 +32,8 @@
 // Args: --cwd <path>            project cwd (default: process.cwd()); munged by the script.
 //       --projects-dir <path>   transcripts root (default: ~/.claude/projects); the system
 //                               boundary — overridable so the checker can point at fixtures.
-//       --mark <run_id> | --delta <run_id>   RUN-COST modes (dev only).
+//       --mark <key> | --delta <key>         RUN-COST modes (norm bearers only).
+//       --label <слово>                      delta-line prefix instead of «прогон» (e.g. допрос).
 
 import { closeSync, existsSync, openSync, readFileSync, readSync, readdirSync, statSync, writeFileSync } from 'node:fs';
 import { homedir, tmpdir } from 'node:os';
@@ -198,9 +199,10 @@ function limitLabel(limit) {
   return limit >= 1_000_000 ? `${limit / 1_000_000}M` : `${limit / 1000}k`;
 }
 
-function runCostLine(current, mark) {
+function runCostLine(current, mark, label) {
   const base = mark ?? { output: 0, turns: 0, subagentOut: 0 };
-  const prefix = mark ? 'прогон' : 'прогон (с начала текущей сессии)';
+  const word = label ?? 'прогон';
+  const prefix = mark ? word : `${word} (с начала текущей сессии)`;
   let line = `${prefix} ~${kilo(current.output - base.output)} out · ${current.turns - base.turns} турн`;
   const subagentDelta = current.subagentOut - base.subagentOut;
   if (subagentDelta > 0) line += ` · субагенты ${kilo(subagentDelta)} out`;
@@ -253,7 +255,7 @@ function main() {
       return;
     }
     writeFileSync(cachePath(transcript.path), JSON.stringify(cache));
-    console.log(runCostLine(current, cache.marks[deltaRunId] ?? null));
+    console.log(runCostLine(current, cache.marks[deltaRunId] ?? null, argValue('--label')));
     return;
   }
 
