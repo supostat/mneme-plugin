@@ -218,7 +218,7 @@ h3{font-size:1.02rem;font-weight:600;margin:0 0 .4rem}
 .engine-quote .replay{color:var(--amber);font-style:normal}
 
 /* ---------- skills ---------- */
-.skill-row{display:grid;grid-template-columns:repeat(3,minmax(150px,1fr));gap:1px;background:var(--rule);border:1px solid var(--rule);border-radius:6px;overflow-x:auto;margin-top:2.2rem}
+.skill-row{display:grid;grid-template-columns:repeat(5,minmax(150px,1fr));gap:1px;background:var(--rule);border:1px solid var(--rule);border-radius:6px;overflow-x:auto;margin-top:2.2rem}
 .skill-card{background:var(--bg-2);padding:1.1rem 1rem 1.25rem;min-width:150px}
 .skill-card .verb{font-family:var(--serif);font-style:italic;font-size:1.05rem;display:block;margin-bottom:.5rem}
 .skill-card.accent .verb{color:var(--amber)}
@@ -555,8 +555,8 @@ breaking migration: changing costs invalidates every existing vault.</code></pre
   <section id="skills" class="rule-top" aria-labelledby="skills-h">
     <div class="wrap reveal">
       <p class="kicker">08 &middot; the skills</p>
-      <h2 id="skills-h">Nine verbs, one cycle</h2>
-      <div class="skill-row" role="list" tabindex="0" aria-label="The nine skills — horizontally scrollable">
+      <h2 id="skills-h">Ten verbs, one cycle</h2>
+      <div class="skill-row" role="list" tabindex="0" aria-label="The ten skills — horizontally scrollable">
         <div class="skill-card" role="listitem">
           <span class="verb">set up</span>
           <h3>/mneme:setup</h3>
@@ -566,6 +566,11 @@ breaking migration: changing costs invalidates every existing vault.</code></pre
           <span class="verb">interrogate</span>
           <h3>/mneme:grill</h3>
           <p>Question by question until the unstated decisions surface &mdash; a protocol file for planning. It never proposes options.</p>
+        </div>
+        <div class="skill-card" role="listitem">
+          <span class="verb">interview</span>
+          <h3>/mneme:grill-agent</h3>
+          <p>The same interrogation, but a grounded respondent answers the FACT questions from the code &mdash; you answer only decisions.</p>
         </div>
         <div class="skill-card" role="listitem">
           <span class="verb">think</span>

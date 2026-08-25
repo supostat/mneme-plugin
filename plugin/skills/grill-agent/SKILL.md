@@ -188,10 +188,21 @@ Fires on early exit, on the exhaustion menu's «стоп», or on the user's exp
 3. Terminal line of the summary: `раундов N · failed K` (the skill counts its own rounds — no
    token figure here; the run-cost machinery belongs to dev by the accepted corpus decision,
    and extending it is a separate amendment).
-4. Close with the curation menu over the staged notes (queue rendered whole, batch digits per
-   the curation contract) — the finale is HANDOFF class: the agent CAN act on a digit
-   (accept/reject notes). The hand-off `/mneme:plan` command is printed as DATA after curation
-   resolves, never run.
+4. Close with the curation menu over the staged notes (FINALE-CLASS-HANDOFF, per the
+   HANDOFF-DECISION norm in dev's OUTPUT-GRAMMAR): the queue rendered whole as a numbered list,
+   then the batch menu — the agent CAN act on a digit (accept/reject notes).
+
+The batch menu (literal; exactly one option carries «← рекомендую: <причина одной строкой>»;
+per-note mode and the full protocol live in dev's `### BOUNDARY-CURATION`):
+
+```
+`1 — прими все`
+`2 — поштучный разбор`
+`3 — отклони все`
+`4 — дальше`
+```
+
+The hand-off `/mneme:plan` command is printed as DATA after curation resolves, never run.
 
 ## Output format
 
@@ -208,13 +219,20 @@ output VERBATIM above the chips (`контекст ≈574k/1M · 57%`, or a degr
 `окно: н/д — <причина>`); EMPTY output → no line. Fail-open is absolute: the script always
 exits 0 and NEVER delays or breaks a menu — a missing line is the degradation, never a wait.
 
-MENU-CONTEXT — compact replica (norm: dev's `### MENU-CONTEXT`): mid-loop DECISION menus (a
-question to the user, the exhaustion menu) have NO engine call at choice time — they are
-honestly UNCOVERED (the closed class registry offers no door; never synthesize a call for
-coverage). The finale's staged-note curation carries the standard payload on every resolve:
-`{decision_class: "curation", options_n: 4, recommended_position: <позиция «← рекомендую»>,
-chosen_position: <цифра>}`; batch answers stamp N identical payloads (collapsed by the stats
-reader). NEUTRALITY: coverage and agreement figures never render into recommendation texts.
+MENU-CONTEXT — compact replica (norm: dev's `### MENU-CONTEXT`):
+
+- RULE — a property of the CALL, not a separate step: every `staging_resolve` that follows a
+  PRESENTED digit menu MUST carry the menu payload; resolve после меню без menu-поля = VIOLATION.
+- Mid-loop DECISION menus (a question to the user, the exhaustion menu) have NO engine call at
+  choice time — they are honestly UNCOVERED (the closed class registry offers no door).
+- The finale's staged-note curation carries the standard payload on every resolve:
+  `{decision_class: "curation", options_n: 4, recommended_position: <позиция «← рекомендую»>,
+  chosen_position: <цифра>}`; batch answers stamp N identical payloads (collapsed by the stats
+  reader).
+- NON-EVENTS (дословно): «позже / показать целиком / дальше / молчание → вызова нет, ничего не
+  пишется» — never synthesize a call for coverage.
+- NEUTRALITY: agreement-цифры, coverage и menu-контекст никогда не рендерятся в тексты, где
+  вырабатывается рекомендация.
 
 ## Rules
 

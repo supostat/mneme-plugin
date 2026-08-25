@@ -43,6 +43,7 @@ const EXPECTED_FINALE_CLASS = {
   fix: HANDOFF,
   migrate: HANDOFF,
   design: HANDOFF,
+  'grill-agent': HANDOFF,
   arch: INFORMATIONAL,
   resume: INFORMATIONAL,
   setup: INFORMATIONAL,

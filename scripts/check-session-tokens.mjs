@@ -247,7 +247,7 @@ rmSync(fixtureRoot, { recursive: true, force: true });
 const behaviorOnly = process.argv.includes('--behavior');
 if (!behaviorOnly) {
   const skillText = (name) => readFileSync(join(repoRoot, 'plugin', 'skills', name, 'SKILL.md'), 'utf8');
-  const REPLICA_SKILLS = ['plan', 'fix', 'migrate', 'setup', 'design'];
+  const REPLICA_SKILLS = ['plan', 'fix', 'migrate', 'setup', 'design', 'grill-agent'];
 
   // Shared anchor lines: present in the dev norm AND in every replica, byte-for-byte (the
   // diverged-replica detector, the check-skill-handoff (d) pattern).
@@ -344,4 +344,4 @@ if (failures.length > 0) {
   for (const failure of failures) console.error(`  - ${failure}`);
   process.exit(1);
 }
-console.log(`check-session-tokens OK (behavior: 13 cases${behaviorOnly ? '' : ', anchors: norm + RUN-COST + 5 replicas + carve-outs + negation guards'})`);
+console.log(`check-session-tokens OK (behavior: 13 cases${behaviorOnly ? '' : ', anchors: norm + RUN-COST + 6 replicas + carve-outs + negation guards'})`);
