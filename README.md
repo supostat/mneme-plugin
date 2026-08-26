@@ -153,3 +153,21 @@ If the server is up but `recall` answers in degraded mode, that is legitimate:
 full-text search works without an embedder. Run `/mneme:setup` for the full
 checkup — it names the mode and offers the vector upgrade (Ollama or an
 OpenAI-compatible endpoint) without pushing it.
+
+If the context line above a menu prints without a percentage — `контекст ≈194k`
+instead of `контекст ≈194k/1M · 19%` — that is honest degradation, not a fault.
+The denominator is a fact or it is absent: it drops either because the model
+ships in several context-window sizes the transcript cannot tell apart
+(`claude-opus-5` exists as a 200k and a 1M variant, and the `[1m]` suffix never
+reaches the transcript), or because the table's limit was disproved by a window
+observed above it. Declare the real window once to get the percentage back, in
+`~/.claude/settings.json`:
+
+```json
+"env": { "MNEME_CONTEXT_WINDOW": "claude-opus-5=1000000" }
+```
+
+Several models are comma-separated and names must match exactly. A declaration
+is still checked against observation — one smaller than a window actually seen
+is dropped. The reverse is not detectable: declare 1M and then switch to a 200k
+model, and the percentage will understate how full the context is.

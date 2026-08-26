@@ -5,16 +5,35 @@
 // Reads the freshest session transcript (~/.claude/projects/<munged-cwd>/*.jsonl).
 //
 // Default (menu line):   контекст ≈574k/1M · 57%
-//   Window = lastUsage of the MAIN model (input + cache_read + cache_creation); the main model
-//   is the one with the most UNIQUE (by message.id) assistant records — a transcript also carries
-//   auxiliary calls of other models and <synthetic> entries, and taking the raw last record made
-//   the window lie. Denominator + percent come from the model→limit table; an unknown model
-//   prints the window with no denominator (honest degradation, never a guess).
+//   Window = lastUsage of the WINDOW MODEL (input + cache_read + cache_creation); the window
+//   model is the one of the LAST usage record, not the most frequent one — a session can switch
+//   models midway (a transcript then holds two sequential blocks), and picking the most frequent
+//   made BOTH the numerator (a frozen lastUsage of a model that stopped answering) and the
+//   denominator flip as the counts crossed.
+//
+//   The denominator is a FACT or it is absent — never a guess:
+//     * declared    — MNEME_CONTEXT_WINDOW names it explicitly (see below) and wins for ANY model;
+//     * confirmed   — the model→limit table carries a limit verified in practice;
+//     * ambiguous   — the model is KNOWN to ship in several window sizes and nothing in the
+//                     transcript distinguishes them (claude-opus-5: 200k and 1M variants; the
+//                     [1m] suffix never reaches message.model), so no denominator is printed;
+//     * unknown     — the model is absent from the table: no denominator either.
+//   A CONTRADICTION guard outranks all of them: the largest window ever observed for a model is
+//   kept in the cache, and a limit smaller than it is disproved by observation — the denominator
+//   is dropped for the rest of the session. This covers a stale table row and an inflated
+//   declaration alike. Without a denominator the line degrades to the window alone: контекст ≈194k.
+//
+// MNEME_CONTEXT_WINDOW declares real windows: <model>=<limit>[,<model>=<limit>], model names
+//   matched EXACTLY (a session running claude-opus-5 with the 1M window sets
+//   claude-opus-5=1000000 once, in ~/.claude/settings.json → env). A malformed pair is skipped,
+//   never fatal — that model simply falls back to the table.
 //
 // --mark <run_id>        snapshot {output, turns, subagentOut} into cache.marks[run_id]; silent.
 // --delta <run_id>       прогон ~46k out · 31 турн[ · субагенты 12k out]
 //   Differences against the mark; no mark in THIS session's cache (resume, rotation) degrades
 //   honestly to the session totals: прогон (с начала текущей сессии) ~46k out · 31 турн.
+//   A turn is a unique usage record of ANY real model — NOT of the window model: tying turns to
+//   the window model would make a delta spanning a model switch go NEGATIVE.
 //
 // Counters are deduped by message.id (streaming writes one message as several JSONL lines with
 // the usage repeated in each — summing raw lines overstated out ≈2×). The dedup is a bounded
@@ -23,8 +42,8 @@
 // <transcript-dir>/<session-id>/subagents/agent-*.jsonl; their deduped Σoutput is memoized
 // per file by (basename, size) — the files are write-once after the agent finishes.
 //
-// Cache schema v2 in the OS tmpdir (<tmpdir>/mneme-session-tokens-<basename>.json); a v1 cache
-// (or any schema mismatch) triggers a cold recompute, never a failure.
+// Cache schema v3 in the OS tmpdir (<tmpdir>/mneme-session-tokens-<basename>.json); an older
+// cache (or any schema mismatch) triggers a cold recompute, never a failure.
 //
 // FAIL-OPEN is absolute: known refusals print a degradation line («окно: н/д — <причина>»),
 // unexpected errors print nothing; the exit code is ALWAYS 0 — a menu is never delayed.
@@ -41,20 +60,52 @@ import { basename, join } from 'node:path';
 import process from 'node:process';
 
 const PARALLEL_SESSION_WINDOW_MS = 300_000;
-const CACHE_SCHEMA = 2;
+const CACHE_SCHEMA = 3;
 const SEEN_LRU_SIZE = 64;
 const SYNTHETIC_MODEL = '<synthetic>';
+const DECLARED_WINDOW_VARIABLE = 'MNEME_CONTEXT_WINDOW';
 
+// A row carries EITHER a confirmedLimit (verified in practice) OR ambiguousVariants (the model
+// ships in several window sizes and the transcript cannot tell them apart). Never both.
 const MODEL_WINDOW_LIMITS = {
-  'claude-fable-5': 1_000_000,
-  'claude-opus-5': 200_000,
-  'claude-sonnet-5': 200_000,
-  'claude-haiku-4-5': 200_000,
+  'claude-fable-5': { confirmedLimit: 1_000_000 },
+  'claude-opus-5': { ambiguousVariants: [200_000, 1_000_000] },
+  'claude-sonnet-5': { confirmedLimit: 200_000 },
+  'claude-haiku-4-5': { confirmedLimit: 200_000 },
 };
 
 function argValue(flag) {
   const index = process.argv.indexOf(flag);
   return index !== -1 && process.argv[index + 1] ? process.argv[index + 1] : null;
+}
+
+function declaredWindowLimits() {
+  const declaration = process.env[DECLARED_WINDOW_VARIABLE];
+  if (typeof declaration !== 'string' || declaration === '') return {};
+  const limits = {};
+  for (const pair of declaration.split(',')) {
+    const separator = pair.indexOf('=');
+    if (separator === -1) continue;
+    const modelName = pair.slice(0, separator).trim();
+    const limit = Number(pair.slice(separator + 1).trim());
+    if (modelName === '' || !Number.isInteger(limit) || limit <= 0) continue;
+    limits[modelName] = limit;
+  }
+  return limits;
+}
+
+function confirmedWindowLimit(modelName) {
+  for (const [prefix, row] of Object.entries(MODEL_WINDOW_LIMITS)) {
+    if (modelName === prefix || modelName.startsWith(`${prefix}-`)) return row.confirmedLimit ?? null;
+  }
+  return null;
+}
+
+function resolveWindowLimit(modelName, observedMaxWindow) {
+  const limit = declaredWindowLimits()[modelName] ?? confirmedWindowLimit(modelName);
+  if (limit === null) return null;
+  if (observedMaxWindow > limit) return null;
+  return limit;
 }
 
 function mungeCwd(cwd) {
@@ -81,11 +132,21 @@ function emptyCache() {
     offset: 0,
     input: 0,
     output: 0,
+    turns: 0,
+    lastModel: null,
     models: {},
     seenIds: [],
     marks: {},
     subagentFiles: {},
   };
+}
+
+function usageWindow(usage) {
+  return (
+    (usage.input_tokens ?? 0) +
+    (usage.cache_read_input_tokens ?? 0) +
+    (usage.cache_creation_input_tokens ?? 0)
+  );
 }
 
 function parseUsageEntry(line) {
@@ -112,11 +173,14 @@ function markSeen(cache, messageId) {
 
 function countEntry(cache, entry) {
   const duplicate = entry.messageId !== null && markSeen(cache, entry.messageId);
-  if (entry.model !== null) {
-    const model = cache.models[entry.model] ?? { count: 0, lastUsage: null };
+  if (entry.model !== null && entry.model !== SYNTHETIC_MODEL) {
+    const model = cache.models[entry.model] ?? { count: 0, lastUsage: null, observedMaxWindow: 0 };
     model.lastUsage = entry.usage;
+    model.observedMaxWindow = Math.max(model.observedMaxWindow, usageWindow(entry.usage));
     if (!duplicate) model.count += 1;
     cache.models[entry.model] = model;
+    cache.lastModel = entry.model;
+    if (!duplicate) cache.turns += 1;
   }
   if (duplicate) return;
   cache.input += entry.usage.input_tokens ?? 0;
@@ -142,22 +206,6 @@ function accumulate(cache, transcriptPath, fileSize) {
   }
   cache.offset += Buffer.byteLength(chunk.slice(0, lastNewline + 1), 'utf8');
   return cache;
-}
-
-function mainModelName(cache) {
-  let best = null;
-  for (const [name, model] of Object.entries(cache.models)) {
-    if (name === SYNTHETIC_MODEL) continue;
-    if (!best || model.count > cache.models[best].count) best = name;
-  }
-  return best;
-}
-
-function windowLimit(modelName) {
-  for (const [prefix, limit] of Object.entries(MODEL_WINDOW_LIMITS)) {
-    if (modelName === prefix || modelName.startsWith(`${prefix}-`)) return limit;
-  }
-  return null;
 }
 
 function subagentOutput(transcriptPath, cache) {
@@ -243,10 +291,9 @@ function main() {
   accumulate(cache, transcript.path, transcript.size);
 
   if (runCostMode) {
-    const mainModel = mainModelName(cache);
     const current = {
       output: cache.output,
-      turns: mainModel === null ? 0 : cache.models[mainModel].count,
+      turns: cache.turns,
       subagentOut: subagentOutput(transcript.path, cache),
     };
     if (markRunId !== null) {
@@ -260,17 +307,14 @@ function main() {
   }
 
   writeFileSync(cachePath(transcript.path), JSON.stringify(cache));
-  const mainModel = mainModelName(cache);
-  if (mainModel === null) {
+  const windowModel = cache.lastModel;
+  if (windowModel === null) {
     console.log('окно: н/д — пустой usage');
     return;
   }
-  const lastUsage = cache.models[mainModel].lastUsage;
-  const window =
-    (lastUsage.input_tokens ?? 0) +
-    (lastUsage.cache_read_input_tokens ?? 0) +
-    (lastUsage.cache_creation_input_tokens ?? 0);
-  const limit = windowLimit(mainModel);
+  const model = cache.models[windowModel];
+  const window = usageWindow(model.lastUsage);
+  const limit = resolveWindowLimit(windowModel, model.observedMaxWindow);
   if (limit === null) {
     console.log(`контекст ≈${kilo(window)}`);
     return;

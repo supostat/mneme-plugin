@@ -5,8 +5,8 @@
 //
 // BEHAVIOR part (--behavior, and always): drives the REAL plugin/scripts/session-tokens.mjs
 // against fixtures GENERATED into the OS tmpdir (never into the repo tree), asserting every
-// degradation, the incremental byte-offset cache, the message.id dedup, the main-model window
-// filter and the mark/delta run-cost modes:
+// degradation, the incremental byte-offset cache, the message.id dedup, the window-model and
+// denominator rules and the mark/delta run-cost modes:
 //   (1) normal tail → the literal menu line with correct window, denominator and percent;
 //   (2) transcript with no usage anywhere → «окно: н/д — пустой usage»;
 //   (3) missing transcript dir → «окно: н/д — транскрипт не найден»;
@@ -16,15 +16,26 @@
 //   (6) an appended fixture is read FROM THE OFFSET (cache offset === file size after run);
 //   (7) a truncated fixture triggers a full recompute (numbers match the new content);
 //   (8) duplicate lines of one message.id count ONCE (delta shows deduped out and turns);
-//   (9) a trailing record of ANOTHER model does not steal the window — the MAIN model
-//       (most unique messages) provides lastUsage, denominator and percent;
+//   (9) the LAST usage record sets the window — a tail record of another model is the CURRENT
+//       model, and the majority-by-count model must not freeze the line on a stale usage;
 //  (10) an unknown model prints the window with NO denominator (honest degradation);
 //  (11) --mark is silent; a later --delta prints exactly the marked-to-now differences;
 //  (12) subagents/agent-*.jsonl output is deduped and reported as its own figure;
-//  (13) a v1-schema cache (no schema field) triggers a cold recompute, never a failure;
+//  (13) a v1-schema cache (no schema field) and (13b) a v2-schema cache both trigger a cold
+//       recompute, never a failure;
 //  (14) --label signs the delta line; (15) --label signs the degradation base too;
-//  (16) no --label keeps the historic «прогон» prefix byte for byte.
+//  (16) no --label keeps the historic «прогон» prefix byte for byte;
+//  (17) an AMBIGUOUS model (claude-opus-5: 200k and 1M variants, indistinguishable in the
+//       transcript) prints the window with NO denominator;
+//  (18) the same fixture with MNEME_CONTEXT_WINDOW declared prints denominator and percent;
+//  (19) a declaration SMALLER than the observed window is disproved and dropped;
+//  (20) a CONFIRMED table limit contradicted by an observed window above it is dropped too;
+//  (21) a model switch mid-transcript: the denominator follows the TAIL model, not the majority;
+//  (22) a mark under one model and a delta under another keep turns NON-NEGATIVE (turns count
+//       unique records of ANY real model, not of the window model).
 // The exit code of the script under test must be 0 in EVERY case — fail-open is the contract.
+// runScript SCRUBS MNEME_CONTEXT_WINDOW from the child env (a developer's global declaration
+// would poison every case); runScriptWithDeclaredWindow is the only door that sets it.
 //
 // ANCHOR part (default mode only): greps over the REAL SKILL.md files — the norm in dev, the
 // five replicas (plan, fix, migrate, setup, design), the Bash carve-out and frontmatter grant in
@@ -67,6 +78,8 @@ function usageLine(messageId, model, input, output, cacheRead, cacheCreation) {
 }
 
 const FABLE = 'claude-fable-5';
+const OPUS = 'claude-opus-5';
+const SONNET = 'claude-sonnet-5';
 const noUsageLine = `${JSON.stringify({ type: 'user', message: { content: 'hi' } })}\n`;
 
 let fixtureCounter = 0;
@@ -78,16 +91,26 @@ function makeProject(name) {
   return { cwd, transcriptDir };
 }
 
-function runScript(cwd, ...extraArgs) {
+// The script under test reads MNEME_CONTEXT_WINDOW from its env, and spawnSync INHERITS the
+// checker's env: a developer who declared the variable globally would silently poison EVERY case.
+// So the default runner scrubs it, and a declaration is supplied only through the explicit wrapper.
+function runScriptWithDeclaredWindow(declaredWindow, cwd, ...extraArgs) {
+  const childEnv = { ...process.env };
+  delete childEnv.MNEME_CONTEXT_WINDOW;
+  if (declaredWindow !== null) childEnv.MNEME_CONTEXT_WINDOW = declaredWindow;
   const result = spawnSync(
     'node',
     [scriptUnderTest, '--cwd', cwd, '--projects-dir', fixtureRoot, ...extraArgs],
-    { encoding: 'utf8' },
+    { encoding: 'utf8', env: childEnv },
   );
   if (result.status !== 0) {
     failures.push(`fail-open broken: exit ${result.status} for --cwd ${cwd} (stderr: ${result.stderr.trim()})`);
   }
   return result.stdout.trim();
+}
+
+function runScript(cwd, ...extraArgs) {
+  return runScriptWithDeclaredWindow(null, cwd, ...extraArgs);
 }
 
 function expect(caseName, actual, expected) {
@@ -101,7 +124,7 @@ function setMtime(path, msAgo) {
   utimesSync(path, seconds, seconds);
 }
 
-// (1) normal tail: window = MAIN model's lastUsage input+cache_read+cache_creation, /limit · %
+// (1) normal tail: window = the tail record's lastUsage input+cache_read+cache_creation, /limit · %
 {
   const { cwd, transcriptDir } = makeProject('normal');
   const transcript = join(transcriptDir, `session-normal-${uniq}.jsonl`);
@@ -187,16 +210,17 @@ function setMtime(path, msAgo) {
   expect('dedup-delta', runScript(cwd, '--delta', 'run-none'), 'прогон (с начала текущей сессии) ~5k out · 2 турн');
 }
 
-// (9) main-model window: a trailing auxiliary record of another model does not steal lastUsage
+// (9) the LAST record sets the window: a tail record of another model is the CURRENT model, so it
+// provides lastUsage — the majority-by-count model must not freeze the window on a stale usage
 {
-  const { cwd, transcriptDir } = makeProject('main-model');
+  const { cwd, transcriptDir } = makeProject('last-record');
   writeFileSync(
-    join(transcriptDir, `session-mainmodel-${uniq}.jsonl`),
+    join(transcriptDir, `session-lastrecord-${uniq}.jsonl`),
     usageLine('msg-m1', FABLE, 2, 3_000, 100_000, 5_000) +
       usageLine('msg-m2', FABLE, 2, 4_000, 500_000, 74_000) +
-      usageLine('msg-m3', 'claude-opus-5', 2, 641, 24_606, 50_266),
+      usageLine('msg-m3', OPUS, 2, 641, 24_606, 50_266),
   );
-  expect('main-model-window', runScript(cwd), 'контекст ≈574k/1M · 57%');
+  expect('last-record-window', runScript(cwd), 'контекст ≈75k');
 }
 
 // (10) unknown model: window with NO denominator — a degradation, never a guessed limit
@@ -270,6 +294,97 @@ function setMtime(path, msAgo) {
     JSON.stringify({ offset: 0, input: 999_000, output: 999_000, cacheRead: 0, cacheCreation: 0, lastUsage: null }),
   );
   expect('v1-cache-recompute', runScript(cwd), 'контекст ≈3k/1M · 0%');
+}
+
+// (13b) a v2-schema cache is stale too — the schema bump must recompute it, never trust its sums
+{
+  const { cwd, transcriptDir } = makeProject('v2-cache');
+  const transcript = join(transcriptDir, `session-v2cache-${uniq}.jsonl`);
+  writeFileSync(transcript, usageLine('msg-v2', FABLE, 1_000, 500, 2_000, 0));
+  writeFileSync(
+    join(tmpdir(), `mneme-session-tokens-session-v2cache-${uniq}.jsonl.json`),
+    JSON.stringify({
+      schema: 2,
+      offset: 0,
+      input: 999_000,
+      output: 999_000,
+      models: { [FABLE]: { count: 999, lastUsage: { input_tokens: 999_000 } } },
+      seenIds: [],
+      marks: {},
+      subagentFiles: {},
+    }),
+  );
+  expect('v2-cache-recompute', runScript(cwd), 'контекст ≈3k/1M · 0%');
+}
+
+// (17) an AMBIGUOUS model with no declaration: the window with NO denominator. claude-opus-5 ships
+// in a 200k and a 1M variant and message.model never carries the [1m] suffix — printing 200k here
+// is exactly the defect this spec fixes (a false «97%» at 19% of a real 1M window)
+{
+  const { cwd, transcriptDir } = makeProject('ambiguous');
+  writeFileSync(join(transcriptDir, `session-ambiguous-${uniq}.jsonl`), usageLine('msg-am1', OPUS, 2, 500, 190_000, 4_000));
+  expect('ambiguous-no-denominator', runScript(cwd), 'контекст ≈194k');
+}
+
+// (18) the SAME fixture with the window declared: the denominator and the percent come back, and
+// they come from the user's fact rather than from a guess
+{
+  const { cwd, transcriptDir } = makeProject('declared');
+  writeFileSync(join(transcriptDir, `session-declared-${uniq}.jsonl`), usageLine('msg-dw1', OPUS, 2, 500, 190_000, 4_000));
+  expect(
+    'declared-window',
+    runScriptWithDeclaredWindow(`${OPUS}=1000000`, cwd),
+    'контекст ≈194k/1M · 19%',
+  );
+}
+
+// (19) a declaration SMALLER than the observed window is disproved by observation — the guard
+// drops it exactly as it drops a stale table row; a declaration is a fact, not an override of facts
+{
+  const { cwd, transcriptDir } = makeProject('declared-low');
+  writeFileSync(join(transcriptDir, `session-declaredlow-${uniq}.jsonl`), usageLine('msg-dl1', OPUS, 2, 500, 190_000, 4_000));
+  expect('declared-below-observed', runScriptWithDeclaredWindow(`${OPUS}=100000`, cwd), 'контекст ≈194k');
+}
+
+// (20) a CONFIRMED table limit contradicted by an observed window above it: the row is disproved,
+// so the denominator goes — a session physically kept working past the limit the table claims
+{
+  const { cwd, transcriptDir } = makeProject('contradicted');
+  writeFileSync(join(transcriptDir, `session-contradicted-${uniq}.jsonl`), usageLine('msg-tc1', SONNET, 2, 300, 210_000, 0));
+  expect('table-limit-contradicted', runScript(cwd), 'контекст ≈210k');
+}
+
+// (21) a model switch mid-transcript: the majority model (3 records) must NOT set the denominator —
+// the tail model does, so the line neither jumps nor freezes on the stopped model's last usage
+{
+  const { cwd, transcriptDir } = makeProject('model-switch');
+  writeFileSync(
+    join(transcriptDir, `session-modelswitch-${uniq}.jsonl`),
+    usageLine('msg-sw1', FABLE, 2, 1_000, 300_000, 0) +
+      usageLine('msg-sw2', FABLE, 2, 1_000, 500_000, 0) +
+      usageLine('msg-sw3', FABLE, 2, 1_000, 700_000, 0) +
+      usageLine('msg-sw4', SONNET, 2, 300, 100_000, 0),
+  );
+  expect('model-switch-window', runScript(cwd), 'контекст ≈100k/200k · 50%');
+}
+
+// (22) turns across a model switch: a mark taken under one model and a delta read under another
+// must stay NON-NEGATIVE — turns count unique records of ANY real model, not of the window model
+{
+  const { cwd, transcriptDir } = makeProject('turns-switch');
+  const transcript = join(transcriptDir, `session-turnsswitch-${uniq}.jsonl`);
+  writeFileSync(
+    transcript,
+    usageLine('msg-ts1', FABLE, 2, 1_000, 10_000, 0) +
+      usageLine('msg-ts2', FABLE, 2, 1_000, 20_000, 0) +
+      usageLine('msg-ts3', FABLE, 2, 1_000, 30_000, 0),
+  );
+  expect('turns-switch-mark-silent', runScript(cwd, '--mark', 'run-switch'), '');
+  appendFileSync(
+    transcript,
+    usageLine('msg-ts4', OPUS, 2, 3_000, 40_000, 0) + usageLine('msg-ts5', OPUS, 2, 3_000, 50_000, 0),
+  );
+  expect('turns-across-model-switch', runScript(cwd, '--delta', 'run-switch'), 'прогон ~6k out · 2 турн');
 }
 
 rmSync(fixtureRoot, { recursive: true, force: true });
@@ -412,4 +527,4 @@ if (failures.length > 0) {
   for (const failure of failures) console.error(`  - ${failure}`);
   process.exit(1);
 }
-console.log(`check-session-tokens OK (behavior: 16 cases${behaviorOnly ? '' : ', anchors: norm + RUN-COST + 6 replicas + carve-outs + negation guards'})`);
+console.log(`check-session-tokens OK (behavior: 23 cases${behaviorOnly ? '' : ', anchors: norm + RUN-COST + 6 replicas + carve-outs + negation guards'})`);
