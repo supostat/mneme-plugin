@@ -119,9 +119,12 @@ write a prose placeholder.
 
 ### Step 6: SPEC-REVIEW-HARD-STOP — review, then Write only on approval
 
-Show the DRAFT spec in the chat and END THE TURN. STOP and wait for explicit approval. Only AFTER
-the user approves may you `Write` the spec into `docs/`. Writing the file before approval, or
-continuing without it, is a VIOLATION = ABORT.
+Show the DRAFT spec in the chat and CLOSE THE TURN with the `### SPEC-REVIEW-MENU` block (Output
+format) — that numbered menu IS the stop, and the turn ends there. `Write` into `docs/` fires ONLY
+on digit `1`; digits `2` / `3` / `4` and silence all leave the disk untouched. Closing this stop
+with a prose request for confirmation instead of the menu — the «Подтверди — пишу в docs/…» shape —
+is a VIOLATION: layer 2 of dev's grammar makes any clarifying question a DECISION, numbered and
+digit-answered. Writing the file before the digit, or continuing without it, is a VIOLATION = ABORT.
 
 ### Step 7: PLAN-AUTOMIGRATE — migrate the approved spec, end at the map
 
@@ -273,6 +276,44 @@ execution order only, and an agent can honestly finish phase 4 without importing
 phase 3 — a failure the wire phase alone would catch only at the very end, while the smoke
 criterion catches it fail-fast at the consumer's own gate.
 
+### SPEC-REVIEW-MENU (Step 6) — меню подтверждения спеки
+
+The layer-3 template of the SPEC-REVIEW-HARD-STOP. Composition per layer 1: PROSE — what the draft
+is and where it departs from the option the user picked at Step 4; DATA — the draft spec itself;
+DECISION — the menu below, with NOTHING after it. The TOKEN-LINE replica opens this DECISION block
+exactly as it opens every other one. Literal shape (fill the placeholder, never re-lay it out):
+
+```
+`1 — принять: пишу docs/SPEC-<slug>.md и мигрирую в фазы`
+`2 — правки: <самое слабое место черновика одной строкой>`
+`3 — вернуться к вееру: перевыбрать вариант`
+`4 — отмена: ничего не пишу`
+```
+
+DIGIT SEMANTICS — what each digit commits the skill to, and nothing beyond it:
+
+- `1` → `Write` the spec into `docs/`, then Step 7 (PLAN-AUTOMIGRATE) and Step 8 (STAGE-CHOICE).
+- `2` → rework the draft and RETURN to this same hard stop; no `Write` happens on the way, and the
+  reworked draft is re-shown under this same menu.
+- `3` → back to Step 4, the option fan, with no `Write` — the fan is re-presented for a fresh digit.
+- `4` → the turn ends and nothing reaches the disk.
+- молчание = пауза: the draft stands, nothing is written, the skill does not move.
+
+**ANTI-SELF-ENDORSEMENT (VIOLATION = ABORT).** «← рекомендую» on option `1` is FORBIDDEN. The
+reason is not stylistic. `### BOUNDARY-CURATION` permits a recommendation precisely because «the
+agent WROTE these notes and knows what the user cannot see» — there authorship gives the agent real
+knowledge (a duplicate versus a find). At a spec review the subject of the decision is «та ли это
+спека, которую ты хотел», and authorship gives the agent NOTHING: it would be recommending its own
+artifact. By the doctrine «a recommendation without a reason is pressure without information» that
+is pressure at zero information. The recommendation is not banned outright — it MOVES to option `2`
+and MUST name the agent's OWN doubt about the draft: a generated wire phase the user may not want, a
+done-when taken agent-judged for want of an executable one, a phase whose size the agent considers
+inflated. Having no recommendation at all is legal — layer 1 says «MAY carry», not «MUST».
+
+**MENU-CONTEXT is NOT passed here.** No engine call exists at the moment of this choice, and dev's
+list of honestly UNCOVERED menus already names «SPEC-REVIEW approve». Synthesizing a call to stamp
+this menu for coverage is FORBIDDEN — it would make agreement count a decision the engine never saw.
+
 ### The finale map (Step 7) — финал-карта (FINALE-CLASS-HANDOFF)
 
 VERDICT (migrate's counts + apply confirmation, verbatim) + the GRAPH-MAP per the shared
@@ -360,6 +401,11 @@ of the existing specs in that directory.
 
 - TWO HARD STOPS — `OPTION-FAN-HARD-STOP` (Step 4) and `SPEC-REVIEW-HARD-STOP` (Step 6). The turn
   ENDS at each; continuing without an explicit user confirmation is a VIOLATION = ABORT.
+- SPEC-REVIEW-MENU — the Step 6 stop is CLOSED BY THE MENU (`### SPEC-REVIEW-MENU`), never by
+  prose; `Write` fires only on digit `1`, and silence leaves the disk untouched.
+  ANTI-SELF-ENDORSEMENT: «← рекомендую» on «принять» is FORBIDDEN — the agent authored the spec
+  under review, so self-endorsement is pressure at zero information; the recommendation, if any,
+  rides «правки» and names the agent's OWN doubt. No menu-контекст rides this choice.
 - PLAN, NEVER RUN — no code, no `/mneme:dev`. Migration IS plan's finale (Step 7), but RUNNING the
   phases is dev's job: plan creates and migrates the plan (the user reviews the plan); dev executes
   it (the engine gates execution). Merging the two loses the review point. Launch is always

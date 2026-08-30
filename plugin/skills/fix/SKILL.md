@@ -112,8 +112,10 @@ Stack / Conventions / Knowledge / Gameplan), ONE phase, small by nature:
 
 ### Step 5: review the draft (HARD STOP), then Write
 
-Show the DRAFT spec in the chat and END THE TURN. Only after the user's explicit approval digit:
-`Write` it to `docs/FIX-<slug>.md`. Writing before approval is a VIOLATION = ABORT.
+Show the DRAFT spec in the chat and CLOSE THE TURN with the `### SPEC-REVIEW-MENU` block (Output
+format) — that menu is where the approval digit comes from. Only on digit `1`: `Write` it to
+`docs/FIX-<slug>.md`; digits `2` / `3` / `4` and silence leave the disk untouched. Writing before
+that digit, or closing the stop with prose instead of the menu, is a VIOLATION = ABORT.
 
 ### FIX-AUTOMIGRATE — migrate the approved spec, end at the map
 
@@ -210,6 +212,42 @@ create: <N> · identical: <M> · conflict: <K>
 the queued diagnosis shown WHOLE as a numbered list + the closing digit menu
 `1 — принять диагноз` / `2 — отклонить` / `3 — позже` per the curation contract, and no map)
 
+### SPEC-REVIEW-MENU — компактная реплика (норма: plan, `### SPEC-REVIEW-MENU`)
+
+The Step 5 stop's layer-3 template — the menu the «explicit approval digit» is taken FROM.
+Composition per layer 1: PROSE (what the micro-spec fixes and what it deliberately leaves alone) +
+DATA (the draft) + DECISION (the menu, nothing after it), with the TOKEN-LINE above the chips.
+fix's ONLY delta against the norm is option `3`: the return goes back to the HYPOTHESIS fan
+(`### Step 3: FIX-HYPOTHESIS-FAN`), not to an option fan — the rest is identical.
+
+```
+`1 — принять: пишу docs/FIX-<slug>.md и мигрирую в фазу`
+`2 — правки: <самое слабое место черновика одной строкой>`
+`3 — вернуться к гипотезам: перевыбрать направление`
+`4 — отмена: ничего не пишу`
+```
+
+DIGIT SEMANTICS: `1` → `Write` the spec, then FIX-AUTOMIGRATE; `2` → rework the draft and RETURN to
+this same hard stop with no `Write`; `3` → back to Step 3's hypothesis fan, no `Write`; `4` → the
+turn ends, nothing reaches the disk. Молчание = пауза — the draft stands and nothing is written.
+
+**ANTI-SELF-ENDORSEMENT (VIOLATION = ABORT).** «← рекомендую» on option `1` is FORBIDDEN. The
+curation contract permits a recommendation because there the agent knows what the user cannot see
+(a duplicate versus a find); at a spec review the question is «та ли это спека, которую ты хотел»,
+and authorship gives the agent NOTHING — it would be endorsing its own artifact. By «a
+recommendation without a reason is pressure without information» that is pressure at zero
+information. The recommendation MOVES to option `2` and must name the agent's OWN doubt about the
+draft (a done-when taken agent-judged for want of an executable one, a repro whose minimality the
+agent is unsure of). Carrying no recommendation at all is legal — layer 1 says «MAY carry».
+
+Closing this stop with a prose request for confirmation — the «Подтверди — пишу в docs/…» shape —
+instead of the menu is a VIOLATION: a clarifying question is a DECISION, numbered and
+digit-answered.
+
+**MENU-CONTEXT is NOT passed here** — no engine call exists at the moment of this choice, and dev's
+list of honestly UNCOVERED menus already names «SPEC-REVIEW approve». Synthesizing a call to stamp
+this menu for coverage is FORBIDDEN.
+
 **Контракт курирования** — compact replica (full protocol: dev's `### BOUNDARY-CURATION`):
 
 - The queue renders as a NUMBERED list — number, `[type]`, one-line essence, anchors.
@@ -262,7 +300,12 @@ MENU-CONTEXT — compact replica (norm: dev's `### MENU-CONTEXT`):
   `disable-model-invocation`; the menu only hands over the ready command.
 - TWO HARD STOPS — the hypothesis fan and the spec review; continuing past either without an
   explicit user digit is a VIOLATION = ABORT.
-- OUTPUT-GRAMMAR — defined ONCE in dev's SKILL.md; fix owns only its two layer-3 templates (веер
-  гипотез, финал-карта) and re-states no layer 1-2 rules.
+- SPEC-REVIEW-MENU — the Step 5 stop is CLOSED BY THE MENU (`### SPEC-REVIEW-MENU`, a replica of
+  plan's norm whose sole delta is «3 — вернуться к гипотезам»), never by prose; `Write` fires only
+  on digit `1`. ANTI-SELF-ENDORSEMENT: «← рекомендую» on «принять» is FORBIDDEN — the agent
+  authored the spec under review; the recommendation, if any, rides «правки» and names the agent's
+  OWN doubt. No menu-контекст rides this choice.
+- OUTPUT-GRAMMAR — defined ONCE in dev's SKILL.md; fix owns only its three layer-3 templates (веер
+  гипотез, финал-карта, SPEC-REVIEW-MENU) and re-states no layer 1-2 rules.
 - LANGUAGE — English body + Russian runtime user-facing output; the FIX spec follows the docs/
   directory's existing language.

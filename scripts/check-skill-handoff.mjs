@@ -23,7 +23,12 @@
 //   (g) negation guards, the (e) pattern: a replica must not weaken the norm — «menu
 //       опционален»/«menu optional» in a skill that resolves staging, a «без menu-поля» not
 //       followed by «= VIOLATION», or a menu-and-retag/retire/reanchor paragraph without the
-//       explicit prohibition (v1 stamps note resolutions only) all FAIL.
+//       explicit prohibition (v1 stamps note resolutions only) all FAIL;
+//   (h) the SPEC-REVIEW-MENU replicas (plan owns the norm, fix carries its own text): both
+//       declare the template and share its anchor chips, and neither weakens it — the «принять»
+//       chip may never carry «← рекомендую» (ANTI-SELF-ENDORSEMENT: the agent authored the spec
+//       under review), and the prose shape the menu retired may appear ONLY as a quoted
+//       counter-example, i.e. in a paragraph that also says VIOLATION.
 //
 // Dev tooling: lives at the repo ROOT, never inside plugin/ (same rule as the other check-*).
 //
@@ -141,6 +146,36 @@ for (const name of menuReplicas) {
   }
 }
 
+// (h) SPEC-REVIEW-MENU: the spec-review stop is closed by a menu, and no replica weakens it
+const SPEC_REVIEW_REPLICAS = ['plan', 'fix'];
+const SPEC_REVIEW_ANCHORS = ['1 — принять', '2 — правки', '4 — отмена', 'ANTI-SELF-ENDORSEMENT'];
+const RETIRED_PROSE_SHAPE = /Подтверди\s+—/; // the SHAPE, not the word: morphology must not match
+
+for (const name of SPEC_REVIEW_REPLICAS) {
+  const text = skillText(name);
+  const flat = normalize(text);
+  if (!text.includes('SPEC-REVIEW-MENU')) {
+    failures.push(`${name}: the spec-review stop carries no SPEC-REVIEW-MENU template — the agent would improvise prose`);
+    continue;
+  }
+  for (const anchor of SPEC_REVIEW_ANCHORS) {
+    if (!flat.includes(anchor)) failures.push(`${name}: SPEC-REVIEW-MENU anchor «${anchor}» missing — replicas diverged`);
+  }
+  // (h1) self-endorsement: the accept chip may never carry the recommendation
+  for (const line of text.split('\n')) {
+    if (line.includes('1 — принять') && line.includes('← рекомендую')) {
+      failures.push(`${name}: the «принять» chip carries «← рекомендую» — ANTI-SELF-ENDORSEMENT forbids endorsing your own draft`);
+    }
+  }
+  // (h2) the retired prose shape survives only as a quoted counter-example (the (g3) paragraph pattern)
+  for (const paragraph of text.split(/\n\s*\n/)) {
+    if (!RETIRED_PROSE_SHAPE.test(paragraph)) continue;
+    if (!paragraph.includes('VIOLATION')) {
+      failures.push(`${name}: «Подтверди —» outside a VIOLATION paragraph — that prose confirmation is what the menu retired`);
+    }
+  }
+}
+
 if (failures.length > 0) {
   console.error('Handoff-finale sync check FAILED:');
   for (const failure of failures) console.error(`  - ${failure}`);
@@ -148,5 +183,5 @@ if (failures.length > 0) {
 }
 
 console.log(
-  'Handoff-finale sync check passed: finale classes declared, handoff menus in place, staging grants curated, contract replicas aligned, no stale markers, MENU-CONTEXT replicas aligned and unweakened.',
+  'Handoff-finale sync check passed: finale classes declared, handoff menus in place, staging grants curated, contract replicas aligned, no stale markers, MENU-CONTEXT replicas aligned and unweakened, SPEC-REVIEW-MENU replicas aligned with self-endorsement barred.',
 );
