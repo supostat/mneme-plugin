@@ -77,8 +77,12 @@ understood. Do not widen the scope beyond what was asked.
    technologies). Prior decisions and gotcha notes are the most valuable.
 2. Grep + Read the relevant code (max ~15 files) to ground the options in real file paths.
 3. Read repository context that exists anywhere — `CLAUDE.md`, `README`, `docs/` — for conventions
-   and constraints. Degrade gracefully when one is absent; an empty or degraded recall (cold store,
-   no stored vectors) is normal — note "memory empty" and continue.
+   and constraints, AND the project's RELEASE AUTOMATION: `.github/workflows/` (or the equivalent CI
+   directory), release scripts, and the version fields of its manifests. That last target is what
+   VERSION-BUMP-RULE decides on, and it lives nowhere near the prose documents — a recon that skips
+   it makes the rule postmortem instead of preventive. Degrade gracefully when one is absent; "no
+   automation found" is an ANSWER the rule acts on, not a gap. An empty or degraded recall (cold
+   store, no stored vectors) is normal — note "memory empty" and continue.
 4. If recall surfaces an antipattern note, EVERY option in Step 3 must state whether it triggers
    that antipattern. Silent ignore = VIOLATION.
 
@@ -276,6 +280,26 @@ execution order only, and an agent can honestly finish phase 4 without importing
 phase 3 — a failure the wire phase alone would catch only at the very end, while the smoke
 criterion catches it fail-fast at the consumer's own gate.
 
+**VERSION-BUMP-RULE — the version-phase generator's rule:** a phase that raises the PROJECT's
+version is generated ONLY when the recon found NO automation that already does it (a CI bump job, a
+release script, a release workflow). Evidence found → NO such phase, and the finding goes into
+Baseline as a line naming the automation — a silent omission is forbidden exactly as a silently
+ignored antipattern is. The GENERATOR holds this rule, not the author (the TYPECHECK-CRITERION-RULE
+precedent): the user does not have to remember which of their projects bumps itself, and a phase
+that duplicates the project's own automation is a generator bug, not a style choice. The evidence is
+always READ from the project, never assumed in either direction — «the concrete command, never a
+guessed one» applies here too.
+
+Where a bump phase IS legitimate, two constraints follow:
+
+- Its task is stated as an INCREMENT («raise the patch version»), never as a literal pair «X → Y» —
+  a version number written into a spec goes stale between the drafting and the execution, so a
+  literal is wrong by the time the phase runs.
+- A manual bump drags the synchronization of DERIVED artifacts behind it (release pins, version
+  stamps duplicated in manifests). The ones the recon actually FOUND enter the same phase as tasks;
+  ones it did not find are NOT invented. A bump phase that leaves a derived artifact stale hands the
+  project a red test suite.
+
 ### SPEC-REVIEW-MENU (Step 6) — меню подтверждения спеки
 
 The layer-3 template of the SPEC-REVIEW-HARD-STOP. Composition per layer 1: PROSE — what the draft
@@ -444,4 +468,9 @@ of the existing specs in that directory.
 - REAL-DEP-SMOKE-RULE — the generator, not the author, makes every dep edge honest: a
   code-consuming edge adds a real-module executable smoke criterion to the consumer phase, and a
   pure-ordering edge is explicitly marked `order-only`.
+- VERSION-BUMP-RULE — the generator, not the author, decides whether a version-bump phase exists: it
+  is generated ONLY when the recon (Step 2.3, release automation included) found no automation that
+  bumps the project itself; evidence found → no phase, and Baseline names the automation. Where the
+  phase is legitimate its task is an INCREMENT, never a literal «X → Y», and the derived artifacts
+  the recon found (release pins, version stamps) enter the same phase.
 - LANGUAGE: English body + Russian runtime user-facing output.
