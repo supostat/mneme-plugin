@@ -414,6 +414,27 @@ defined in Step 8:
   anchor is a dead-anchor sink that drops the note to the bottom of recall). A plan often touches
   files that do not exist yet — anchor to the already-tracked files it affects, never to
   not-yet-created ones.
+- **anchors when the decision shapes code that does not exist yet** — the prohibition above has a
+  POSITIVE half: a note about not-yet-written code carries tags, not invented anchors. Give NO path
+  anchors at all and tag it instead — domain concepts, planned module names, the feature slug. Do
+  NOT anchor to neighbouring existing files "for coverage", and never to the spec (it lives in
+  gitignored `docs/`). Path anchors belong to the implementation notes `/mneme:dev` harvests once
+  the files exist. The engine legalizes this: a note is valid when EITHER `anchors` or `tags` is
+  non-empty, and a pathless note takes a NEUTRAL rank pin, not the dead-anchor penalty. A decision
+  that touches BOTH — some files already tracked, some yet to be written — anchors the tracked ones
+  and tags the rest; it never invents a path for the rest.
+
+  The pathless form, literally:
+
+  ```
+  remember({
+    type: "decision",
+    body: "<the fork distilled>",
+    anchors: [],
+    tags: ["<feature-slug>", "<planned module name>", "<domain concept>"],
+    menu: { ... }
+  })
+  ```
 
 ### Language
 
@@ -450,7 +471,9 @@ of the existing specs in that directory.
   before approval; the ONLY re-Write is Step 7's format repair of that same approved file.
 - STAGE THE CHOICE — Step 8 UNCONDITIONALLY stages the decision (chosen + rejected + why) via
   `remember`, closing the choice → memory loop; it only QUEUES for human accept and NEVER publishes.
-  Anchors must be git-tracked (already-existing files, not future ones).
+  Anchors must be git-tracked (already-existing files, not future ones), and a note about
+  not-yet-written code carries tags, not invented anchors — no path anchors at all, never a pulled-in
+  neighbour and never the spec.
 - EVIDENCE-BASED — every option references a specific file or recalled note; name files and
   modules, not "consider separating concerns".
 - RECALL IS VISIBLE — surface what memory contributed in the fan; an antipattern note forces every

@@ -388,6 +388,8 @@ Do NOT run the gate command yourself; the engine already ran it.
 - `anchors` MUST be REPO-RELATIVE and GIT-TRACKED file paths. Any anchor that is not tracked yields
   a dead-anchor sink (score -1 via `min`) and drops the whole note to the bottom of recall. Never
   use concept strings, absolute paths, or cross-repo paths as anchors.
+- A note about not-yet-written code carries tags, not invented anchors; path anchors are for files
+  this phase actually touched.
 
 ### Terminals branch
 
@@ -697,7 +699,9 @@ line is DATA of the block, not the menu header)
 - `agent_votes` ONLY for phases whose done-when carries agent-judged criteria — collected via
   `### REVIEW-SPAWN`; NEVER for zero-agent-judged phases. `step_result` and `harvest_artifacts` are
   MUTUALLY EXCLUSIVE.
-- HARVEST ANCHORS repo-relative AND git-tracked; NEVER auto-publish — staging accept is human.
+- HARVEST ANCHORS repo-relative AND git-tracked; a note about not-yet-written code carries tags, not
+  invented anchors; path anchors are for files this phase actually touched. NEVER auto-publish —
+  staging accept is human.
 - SOFT-NONSTOP at intermediate boundaries: empty staging passes SILENTLY, non-empty STOPS the turn;
   movement only on the user's DIGIT, silence = pause. BOUNDARY-CURATION = DIGIT-CHOICE at ANY
   boundary stop: notes as a numbered list, ALL decisions by digit menus, exactly one option carries

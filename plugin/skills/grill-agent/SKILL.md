@@ -220,8 +220,9 @@ Fires on early exit, on the exhaustion menu's «стоп», or on the user's exp
    closed branch, one of THREE classes: `[факт: <file:line>]` / `[заметка: <id>]` /
    `[решение пользователя]`.
 2. Stage each USER-decided branch as a decision note via `remember` (body: the fork and the
-   user's answer; anchors: the git-tracked files the decision touches). Staging QUEUES only —
-   the human gate is untouched.
+   user's answer; anchors: the git-tracked files the decision touches). A note about not-yet-written
+   code carries tags, not invented anchors; path anchors are for files this phase actually touched.
+   Staging QUEUES only — the human gate is untouched.
 3. Terminal lines of the summary — TWO lines with different roles (the commit-block precedent
    «две токен-строки не склеиваются»): the skill's own `раундов N · failed K` (it counts its
    rounds itself), then the VERBATIM output of the `--delta … --label допрос` call per
@@ -290,7 +291,9 @@ MENU-CONTEXT — compact replica (norm: dev's `### MENU-CONTEXT`):
   forwarded WHOLE AND VERBATIM with the grounding rule; nothing in the project tree.
 - FULL JOURNAL — every spawn sees every prior pair; a sliding window is rejected by design.
 - FINALE — grill's protocol file with three-class provenance on every closed branch; user
-  decisions staged via remember (queue only, human gate untouched); terminal `раундов N ·
+  decisions staged via remember (queue only, human gate untouched) — a note about not-yet-written
+  code carries tags, not invented anchors; path anchors are for files this phase actually
+  touched; terminal `раундов N ·
   failed K` plus the verbatim `--delta` line per `### RUN-COST`; HANDOFF finale closing with
   the staged-note curation menu.
 - RUN-COST BEARER — mark `grill-<slug-темы>` once BEFORE the dossier spawn (silent), delta with
