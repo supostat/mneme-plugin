@@ -381,6 +381,17 @@ Do NOT run the gate command yourself; the engine already ran it.
   is allowed and CLOSES the phase. Do NOT hand-stage — the engine stages artifacts through mneme's
   staging gate, and ACCEPT stays a separate HUMAN step (`staging_resolve`); the workflow never
   auto-publishes memory.
+- USED-NOTES DECLARATION — on EVERY harvest, walk THIS phase's recall bundle and declare the notes
+  that actually influenced the work: `used_notes: [{ id, evidence }]` riding the SAME
+  `workflow_step` call as `harvest_artifacts` (the engine accepts no separate call;
+  id — только из бандла ЭТОЙ фазы — a foreign id refuses the whole call before anything is
+  written). Each `evidence` names the PLACE of influence — «файл:строка / решение — как повлияла»:
+  following the note's contract, avoiding a gotcha it named, or quoting its decision.
+  «a declaration that cannot name a place is not a use»; «Совпадение темы — НЕ использование»;
+  не смог назвать место — не включай: «пустой список честнее вежливого перечисления». An empty
+  `[]` is a legitimate, honest answer — never a failure, and the declaration never delays closing
+  the phase. Generation echo: правка формулировки этой нормы = новое поколение — precision-уровни
+  сравнимы только внутри одного поколения (датировка: git-история этого файла × ts событий).
 - Artifact shapes — EXACTLY these three, discriminated on `kind`:
   - `{ kind: "fixed_test", test, failure, fix, anchors: [...] }`
   - `{ kind: "resolved_error", error, resolution, anchors: [...] }`
@@ -395,7 +406,11 @@ Do NOT run the gate command yourself; the engine already ran it.
 
 - `RUN COMPLETE` → stop; print a Russian success summary (run_id, phases done, iterations used)
   including the run-cost line from `--delta <run_id>` per `### RUN-COST` (pasted verbatim; empty
-  output → no line).
+  output → no line) AND the usage aggregate — one line per phase of the run, in the declaration's
+  form: `<phase_id>: опирался на <M> заметок: <id> — <evidence>; …` or
+  `<phase_id>: из бандла ничего не пригодилось`. A phase closed in a PAST session renders
+  «(закрыта в прошлой сессии — декларация в логе)» — never invent evidence from memory of another
+  session; the full history lives in `workflow_step_applied.used_notes`.
 - `RUN FAILED: <r>` → stop; print the failure reason in Russian.
 - `RUN ESCALATED at <p>/<s>: <r>` → the retry budget is exhausted; SHOW phase / step / reason and
   ASK the user how to proceed (Russian, numbered options — e.g. `1. повторить вручную`,
@@ -623,6 +638,7 @@ batch menu):
 
 Фаза <phase_id> закрыта, в staging <N> заметок. Recall фазы <next_phase_id> соберётся при её
 старте — принятое сейчас попадёт в бандл.
+опирался на <M> заметок: <id> — <evidence>; … | из бандла ничего не пригодилось
 
 1. [<type>] <суть одной строкой> — якоря: <anchors>
 2. …
@@ -636,7 +652,9 @@ batch menu):
 (the «← рекомендую: <причина одной строкой>» suffix rides exactly ONE of the four options —
 whichever the queue's content argues for; per-note mode re-renders each note with its own menu
 `1 прими · 2 отклони · 3 позже · 4 показать целиком` and its own recommendation, per
-`### BOUNDARY-CURATION`)
+`### BOUNDARY-CURATION`; the declaration DATA-line renders exactly ONE of its two forms — the
+list, or «из бандла ничего не пригодилось» — showing what THIS phase just declared, raw ids and
+evidence only, never a precision/coverage number)
 
 **коммит-блок** — the COMMIT-TURN-SPLIT render, ALWAYS its own turn: DATA (diff-stat) + DATA (the
 ready message, fenced) + DECISION.
@@ -702,6 +720,9 @@ line is DATA of the block, not the menu header)
 - HARVEST ANCHORS repo-relative AND git-tracked; a note about not-yet-written code carries tags, not
   invented anchors; path anchors are for files this phase actually touched. NEVER auto-publish —
   staging accept is human.
+- USED-NOTES — every harvest submission carries the usage declaration (`used_notes` riding the same
+  call): id — только из бандла ЭТОЙ фазы, and each evidence names the place of influence —
+  «a declaration that cannot name a place is not a use»; `[]` — честный ответ, не провал.
 - SOFT-NONSTOP at intermediate boundaries: empty staging passes SILENTLY, non-empty STOPS the turn;
   movement only on the user's DIGIT, silence = pause. BOUNDARY-CURATION = DIGIT-CHOICE at ANY
   boundary stop: notes as a numbered list, ALL decisions by digit menus, exactly one option carries
