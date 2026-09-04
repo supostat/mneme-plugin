@@ -74,12 +74,19 @@ STUB
   cat >"$1/mockbin/curl" <<'STUB'
 #!/bin/sh
 url=''
-for arg in "$@"; do
-  case $arg in http*) url=$arg ;; esac
+body_out=/dev/stdout
+while [ $# -gt 0 ]; do
+  case $1 in
+    -o) body_out=$2; shift ;;
+    http*) url=$1 ;;
+  esac
+  shift
 done
 printf '%s\n' "$url" >>"$MOCK_DIR/curl.log"
 [ -f "$MOCK_DIR/listening" ] || exit 7
-cat "$MOCK_DIR/health.json" 2>/dev/null || printf '{"port":4310,"session_id":null,"plugin":"/x"}\n'
+# Honour -o like the real curl: the launcher discards the body, and the gate
+# asserts the stdout contract line for line only because nothing else leaks.
+cat "$MOCK_DIR/health.json" 2>/dev/null >"$body_out" || printf '{"port":4310,"session_id":null,"plugin":"/x"}\n' >"$body_out"
 STUB
   cat >"$1/mockbin/sleep" <<'STUB'
 #!/bin/sh
@@ -163,18 +170,33 @@ grep -q '^url http://127\.0\.0\.1:4310$' "$dir/again.out" || say_fail 'repeat st
 [ "$(line_count "$dir/mock/bun.log")" = 1 ] || say_fail 'repeat start: bun was launched twice'
 [ "$(line_count "$dir/mock/open.log")" = 1 ] || say_fail 'repeat start: the browser was opened twice'
 
-# Scenario 4 (on the running fixture): status by state.
+# Scenario 4 (on the running fixture): status by state, and the session BY TASK.
+# sessions.json is keyed by task slug (Melete's SessionStore.read(taskSlug)), so
+# status looks the session up under the task it is asked about — default design,
+# the same default start applies — and never takes "the only entry" as the
+# server's session: a foreign task's entry answers `none`.
 capture "$dir" status_none status
 [ "$last_status" -eq 0 ] || say_fail "status running: exit $last_status"
-grep -q '^running http://127\.0\.0\.1:4310 pid [0-9][0-9]* session none$' "$dir/status_none.out" ||
+grep -q '^running http://127\.0\.0\.1:4310 pid [0-9][0-9]* task design session none$' "$dir/status_none.out" ||
   say_fail "status running: unexpected line: $(cat "$dir/status_none.out")"
-printf '{\n  "design": "sess-one"\n}\n' >"$dir/project/.melete/sessions.json"
-capture "$dir" status_one status
-grep -q 'session sess-one$' "$dir/status_one.out" || say_fail "status one session: $(cat "$dir/status_one.out")"
+[ "$(line_count "$dir/status_none.out")" = 1 ] ||
+  say_fail "status running: stdout is not the single contract line: $(cat "$dir/status_none.out")"
+printf '{\n  "allowed-tools-experiment": "sess-foreign"\n}\n' >"$dir/project/.melete/sessions.json"
+capture "$dir" status_foreign status
+grep -q 'task design session none$' "$dir/status_foreign.out" ||
+  say_fail "status with a foreign task's entry: attributed another task's session: $(cat "$dir/status_foreign.out")"
 printf '{\n  "design": "sess-one",\n  "other": "sess-two"\n}\n' >"$dir/project/.melete/sessions.json"
-capture "$dir" status_two status
-grep -q 'session ambiguous (2 tasks in \.melete/sessions\.json)$' "$dir/status_two.out" ||
-  say_fail "status two sessions: $(cat "$dir/status_two.out")"
+capture "$dir" status_default status
+grep -q 'task design session sess-one$' "$dir/status_default.out" ||
+  say_fail "status default task among two entries: $(cat "$dir/status_default.out")"
+capture "$dir" status_other status --task other
+[ "$last_status" -eq 0 ] || say_fail "status --task other: exit $last_status"
+grep -q 'task other session sess-two$' "$dir/status_other.out" ||
+  say_fail "status --task other: $(cat "$dir/status_other.out")"
+capture "$dir" status_bad_slug status --task 'a.b'
+[ "$last_status" -ne 0 ] || say_fail 'status --task a.b: a slug with a regex metacharacter was accepted'
+grep -q '^design-server: error: the --task slug' "$dir/status_bad_slug.err" ||
+  say_fail "status --task a.b: no named error: $(cat "$dir/status_bad_slug.err")"
 
 # Scenario 5: stop of a live server, with the tick budget of the stop wait.
 : >"$dir/mock/sleep.log"

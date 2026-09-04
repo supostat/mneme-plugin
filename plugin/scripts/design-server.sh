@@ -6,7 +6,7 @@
 #   start  -> url <URL> / pid <n> / task <slug> / log <path> / out <path>
 #             gitignore added|present|skipped / browser opened|skipped
 #             (already running: `already running` + url + pid)
-#   status -> `running <URL> pid <n> session <none|<id>|ambiguous (...)>`  exit 0
+#   status -> `running <URL> pid <n> task <slug> session <none|<id>>`      exit 0
 #             `stopped`                                                    exit 1
 #             `stale pid <n> (<reason>)`                                   exit 2
 #   stop   -> `stopped pid <n>` | `not running`                            exit 0
@@ -16,8 +16,13 @@
 # ONE SOURCE per fact about the server. The URL comes from the server's own
 # banner in .melete/server.out; the pid from .melete/server.pid, which the
 # server writes before it binds; the session id from .melete/sessions.json,
-# which the server writes on the SDK init. This launcher keeps no state file of
-# its own — it only redirects the server's output into server.out.
+# which the server writes on the SDK init and keys BY TASK SLUG (Melete's own
+# SessionStore.read(taskSlug)). `status` therefore looks the session up under
+# the task it is asked about — `--task`, default design, the same default
+# `start` applies — and never takes whatever entry happens to be there for the
+# server's session: another task's entry answers `session none`. This launcher
+# keeps no state file of its own — it only redirects the server's output into
+# server.out.
 #
 # JSON IS NEVER PARSED. sessions.json is flat, machine-generated, one key per
 # line, and is read with the same sed idiom bin/launch.sh uses for release.json;
@@ -40,7 +45,7 @@
 #
 # Usage: design-server.sh start [<path-to-Melete>] [--port N] [--task SLUG] [--no-open]
 #        design-server.sh stop
-#        design-server.sh status
+#        design-server.sh status [--task SLUG]
 
 set -eu
 
@@ -48,6 +53,7 @@ WAIT_TICKS=60
 STOP_TICKS=20
 TICK=0.5
 TAIL_LINES=20
+DEFAULT_TASK=design
 
 fail() {
   printf 'design-server: error: %s\n' "$*" >&2
@@ -57,7 +63,7 @@ fail() {
 usage() {
   printf 'usage: design-server.sh start [<path-to-Melete>] [--port N] [--task SLUG] [--no-open]\n' >&2
   printf '       design-server.sh stop\n' >&2
-  printf '       design-server.sh status\n' >&2
+  printf '       design-server.sh status [--task SLUG]\n' >&2
 }
 
 self_dir=$(CDPATH='' cd -- "$(dirname -- "$0")" && pwd)
@@ -95,21 +101,29 @@ health_ok() {
   curl -fsS -o /dev/null "$1/health" 2>/dev/null
 }
 
+# The slug is a sessions.json key and, in `status`, a sed pattern: only the
+# characters that are literal in both places are accepted.
+validate_task_slug() {
+  case $1 in
+    '' | *[!A-Za-z0-9_-]*) fail "the --task slug may only use letters, digits, - and _: $1" ;;
+  esac
+}
+
 # The sed idiom of bin/launch.sh: a contract with the server's serializer
 # (JSON.stringify(..., null, 2) writes one "key": "value" per line), never a
-# JSON parser.
-session_field() {
+# JSON parser. The lookup is by key — the task slug — exactly as the server
+# itself reads the file.
+session_for_task() {
   if [ ! -f "$sessions_file" ]; then
     printf 'none'
     return
   fi
-  session_ids=$(sed -n 's/^[[:space:]]*"[^"]*"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' "$sessions_file" 2>/dev/null || true)
-  session_count=$(printf '%s' "$session_ids" | grep -c . || true)
-  case $session_count in
-    0) printf 'none' ;;
-    1) printf '%s' "$session_ids" ;;
-    *) printf 'ambiguous (%s tasks in .melete/sessions.json)' "$session_count" ;;
-  esac
+  session_id=$(sed -n "s/^[[:space:]]*\"$1\"[[:space:]]*:[[:space:]]*\"\([^\"]*\)\".*/\1/p" "$sessions_file" 2>/dev/null || true)
+  if [ -n "$session_id" ]; then
+    printf '%s' "$session_id"
+  else
+    printf 'none'
+  fi
 }
 
 ensure_gitignore() {
@@ -138,7 +152,7 @@ validate_checkout() {
 cmd_start() {
   start_checkout_arg=''
   start_port=''
-  start_task='design'
+  start_task=$DEFAULT_TASK
   start_open=1
 
   while [ $# -gt 0 ]; do
@@ -172,6 +186,7 @@ cmd_start() {
     esac
   done
 
+  validate_task_slug "$start_task"
   command -v bun >/dev/null 2>&1 || fail 'bun not found — install Bun 1.4.0 (https://bun.sh)'
 
   if [ -n "$start_checkout_arg" ]; then
@@ -295,6 +310,21 @@ cmd_stop() {
 }
 
 cmd_status() {
+  status_task=$DEFAULT_TASK
+  while [ $# -gt 0 ]; do
+    case $1 in
+      --task)
+        [ $# -ge 2 ] || fail 'the --task flag needs a slug'
+        status_task=$2
+        shift 2
+        ;;
+      *)
+        usage
+        fail "unexpected argument: $1"
+        ;;
+    esac
+  done
+  validate_task_slug "$status_task"
   if ! status_pid=$(read_pid); then
     printf 'stopped\n'
     exit 1
@@ -311,7 +341,7 @@ cmd_status() {
     printf 'stale pid %s (process alive, /health silent)\n' "$status_pid"
     exit 2
   fi
-  printf 'running %s pid %s session %s\n' "$status_url" "$status_pid" "$(session_field)"
+  printf 'running %s pid %s task %s session %s\n' "$status_url" "$status_pid" "$status_task" "$(session_for_task "$status_task")"
 }
 
 if [ $# -lt 1 ]; then
@@ -334,11 +364,7 @@ case $ds_command in
     cmd_stop
     ;;
   status)
-    if [ $# -ne 0 ]; then
-      usage
-      fail 'status takes no arguments'
-    fi
-    cmd_status
+    cmd_status "$@"
     ;;
   *)
     usage

@@ -19,13 +19,15 @@ launcher brings up the Melete server that hosts the same design work as a chat i
 
 ## Arguments
 
-`/mneme:design-server [start [<путь-к-чекауту-Melete>] [--port N] [--task SLUG] [--no-open] | stop | status]`
+`/mneme:design-server [start [<путь-к-чекауту-Melete>] [--port N] [--task SLUG] [--no-open] | stop | status [--task SLUG]]`
 
 - `start` — bring the server up and print its URL. The checkout path is needed ONCE: the script
   remembers it and later starts read it back. `--port N` overrides the port the server would pick,
   `--task SLUG` names the design task (default `design`), `--no-open` leaves the browser alone.
 - `stop` — stop the server of this project.
-- `status` — one line about the current state.
+- `status` — one line about the current state. `--task SLUG` names the task whose session the
+  line reports (default `design`, the same default `start` applies): the server keeps sessions
+  per task, so a status asked about another task's session answers `none`, not a guess.
 - NO ARGUMENT AT ALL = `start` with no path: the launcher is asked to do the thing it exists for,
   and a repeat is safe — a running server answers «already running» with the same URL instead of a
   second launch.
