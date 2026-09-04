@@ -25,6 +25,9 @@ jobs:
       - name: Launcher is shellcheck-clean
         run: shellcheck plugin/bin/launch.sh
 
+      - name: Design-server launcher is shellcheck-clean
+        run: shellcheck plugin/scripts/design-server.sh
+
       - name: Release pin integrity (silently skipped while no pin exists)
         run: node scripts/check-release-integrity.mjs plugin/bin/release.json --allow-missing
 

@@ -74,6 +74,12 @@ const ci = load(ciPath);
 requireMarker(ciPath, ci, 'pull_request', 'PRs must run the gate');
 requireMarker(ciPath, ci, 'npm test', 'the local gate chain must run in CI');
 requireMarker(ciPath, ci, 'shellcheck plugin/bin/launch.sh', 'the launcher shellcheck gate must run in CI');
+requireMarker(
+  ciPath,
+  ci,
+  'shellcheck plugin/scripts/design-server.sh',
+  'the design-server launcher shellcheck gate must run in CI',
+);
 requireMarker(ciPath, ci, 'check-release-integrity.mjs', 'the pinned assets must be verified in CI');
 requireMarker(ciPath, ci, '--allow-missing', 'CI integrity must tolerate the pre-release state (no pin yet)');
 requireMarker(
