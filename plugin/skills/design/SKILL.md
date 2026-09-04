@@ -1,7 +1,7 @@
 ---
 name: design
 description: design UI pages as HTML etalons before any code
-allowed-tools: [Read, Grep, Write, Bash, mcp__plugin_mneme_memory__recall, mcp__plugin_mneme_memory__remember, mcp__plugin_mneme_memory__staging_list, mcp__plugin_mneme_memory__staging_resolve]
+allowed-tools: [Read, Grep, Write, Edit, Bash, mcp__plugin_mneme_memory__recall, mcp__plugin_mneme_memory__remember, mcp__plugin_mneme_memory__staging_list, mcp__plugin_mneme_memory__staging_resolve]
 disable-model-invocation: true
 ---
 
@@ -43,9 +43,11 @@ No argument → ask for the task in one line (numbered prompt). Never invent a t
 
 - Read / Grep: YES — recon of the task's context, project schemas/migrations/fixtures (hypothesis
   material only, see CARDINALITY-SOURCE), and the shared design layer.
-- Write: YES, but ONLY under `design/` of the target repo (pages/ and system/), and each file only
-  at the stage that owns it (stage 2 rough variants, stage 3 the detailed etalon + EMPTY-LIBRARY
-  scaffold, stage 4 annotations/final touches). Writing anywhere outside `design/` is a VIOLATION.
+- Write / Edit: YES, but ONLY under `design/` of the target repo (pages/ and system/), and each
+  file only at the stage that owns it (stage 2 rough variants, stage 3 the detailed etalon +
+  EMPTY-LIBRARY scaffold, stage 4 annotations/final touches). Edit is what a SECOND version of a
+  reviewed etalon takes — a patch of the file that exists, never a rewrite of the whole page.
+  Writing or editing anywhere outside `design/` is a VIOLATION.
 - Bash: ONLY to invoke the bundled etalon checker at stage 4 (see FIXATION-CHECK) and the
   read-only session-tokens call before rendering a DECISION block (the TOKEN-LINE replica in
   Output format). Any other Bash use is a VIOLATION.

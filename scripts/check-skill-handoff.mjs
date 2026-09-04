@@ -1,11 +1,15 @@
 #!/usr/bin/env node
 //
-// Structural sync test for the HANDOFF-DECISION norm (spec-handoff-decision).
+// Structural sync test for what the SKILL TEXTS must agree on — the HANDOFF-DECISION norm
+// (spec-handoff-decision) and the contracts that have since grown around it.
 //
 // The norm lives in dev/SKILL.md's OUTPUT-GRAMMAR; its form-critical pieces are REPLICATED into
 // the sibling skills because only one skill's text is loaded at runtime. Replication is exactly
 // how the original defect shipped (finales drifting from the norm), so drift must be a FAILING
-// TEST, not the next live episode. Five checks:
+// TEST, not the next live episode. The same argument covers every other fact a skill's text
+// states about itself — the finale class it claims, the bundle script it invokes, the tools it is
+// granted — and each of those facts is pinned by ONE map here, never by a second copy elsewhere.
+// Ten checks:
 //
 //   (a) every non-dev skill declares its expected FINALE-CLASS token — and never both;
 //   (b) handoff finales (plan, fix, migrate) reference HANDOFF-DECISION and carry a closing
@@ -28,13 +32,21 @@
 //       declare the template and share its anchor chips, and neither weakens it — the «принять»
 //       chip may never carry «← рекомендую» (ANTI-SELF-ENDORSEMENT: the agent authored the spec
 //       under review), and the prose shape the menu retired may appear ONLY as a quoted
-//       counter-example, i.e. in a paragraph that also says VIOLATION.
+//       counter-example, i.e. in a paragraph that also says VIOLATION;
+//   (i) SCRIPT-EXISTS — every bundle script a skill invokes (either idiom:
+//       `<base-dir-скилла>/../../scripts/X` or `$CLAUDE_PLUGIN_ROOT/scripts/X`) is resolved out
+//       of the skill's TEXT and must exist in plugin/scripts/: a renamed or unshipped script is
+//       a skill that dies at its first Bash call, and prose cannot notice;
+//   (j) TOOL-TOKENS — `allowed-tools` is parsed into EXACT tokens and matched against the
+//       expectations table. Exactness is the point: a substring test for «Edit» is green for
+//       «NotebookEdit» too. A thin wrapper is pinned to its whole grant (anything extra is an
+//       error), a skill whose contract needs a tool must actually carry it.
 //
 // Dev tooling: lives at the repo ROOT, never inside plugin/ (same rule as the other check-*).
 //
 // Usage: node scripts/check-skill-handoff.mjs   (also runs as part of npm test)
 
-import { readFileSync } from 'node:fs';
+import { readdirSync, readFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -53,6 +65,7 @@ const EXPECTED_FINALE_CLASS = {
   resume: INFORMATIONAL,
   setup: INFORMATIONAL,
   grill: INFORMATIONAL,
+  'design-server': INFORMATIONAL,
 };
 const CONTRACT_REPLICAS = ['dev', 'plan', 'fix'];
 const CONTRACT_ANCHORS = ['прими все', 'поштучный разбор', 'отклони все', 'NEVER tell the user'];
@@ -176,6 +189,47 @@ for (const name of SPEC_REVIEW_REPLICAS) {
   }
 }
 
+// (i) SCRIPT-EXISTS: a skill's script call resolves to a file that is actually shipped
+const BUNDLE_SCRIPTS = new Set(readdirSync(join(repoRoot, 'plugin', 'scripts')));
+const SCRIPT_INVOCATION = /(?:<base-dir-скилла>\/\.\.\/\.\.|\$CLAUDE_PLUGIN_ROOT)\/scripts\/([A-Za-z0-9._-]+)/g;
+
+for (const name of ALL_SKILLS) {
+  for (const [, script] of skillText(name).matchAll(SCRIPT_INVOCATION)) {
+    if (!BUNDLE_SCRIPTS.has(script)) {
+      failures.push(`${name}: invokes plugin/scripts/${script}, which is not in the bundle — the call would die at runtime`);
+    }
+  }
+}
+
+// (j) TOOL-TOKENS: the frontmatter grant parsed into exact tokens, then matched against the table
+const TOOL_TOKEN_EXPECTATIONS = [
+  { skill: 'design-server', rule: 'exactly', tools: ['Read', 'Bash'] },
+  { skill: 'design', rule: 'carries', tools: ['Edit'] },
+];
+
+for (const { skill, rule, tools } of TOOL_TOKEN_EXPECTATIONS) {
+  const declaration = skillText(skill).match(/^allowed-tools:\s*\[([^\]]*)\]/m);
+  if (declaration === null) {
+    failures.push(`${skill}: no allowed-tools list in the frontmatter — its grant cannot be checked`);
+    continue;
+  }
+  const grantedTools = declaration[1].split(',').map((token) => token.trim()).filter((token) => token !== '');
+  if (rule === 'exactly') {
+    const extraTools = grantedTools.filter((token) => !tools.includes(token));
+    const missingTools = tools.filter((token) => !grantedTools.includes(token));
+    if (extraTools.length > 0) {
+      failures.push(`${skill}: allowed-tools grants ${extraTools.join(', ')} beyond its exact contract [${tools.join(', ')}]`);
+    }
+    if (missingTools.length > 0) {
+      failures.push(`${skill}: allowed-tools lacks ${missingTools.join(', ')} of its exact contract [${tools.join(', ')}]`);
+    }
+  } else {
+    for (const token of tools.filter((tool) => !grantedTools.includes(tool))) {
+      failures.push(`${skill}: allowed-tools carries no exact token «${token}» — its contract needs it`);
+    }
+  }
+}
+
 if (failures.length > 0) {
   console.error('Handoff-finale sync check FAILED:');
   for (const failure of failures) console.error(`  - ${failure}`);
@@ -183,5 +237,5 @@ if (failures.length > 0) {
 }
 
 console.log(
-  'Handoff-finale sync check passed: finale classes declared, handoff menus in place, staging grants curated, contract replicas aligned, no stale markers, MENU-CONTEXT replicas aligned and unweakened, SPEC-REVIEW-MENU replicas aligned with self-endorsement barred.',
+  'Handoff-finale sync check passed: finale classes declared, handoff menus in place, staging grants curated, contract replicas aligned, no stale markers, MENU-CONTEXT replicas aligned and unweakened, SPEC-REVIEW-MENU replicas aligned with self-endorsement barred, invoked bundle scripts present, allowed-tools grants matching their contracts.',
 );
