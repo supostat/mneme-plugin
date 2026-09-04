@@ -15,6 +15,8 @@ const README_PATH = "plugin/README.md";
 const MAX_INDEX_BYTES = 256000;
 const FORBIDDEN_WORDS = /magic|supercharge|revolutioniz|unleash|lorem ipsum|coming soon/i;
 const ARTIFACT_MARKERS = ["BEGIN MNEME NOTE", "workflow_run_started", "staging", "exit-zero"];
+const DESIGN_CARD_HEADING = "<h3>/mneme:design</h3>";
+const DESIGN_SERVER_SKILL = "/mneme:design-server";
 // supostat.github.io is the landing's own Pages origin — needed for the
 // absolute og:url / og:image meta; every other host is still rejected.
 const ALLOWED_HOSTS = new Set([
@@ -56,6 +58,21 @@ if (failures.length === 0) {
 
   for (const marker of ARTIFACT_MARKERS) {
     check(indexHtml.includes(marker), `artifact marker missing from ${INDEX_PATH}: ${marker}`);
+  }
+
+  // The launcher is not a verb of the roster (which stays ten): it belongs to the
+  // design card. Locating the card by its heading is what makes this positional —
+  // a page-wide substring test would pass with the mention anywhere.
+  const designCardAt = indexHtml.indexOf(DESIGN_CARD_HEADING);
+  check(designCardAt !== -1, `design card heading missing from ${INDEX_PATH}: ${DESIGN_CARD_HEADING}`);
+  if (designCardAt !== -1) {
+    const cardEndAt = indexHtml.indexOf("</div>", designCardAt);
+    const designCard = indexHtml.slice(designCardAt, cardEndAt === -1 ? undefined : cardEndAt);
+    check(
+      designCard.includes(DESIGN_SERVER_SKILL),
+      `${DESIGN_SERVER_SKILL} missing from the ${DESIGN_CARD_HEADING} card in ${INDEX_PATH} ` +
+        `(the launcher is mentioned inside the design card, never as an eleventh roster card)`,
+    );
   }
 
   check(

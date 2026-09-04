@@ -1,8 +1,10 @@
 #!/usr/bin/env node
 //
 // README invariants gate. The root README.md is the user-facing document: it
-// must carry the two install commands, the Ollama prerequisite and the
-// launcher's named failure modes. plugin/README.md is the bundle reference: it
+// must carry the two install commands, the Ollama prerequisite, the optional
+// design-server prerequisites IN THEIR PLACE (a prerequisite that follows the
+// install commands is read too late) and the launcher's named failure modes.
+// plugin/README.md is the bundle reference: it
 // must stay free of version literals (they drift the moment automation bumps
 // plugin.json) and must keep the "Landing: site/" line that check-landing.mjs
 // also pins.
@@ -54,6 +56,36 @@ if (rootReadme !== null) {
   }
 }
 
+// The optional design-server prerequisites are POSITIONAL: a substring test
+// anywhere in the file would pass with the block parked under Troubleshooting.
+const QUICK_START_HEADING = '## Quick start';
+const PREREQUISITES_BLOCK = '**Prerequisites:**';
+const DESIGN_SERVER_BLOCK = '**Design server (optional):**';
+
+if (rootReadme !== null) {
+  const quickStartAt = rootReadme.indexOf(QUICK_START_HEADING);
+  if (quickStartAt === -1) {
+    failures.push(`README.md: no "${QUICK_START_HEADING}" section — the install flow has no home`);
+  } else {
+    const nextHeadingAt = rootReadme.indexOf('\n## ', quickStartAt + QUICK_START_HEADING.length);
+    const quickStart = rootReadme.slice(quickStartAt, nextHeadingAt === -1 ? undefined : nextHeadingAt);
+    const prerequisitesAt = quickStart.indexOf(PREREQUISITES_BLOCK);
+    const designServerAt = quickStart.indexOf(DESIGN_SERVER_BLOCK);
+    if (prerequisitesAt === -1) {
+      failures.push(`README.md: "${PREREQUISITES_BLOCK}" is missing from ${QUICK_START_HEADING}`);
+    }
+    if (designServerAt === -1) {
+      failures.push(
+        `README.md: "${DESIGN_SERVER_BLOCK}" is missing from ${QUICK_START_HEADING} — the launcher needs bun and a Melete checkout, and nothing else in the docs states that`,
+      );
+    } else if (prerequisitesAt !== -1 && designServerAt < prerequisitesAt) {
+      failures.push(
+        `README.md: "${DESIGN_SERVER_BLOCK}" stands BEFORE "${PREREQUISITES_BLOCK}" — the optional prerequisite must follow the mandatory one`,
+      );
+    }
+  }
+}
+
 const SEMVER_LITERAL = /\b\d+\.\d+\.\d+\b/;
 
 const bundleReadme = load('plugin/README.md');
@@ -74,4 +106,6 @@ if (failures.length > 0) {
   for (const failure of failures) console.error(`  - ${failure}`);
   process.exit(1);
 }
-console.log('README check passed: install/troubleshooting invariants hold and the bundle reference is version-literal-free.');
+console.log(
+  'README check passed: install/troubleshooting invariants hold, the design-server prerequisites sit inside Quick start after the mandatory ones, and the bundle reference is version-literal-free.',
+);

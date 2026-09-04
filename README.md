@@ -101,6 +101,9 @@ memory store cannot assemble between them.
   raw idea → interrogated protocol (asked of you, or of a code-grounded
   respondent) → spec → UI etalons where a page is involved → phases → gated
   execution, and a diagnosis entry for bugs whose gate is the regression test.
+  `/mneme:design` has one optional companion, `/mneme:design-server` — a
+  launcher for the Melete design server, infrastructure of that verb rather
+  than an eleventh verb of its own.
 
 ## Quick start
 
@@ -109,6 +112,13 @@ Linux, arm64/x64, `curl` available. That is all — recall works out of the box
 in full-text (FTS) mode. Vector recall is an optional upgrade: run
 **[Ollama](https://ollama.com)** locally, or point `.mneme.json` at any
 OpenAI-compatible embedding endpoint; `/mneme:setup` offers the switch.
+
+**Design server (optional):** only for `/mneme:design-server`, which brings the
+Melete design server up for the current project and hands back its chat URL.
+It needs `bun` on `PATH` (Melete pins the version it expects in its own
+`.bun-version`) and a local Melete checkout: pass the path once, as
+`/mneme:design-server start <path-to-checkout>`, and the launcher remembers it
+for every later start. Nothing else in mneme depends on either.
 
 From any Claude Code session:
 
