@@ -9,7 +9,7 @@
 // TEST, not the next live episode. The same argument covers every other fact a skill's text
 // states about itself — the finale class it claims, the bundle script it invokes, the tools it is
 // granted — and each of those facts is pinned by ONE map here, never by a second copy elsewhere.
-// Ten checks:
+// Eleven checks:
 //
 //   (a) every non-dev skill declares its expected FINALE-CLASS token — and never both;
 //   (b) handoff finales (plan, fix, migrate) reference HANDOFF-DECISION and carry a closing
@@ -40,7 +40,10 @@
 //   (j) TOOL-TOKENS — `allowed-tools` is parsed into EXACT tokens and matched against the
 //       expectations table. Exactness is the point: a substring test for «Edit» is green for
 //       «NotebookEdit» too. A thin wrapper is pinned to its whole grant (anything extra is an
-//       error), a skill whose contract needs a tool must actually carry it.
+//       error), a skill whose contract needs a tool must actually carry it;
+//   (k) HANDOFF-TRIGGER — the phrase design hands over and the phrase plan's
+//       ETALON-ACCEPTANCE-RULE triggers on are ONE literal: plan must quote it, design must carry
+//       it inside its fenced `/mneme:plan "…"` handoff — a replica with an anchor, the (d) pattern.
 //
 // Dev tooling: lives at the repo ROOT, never inside plugin/ (same rule as the other check-*).
 //
@@ -230,6 +233,17 @@ for (const { skill, rule, tools } of TOOL_TOKEN_EXPECTATIONS) {
   }
 }
 
+// (k) HANDOFF-TRIGGER: the phrase design hands over is the phrase plan triggers on
+const HANDOFF_TRIGGER = 'реализовать по эталону design/pages/<slug>/';
+const HANDOFF_PHRASE = `/mneme:plan "${HANDOFF_TRIGGER}`;
+
+if (!skillText('plan').includes(HANDOFF_TRIGGER)) {
+  failures.push(`plan: ETALON-ACCEPTANCE-RULE does not quote the trigger «${HANDOFF_TRIGGER}» — the implement-by-etalon rule would fire on nothing design hands over`);
+}
+if (!skillText('design').includes(HANDOFF_PHRASE)) {
+  failures.push(`design: the handoff block carries no line «${HANDOFF_PHRASE}…» — the phrase design hands over would not trigger plan's ETALON-ACCEPTANCE-RULE`);
+}
+
 if (failures.length > 0) {
   console.error('Handoff-finale sync check FAILED:');
   for (const failure of failures) console.error(`  - ${failure}`);
@@ -237,5 +251,5 @@ if (failures.length > 0) {
 }
 
 console.log(
-  'Handoff-finale sync check passed: finale classes declared, handoff menus in place, staging grants curated, contract replicas aligned, no stale markers, MENU-CONTEXT replicas aligned and unweakened, SPEC-REVIEW-MENU replicas aligned with self-endorsement barred, invoked bundle scripts present, allowed-tools grants matching their contracts.',
+  'Handoff-finale sync check passed: finale classes declared, handoff menus in place, staging grants curated, contract replicas aligned, no stale markers, MENU-CONTEXT replicas aligned and unweakened, SPEC-REVIEW-MENU replicas aligned with self-endorsement barred, invoked bundle scripts present, allowed-tools grants matching their contracts, the handoff phrase shared by design and plan.',
 );

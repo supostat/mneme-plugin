@@ -263,11 +263,14 @@ phase is the USER's move at the Step 6 review — that review IS the opt-out; no
 exists. Specs with 0-1 code phases are untouched by this rule.
 
 **ETALON-ACCEPTANCE-RULE — the etalon-implementation generator's rule:** a spec whose task is
-"реализовать по эталону <design/pages/<slug>/…>" automatically carries the acceptance checklist
-in its Knowledge — the implementation is accepted by comparing AGAINST the etalon folder:
-section structure, the full state set, the accent-dosage rule, and the measurement units. The
-GENERATOR holds this rule, not the author (the TYPECHECK-CRITERION-RULE precedent); it is a
-HUMAN acceptance procedure, never disguised as an agent-judged criterion.
+"реализовать по эталону design/pages/<slug>/…" automatically carries the acceptance checklist
+in its Knowledge — the implementation is accepted by comparing AGAINST the etalon folder, and
+the checklist follows the etalon's FORMAT, read from the extension in the task phrase:
+`<slug>.html` — section structure, the full state set, the accent-dosage rule, and the
+measurement units; `<slug>.json` — the node structure, the full state set, the data bindings,
+and the absence of raw values. The GENERATOR holds this rule, not the author (the
+TYPECHECK-CRITERION-RULE precedent); it is a HUMAN acceptance procedure, never disguised as an
+agent-judged criterion.
 
 **REAL-DEP-SMOKE-RULE — honest dep edges:** in a multi-phase Gameplan every dep edge must declare
 what it carries. An edge that carries CODE CONSUMPTION ("phase B uses X from phase A") gives the
