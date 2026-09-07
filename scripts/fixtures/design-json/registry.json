@@ -1,0 +1,198 @@
+{
+  "melete": 1,
+  "generated": "2026-09-05T09:44:00.361Z",
+  "generator": "melete 0.1.0",
+  "sources": [
+    "src/components/**/*.tsx"
+  ],
+  "components": [
+    {
+      "name": "Badge",
+      "module": "src/components/Badge.tsx",
+      "export": "Badge",
+      "description": "A counter badge with a number and a tone.",
+      "props": [
+        {
+          "name": "count",
+          "type": "number",
+          "required": true,
+          "description": "The number shown in the badge."
+        },
+        {
+          "name": "tone",
+          "type": "enum",
+          "values": [
+            "info",
+            "warning"
+          ],
+          "required": false,
+          "description": "Tone of the badge."
+        }
+      ]
+    },
+    {
+      "name": "Button",
+      "module": "src/components/Button.tsx",
+      "export": "Button",
+      "description": "An action button with a tone and a busy flag.",
+      "props": [
+        {
+          "name": "tone",
+          "type": "enum",
+          "values": [
+            "primary",
+            "secondary",
+            "danger"
+          ],
+          "required": true,
+          "description": "Tone of the button: primary, secondary or danger."
+        },
+        {
+          "name": "busy",
+          "type": "boolean",
+          "required": false,
+          "description": "The button is busy: the action is running and clicks are blocked."
+        },
+        {
+          "name": "children",
+          "type": "node",
+          "required": false,
+          "description": "Label of the button."
+        },
+        {
+          "name": "onClick",
+          "type": "function",
+          "required": false,
+          "description": "Click handler."
+        }
+      ]
+    },
+    {
+      "name": "Card",
+      "module": "src/components/Card.tsx",
+      "export": "Card",
+      "description": "A card with a title, content and a bottom area.",
+      "props": [
+        {
+          "name": "title",
+          "type": "string",
+          "required": false,
+          "description": "Title of the card."
+        },
+        {
+          "name": "children",
+          "type": "node",
+          "required": false,
+          "description": "Content of the card."
+        },
+        {
+          "name": "footer",
+          "type": "node",
+          "required": false,
+          "description": "Bottom area of the card: actions or a caption."
+        }
+      ]
+    },
+    {
+      "name": "Icon",
+      "module": "src/components/Icon.tsx",
+      "export": "Icon",
+      "description": "An icon from the project's set.",
+      "props": [
+        {
+          "name": "name",
+          "type": "enum",
+          "values": [
+            "search",
+            "close",
+            "user"
+          ],
+          "required": true,
+          "description": "Name of the icon from the project's set."
+        },
+        {
+          "name": "size",
+          "type": "number",
+          "required": false,
+          "description": "Size in pixels."
+        }
+      ]
+    },
+    {
+      "name": "LoginForm",
+      "module": "src/components/LoginForm.tsx",
+      "export": "LoginForm",
+      "description": "The login form.",
+      "props": [
+        {
+          "name": "email",
+          "type": "string",
+          "required": true,
+          "description": "The user's email."
+        },
+        {
+          "name": "error",
+          "type": "string",
+          "required": false,
+          "description": "Form error shown under the button."
+        },
+        {
+          "name": "busy",
+          "type": "boolean",
+          "required": false,
+          "description": "The form is submitting: the button is blocked."
+        },
+        {
+          "name": "onSubmit",
+          "type": "function",
+          "required": false,
+          "description": "Submit handler receiving the entered email."
+        }
+      ]
+    },
+    {
+      "name": "TextField",
+      "module": "src/components/TextField.tsx",
+      "export": "TextField",
+      "description": "A text field with a label and an error.",
+      "props": [
+        {
+          "name": "label",
+          "type": "string",
+          "required": true,
+          "description": "Label of the field, always visible."
+        },
+        {
+          "name": "value",
+          "type": "string",
+          "required": false,
+          "description": "Current value."
+        },
+        {
+          "name": "placeholder",
+          "type": "string",
+          "required": false,
+          "description": "Hint shown in an empty field."
+        },
+        {
+          "name": "error",
+          "type": "string",
+          "required": false,
+          "description": "Error text under the field."
+        }
+      ]
+    }
+  ],
+  "tokens": [
+    "space-1",
+    "space-2",
+    "space-3",
+    "space-4",
+    "space-6",
+    "color-accent",
+    "color-danger",
+    "color-text",
+    "color-muted",
+    "color-surface"
+  ]
+}

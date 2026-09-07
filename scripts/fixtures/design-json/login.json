@@ -1,0 +1,66 @@
+{
+  "melete": 1,
+  "slug": "login",
+  "name": "Sign in",
+  "data": {
+    "typical": {
+      "email": "ann@example.com",
+      "greeting": "Welcome back",
+      "form": { "error": null },
+      "submit": { "busy": false }
+    },
+    "minimal": {
+      "email": "",
+      "greeting": "Sign in",
+      "form": { "error": null },
+      "submit": { "busy": false }
+    },
+    "extreme": {
+      "email": "a-very-long-address-to-check-wrapping@example.com",
+      "greeting": "Welcome back, we have not seen you for a very long time",
+      "form": { "error": null },
+      "submit": { "busy": false }
+    }
+  },
+  "states": {
+    "error": { "form.error": "Wrong password" },
+    "loading": { "submit.busy": true }
+  },
+  "nodes": [
+    {
+      "id": "page",
+      "component": "Stack",
+      "props": { "gap": "$token.space-4", "align": "stretch" },
+      "children": ["title", "card", "help"]
+    },
+    {
+      "id": "title",
+      "component": "Text",
+      "props": { "text": "$data.greeting", "tone": "$token.color-text" }
+    },
+    {
+      "id": "card",
+      "component": "Card",
+      "props": { "title": "Sign in" },
+      "children": ["form"],
+      "slots": { "footer": ["hint"] }
+    },
+    {
+      "id": "form",
+      "component": "LoginForm",
+      "props": { "email": "$data.email", "error": "$data.form.error", "busy": "$data.submit.busy" },
+      "note": "one column, the decision of stage 2, option A"
+    },
+    {
+      "id": "hint",
+      "component": "Text",
+      "props": { "text": "Forgot your password?", "tone": "$token.color-muted" }
+    },
+    {
+      "id": "help",
+      "component": "proposal:HelpLink",
+      "props": { "href": "/help" },
+      "note": "a help link is needed next to the form"
+    }
+  ]
+}
