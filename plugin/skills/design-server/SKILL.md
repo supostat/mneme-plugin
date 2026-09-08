@@ -14,8 +14,8 @@ checkout known, was the browser opened) lives INSIDE the script, which a gate co
 scenario. The skill adds ZERO logic of its own: no probing, no retrying, no second call, no guessing
 what a line means.
 
-Its place in the pipeline: `/mneme:design` designs pages as HTML etalons in `design/`, and this
-launcher brings up the Melete server that hosts the same design work as a chat in the browser.
+Its place in the pipeline: `/mneme:design` designs pages as HTML or JSON etalons in `design/`, and
+this launcher brings up the Melete server that hosts the same design work as a chat in the browser.
 
 ## Arguments
 
