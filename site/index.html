@@ -432,7 +432,7 @@ artifacts: 3</pre>
 2 &mdash; review one by one
 3 &mdash; reject all
 4 &mdash; decide later
-<span class="t-dim">staging is a queue, not an ultimatum &mdash; nothing is written until you answer</span></code></pre>
+<span class="t-dim">staging is a queue, not an ultimatum &mdash; nothing enters the canon until you answer</span></code></pre>
           </div>
         </figure>
       </div>
@@ -488,7 +488,7 @@ agent-judged verdicts: 0 of 2 criteria</code></pre>
         </div>
         <div class="mech-card">
           <h3>anchors + git staleness</h3>
-          <p>Notes anchor to files. When an anchor&rsquo;s file dies, the note sinks in ranking instead of misleading you.</p>
+          <p>Notes anchor to files. When an anchor&rsquo;s file dies, the note sinks in ranking instead of misleading you. You re-anchor, retag or retire it by digit; the file stays as history, and a replacement keeps the note it replaced.</p>
         </div>
         <div class="mech-card">
           <h3>four note types</h3>
@@ -616,7 +616,7 @@ breaking migration: changing costs invalidates every existing vault.</code></pre
     <div class="wrap reveal">
       <p class="kicker">09 &middot; why not claude.md</p>
       <h2 id="why-not-h">Why not just CLAUDE.md?</h2>
-      <p class="lead">CLAUDE.md holds what you sit down and write. Built-in auto memory writes notes for you &mdash; and a compressor that paraphrases will sometimes record a discarded idea as a decision, then hand it to your next session as fact.</p>
+      <p class="lead">CLAUDE.md holds what you sit down and write. Built-in auto memory writes notes for you &mdash; and a compressor that paraphrases will sometimes record a discarded idea as a decision, then hand it to your next session as fact. And Auto Dream now tidies those notes between sessions: when two disagree, it deletes the one it judges outdated &mdash; silently, with no history to read back.</p>
       <p class="lead skills-line">mneme moves the gate: the agent proposes, <strong>you accept</strong>. Nothing reaches recall that you did not sign. Notes anchor to real files, so stale knowledge sinks instead of quietly outliving the code. Every retrieval logs its candidates, so ranking is auditable &mdash; and replayable &mdash; offline.</p>
       <p class="lead skills-line">And the memory is delivered by an engine, not by discipline: the bundle arrives when a phase starts, the harvest is staged when it closes.</p>
       <p class="lead skills-line"><strong>What it costs.</strong> The bundle is token-budgeted, not a dump: recall fuses full-text and vector search, ranks, and stops at the budget. Stale notes sink by their anchors instead of crowding the window, and the corpus itself never travels &mdash; only the handful of notes a phase earns.</p>

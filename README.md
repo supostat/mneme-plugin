@@ -32,8 +32,8 @@ Two halves, one MCP server:
 
 ## Why not CLAUDE.md, or the built-in memory
 
-Claude Code already remembers things three ways, and each answers a different
-question than mneme does.
+There are already several ways for an agent to remember things, and each answers
+a different question than mneme does.
 
 **`CLAUDE.md` holds what you decide to write down.** It is the right home for
 conventions, commands and architecture notes — instructions that change rarely
@@ -49,15 +49,26 @@ and arrives at the top of your next session, where the agent trusts it more
 than it should. You did not approve it, and you will not notice until it argues
 for the wrong thing.
 
+**Auto Dream consolidates that memory while you are away.** As Anthropic
+documents it at the time of writing (September 2026), a background agent runs
+between sessions: it merges duplicate notes, turns relative dates into absolute
+ones, drops notes about files that no longer exist — and when two notes
+disagree, deletes the one it judges outdated. The judge is a model, the
+deletion is silent, and nothing keeps the losing version: no queue to review,
+no history to read back. mneme takes the opposite bet, below: a note is never
+deleted on a model's opinion — a replacement passes the same gate as the note it
+replaces and the old file stays as history, and staleness is measured against
+git, not guessed.
+
 **Auto-capture memory servers scale that same bet.** They add embeddings and a
 larger store, but the write path stays automatic: the agent decides what is
 worth remembering, and the corpus grows with paraphrase nobody reviewed.
 
 **mneme moves the gate.** The agent proposes; nothing enters the corpus until
 you accept it. A staged note shows its type, its body and its anchors before
-you decide, and `staging_resolve` is the only way in. What you accept is what
-recall can ever surface — the corpus is a record of decisions you signed, not
-of what a summariser thought you meant.
+you decide — accept, reject or supersede it — and `staging_resolve` is the
+only way in. What you accept is what recall can ever surface — the corpus is
+a record of decisions you signed, not of what a summariser thought you meant.
 
 Three consequences follow from that one design choice:
 
@@ -87,8 +98,24 @@ memory store cannot assemble between them.
 
 ## Key features
 
-- **Human-gated by construction** — the staging queue is a review step, not a
-  formality; the agent can propose memory, only you can accept it.
+- **Human-gated, on the record** — the agent proposes each note with a reason;
+  you accept, reject or supersede it, and every accepted note, replacement and
+  retirement is a commit in the corpus's own git history. Nothing is deleted and
+  nothing enters recall unsigned. On our corpora (2026-09-03) the human sided
+  with the agent's recommendation in 520 of 522 decisions and still rejected 26
+  notes and superseded 19; a sitting took about ten seconds at the median,
+  because what gets read is the queue — type, essence, anchors and the reason
+  behind the recommendation. The gate earns its keep as a veto and a record, not
+  as a refusal count. Run `stats` on your corpus to see your own numbers.
+- **Consolidation with a gate** — the corpus is tidied the same way it is
+  written: by proposal and decision, never by deletion. A near-duplicate is
+  offered as a replacement at intake with its similarity shown; a superseded
+  note leaves recall the moment its replacement is accepted, and its file stays
+  as history; a dead anchor is traced through git renames by `anchor_sweep` and
+  re-anchored, retagged or retired by your digit — the note stays on disk,
+  flagged, not erased. By 2026-09-03 the gate had resolved 45 retag, 50
+  re-anchor and 2 retire requests across our corpora, and 19 notes had been
+  superseded; `stats` prints the same counters for yours.
 - **Local-first** — the corpus lives in `~/.mneme/`, embeddings come from your
   local Ollama; nothing leaves the machine.
 - **Event-sourced** — runs are rebuilt from an append-only JSONL log; a new
