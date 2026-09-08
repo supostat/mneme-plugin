@@ -85,6 +85,13 @@ understood. Do not widen the scope beyond what was asked.
    store, no stored vectors) is normal — note "memory empty" and continue.
 4. If recall surfaces an antipattern note, EVERY option in Step 3 must state whether it triggers
    that antipattern. Silent ignore = VIOLATION.
+5. ETALON-READ: when the task is «реализовать по эталону design/pages/<slug>/<slug>.json», Read
+   the etalon file itself BEFORE the fan — it is the source of truth for the plan; corpus notes
+   and `docs/` are the history of its decisions. Take from the file: every `proposal:<Name>`
+   node (its `note`, props and slots) and every registry component the etalon uses (the names,
+   the props it binds, its `data` and `states`). An etalon that is missing or does not read ENDS
+   THE TURN with one named line (the path and what is wrong) — plan never invents an etalon.
+   HTML etalons are unchanged by this rule.
 
 ### Step 3: Fan out options
 
@@ -120,6 +127,14 @@ If the task naturally decomposes into phases with dependencies, write it multi-p
 D2 warning (see Output format). If no executable done-when can be formulated for a phase that should
 have one, that is a signal of an underspecified phase: raise the question with the user, do NOT
 write a prose placeholder.
+
+ETALON-TASKS — for an implement-by-etalon `.json` task the Gameplan's tasks come from the etalon
+file read at Step 2: every `proposal:<Name>` node becomes a task «компонент <Name>: <note>» with
+the props and slots the node carries, and every registry component the etalon uses enters the
+SAME task list as «привести <Component> к эталону» — the props, states and fixtures the etalon
+binds. One plan per etalon, never two. The fan of Step 3 is about HOW (the phase split, where a
+component lives), never about WHETHER a proposal is implemented — the digit at design's stage 4
+decided that.
 
 ### Step 6: SPEC-REVIEW-HARD-STOP — review, then Write only on approval
 
@@ -268,9 +283,10 @@ in its Knowledge — the implementation is accepted by comparing AGAINST the eta
 the checklist follows the etalon's FORMAT, read from the extension in the task phrase:
 `<slug>.html` — section structure, the full state set, the accent-dosage rule, and the
 measurement units; `<slug>.json` — the node structure, the full state set, the data bindings,
-and the absence of raw values. The GENERATOR holds this rule, not the author (the
-TYPECHECK-CRITERION-RULE precedent); it is a HUMAN acceptance procedure, never disguised as an
-agent-judged criterion.
+the absence of raw values, and the proposals: every `proposal:<Name>` node exists as a component
+the registry lists after the server's rebuild, with the props the node binds. The GENERATOR holds
+this rule, not the author (the TYPECHECK-CRITERION-RULE precedent); it is a HUMAN acceptance
+procedure, never disguised as an agent-judged criterion.
 
 **REAL-DEP-SMOKE-RULE — honest dep edges:** in a multi-phase Gameplan every dep edge must declare
 what it carries. An edge that carries CODE CONSUMPTION ("phase B uses X from phase A") gives the
@@ -479,6 +495,10 @@ of the existing specs in that directory.
   neighbour and never the spec.
 - EVIDENCE-BASED — every option references a specific file or recalled note; name files and
   modules, not "consider separating concerns".
+- ETALON-READ — an implement-by-etalon `.json` task reads the etalon file at Step 2, before the
+  fan: proposal nodes become tasks, the registry components it uses are brought to the etalon in
+  the same task list, and a missing or unreadable etalon ends the turn with a named line; plan
+  never invents an etalon.
 - RECALL IS VISIBLE — surface what memory contributed in the fan; an antipattern note forces every
   option to declare whether it triggers it.
 - DONE-WHEN JUSTIFIED — pick executable or agent-judged per the outcome's nature and justify the
