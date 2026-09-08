@@ -136,6 +136,14 @@ binds. One plan per etalon, never two. The fan of Step 3 is about HOW (the phase
 component lives), never about WHETHER a proposal is implemented — the digit at design's stage 4
 decided that.
 
+DESIGN-BOOK FIRST — when the etalon is the design book
+(`design/pages/design-book/design-book.json`), its `proposal:<Name>` nodes are the project's BASE
+KIT: they form the FIRST phase of the Gameplan, before the tasks of any page, one task per sample
+(«компонент <Name>: <note>» — the sample's composition in the book is the visual reference); the
+LAST task of that phase is the book's rebinding — an Edit of `design-book.json` that replaces every
+proposal node with the registry component the server now lists, the checker green. A page planned
+later takes the kit from the registry.
+
 ### Step 6: SPEC-REVIEW-HARD-STOP — review, then Write only on approval
 
 Show the DRAFT spec in the chat and CLOSE THE TURN with the `### SPEC-REVIEW-MENU` block (Output
@@ -497,8 +505,8 @@ of the existing specs in that directory.
   modules, not "consider separating concerns".
 - ETALON-READ — an implement-by-etalon `.json` task reads the etalon file at Step 2, before the
   fan: proposal nodes become tasks, the registry components it uses are brought to the etalon in
-  the same task list, and a missing or unreadable etalon ends the turn with a named line; plan
-  never invents an etalon.
+  the same task list, the design book's proposals build the base kit first, before any page, and
+  a missing or unreadable etalon ends the turn with a named line; plan never invents an etalon.
 - RECALL IS VISIBLE — surface what memory contributed in the fan; an antipattern note forces every
   option to declare whether it triggers it.
 - DONE-WHEN JUSTIFIED — pick executable or agent-judged per the outcome's nature and justify the
