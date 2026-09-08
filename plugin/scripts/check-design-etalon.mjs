@@ -30,10 +30,10 @@
 //   INVALID-ETALON       — not JSON, or off the schema (reported alone, nothing else runs);
 //   SLUG-MISMATCH        — the file is not <folder>.json, or the slug field differs from the folder;
 //   NO-REGISTRY          — registry.json missing or unreadable (reported alone, the rest is skipped);
-//   the fourteen codes of the Melete validator, in its order and wording: DUPLICATE-ID,
+//   the fifteen codes of the Melete validator, in its order and wording: DUPLICATE-ID,
 //   UNKNOWN-NODE, PARENT-AFTER-CHILD, MULTIPLE-PARENTS, ORPHAN-NODE, PROPOSAL-WITHOUT-NOTE,
-//   UNKNOWN-COMPONENT, UNKNOWN-PROP, BAD-ENUM, SLOT-NOT-NODE, MISSING-PROP, UNKNOWN-TOKEN,
-//   MISSING-FIXTURE-PATH, UNUSED-STATE.
+//   UNKNOWN-COMPONENT, UNKNOWN-PROP, BAD-ENUM, FUNCTION-PROP-VALUE, SLOT-NOT-NODE, MISSING-PROP,
+//   UNKNOWN-TOKEN, MISSING-FIXTURE-PATH, UNUSED-STATE.
 //
 // Every failure is a NAMED line on stderr + non-zero exit; the run never half-passes.
 
@@ -383,6 +383,9 @@ function checkProps(node, component, issues) {
     }
     if (prop.type === 'enum' && classifyPropValue(value).kind === 'literal' && !prop.values.includes(String(value))) {
       issues.push({ code: 'BAD-ENUM', message: `node "${node.id}": ${component.name}.${name} must be one of ${prop.values.join(', ')}, got ${JSON.stringify(value)}` });
+    }
+    if (prop.type === 'function') {
+      issues.push({ code: 'FUNCTION-PROP-VALUE', message: `node "${node.id}": ${component.name}.${name} is a function prop; behaviour is wired in code, leave it out` });
     }
   }
   const slotNames = [...(node.children.length > 0 ? ['children'] : []), ...Object.keys(node.slots)];
