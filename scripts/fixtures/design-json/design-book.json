@@ -1,0 +1,144 @@
+{
+  "melete": 1,
+  "slug": "design-book",
+  "name": "Design book",
+  "data": {
+    "light": {
+      "sections": { "colors": "Colours", "type": "Typography", "samples": "Base kit" },
+      "type": {
+        "body": "system-ui, sans-serif",
+        "size": "16px",
+        "small": "12px",
+        "weight": "600",
+        "leading": "1.5",
+        "sample": "The quick brown fox jumps over the lazy dog"
+      },
+      "shape": { "radius": "6px" },
+      "labels": { "accent": "accent", "danger": "danger", "muted": "muted", "button": "Continue", "field": "Email address", "badge": "error" }
+    },
+    "dark": {
+      "sections": { "colors": "Colours", "type": "Typography", "samples": "Base kit" },
+      "type": {
+        "body": "Georgia, serif",
+        "size": "17px",
+        "small": "13px",
+        "weight": "500",
+        "leading": "1.6",
+        "sample": "Sphinx of black quartz, judge my vow"
+      },
+      "shape": { "radius": "10px" },
+      "labels": { "accent": "accent", "danger": "danger", "muted": "muted", "button": "Continue", "field": "Email address", "badge": "error" }
+    }
+  },
+  "states": {},
+  "nodes": [
+    {
+      "id": "book",
+      "component": "Stack",
+      "props": { "gap": "$token.space-6", "align": "stretch" },
+      "children": ["colors-title", "swatches", "type-title", "specimen", "samples-title", "samples"]
+    },
+    {
+      "id": "colors-title",
+      "component": "Text",
+      "props": { "text": "$data.sections.colors", "tone": "$token.color-text", "font": "$data.type.body", "size": "$data.type.size", "weight": "$data.type.weight" }
+    },
+    {
+      "id": "swatches",
+      "component": "Row",
+      "props": { "gap": "$token.space-2", "wrap": true },
+      "children": ["swatch-accent", "swatch-danger", "swatch-muted"]
+    },
+    {
+      "id": "swatch-accent",
+      "component": "Box",
+      "props": { "fill": "$token.color-accent", "padding": "$token.space-4", "radius": "$data.shape.radius" },
+      "children": ["swatch-accent-label"]
+    },
+    {
+      "id": "swatch-accent-label",
+      "component": "Text",
+      "props": { "text": "$data.labels.accent", "tone": "$token.color-surface", "font": "$data.type.body", "size": "$data.type.small" }
+    },
+    {
+      "id": "swatch-danger",
+      "component": "Box",
+      "props": { "fill": "$token.color-danger", "padding": "$token.space-4", "radius": "$data.shape.radius" },
+      "children": ["swatch-danger-label"]
+    },
+    {
+      "id": "swatch-danger-label",
+      "component": "Text",
+      "props": { "text": "$data.labels.danger", "tone": "$token.color-surface", "font": "$data.type.body", "size": "$data.type.small" }
+    },
+    {
+      "id": "swatch-muted",
+      "component": "Box",
+      "props": { "fill": "$token.color-muted", "padding": "$token.space-4", "radius": "$data.shape.radius" },
+      "children": ["swatch-muted-label"]
+    },
+    {
+      "id": "swatch-muted-label",
+      "component": "Text",
+      "props": { "text": "$data.labels.muted", "tone": "$token.color-surface", "font": "$data.type.body", "size": "$data.type.small" }
+    },
+    {
+      "id": "type-title",
+      "component": "Text",
+      "props": { "text": "$data.sections.type", "tone": "$token.color-text", "font": "$data.type.body", "size": "$data.type.size", "weight": "$data.type.weight" }
+    },
+    {
+      "id": "specimen",
+      "component": "Text",
+      "props": { "text": "$data.type.sample", "tone": "$token.color-text", "font": "$data.type.body", "size": "$data.type.size", "leading": "$data.type.leading" },
+      "note": "The body face at its reading size; headings reuse it at the section weight."
+    },
+    {
+      "id": "samples-title",
+      "component": "Text",
+      "props": { "text": "$data.sections.samples", "tone": "$token.color-text", "font": "$data.type.body", "size": "$data.type.size", "weight": "$data.type.weight" }
+    },
+    {
+      "id": "samples",
+      "component": "Row",
+      "props": { "gap": "$token.space-3", "align": "center", "wrap": true },
+      "children": ["button", "field", "badge"]
+    },
+    {
+      "id": "button",
+      "component": "Box",
+      "props": { "fill": "$token.color-accent", "padding": "$token.space-2", "radius": "$data.shape.radius" },
+      "children": ["button-label"],
+      "note": "The primary button: accent fill, surface text, one radius for every control."
+    },
+    {
+      "id": "button-label",
+      "component": "Text",
+      "props": { "text": "$data.labels.button", "tone": "$token.color-surface", "font": "$data.type.body", "size": "$data.type.size", "weight": "$data.type.weight" }
+    },
+    {
+      "id": "field",
+      "component": "Box",
+      "props": { "stroke": "$token.color-muted", "padding": "$token.space-2", "radius": "$data.shape.radius" },
+      "children": ["field-label"],
+      "note": "A text field at rest: muted stroke, muted placeholder text."
+    },
+    {
+      "id": "field-label",
+      "component": "Text",
+      "props": { "text": "$data.labels.field", "tone": "$token.color-muted", "font": "$data.type.body", "size": "$data.type.size" }
+    },
+    {
+      "id": "badge",
+      "component": "Box",
+      "props": { "fill": "$token.color-danger", "padding": "$token.space-1", "radius": "$data.shape.radius" },
+      "children": ["badge-label"],
+      "note": "A status badge: the danger colour carries the meaning, the small size keeps it quiet."
+    },
+    {
+      "id": "badge-label",
+      "component": "Text",
+      "props": { "text": "$data.labels.badge", "tone": "$token.color-surface", "font": "$data.type.body", "size": "$data.type.small", "weight": "$data.type.weight" }
+    }
+  ]
+}

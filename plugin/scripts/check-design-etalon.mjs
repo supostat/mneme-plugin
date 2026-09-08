@@ -30,10 +30,13 @@
 //   INVALID-ETALON       — not JSON, or off the schema (reported alone, nothing else runs);
 //   SLUG-MISMATCH        — the file is not <folder>.json, or the slug field differs from the folder;
 //   NO-REGISTRY          — registry.json missing or unreadable (reported alone, the rest is skipped);
-//   the fifteen codes of the Melete validator, in its order and wording: DUPLICATE-ID,
+//   the sixteen codes of the Melete validator, in its order and wording: DUPLICATE-ID,
 //   UNKNOWN-NODE, PARENT-AFTER-CHILD, MULTIPLE-PARENTS, ORPHAN-NODE, PROPOSAL-WITHOUT-NOTE,
-//   UNKNOWN-COMPONENT, UNKNOWN-PROP, BAD-ENUM, FUNCTION-PROP-VALUE, SLOT-NOT-NODE, MISSING-PROP,
-//   UNKNOWN-TOKEN, MISSING-FIXTURE-PATH, UNUSED-STATE.
+//   UNKNOWN-COMPONENT, UNKNOWN-PROP, BAD-ENUM, FUNCTION-PROP-VALUE, RAW-STYLE-VALUE, SLOT-NOT-NODE,
+//   MISSING-PROP, UNKNOWN-TOKEN, MISSING-FIXTURE-PATH, UNUSED-STATE.
+//   The five primitives (Stack, Row, Text, Box, Placeholder) and STYLE_PROPS are copies of
+//   src/etalon/primitives.ts of Melete: a raw value in a style prop of a primitive is
+//   RAW-STYLE-VALUE; registry components style themselves and are not checked for it.
 //
 // Every failure is a NAMED line on stderr + non-zero exit; the run never half-passes.
 
@@ -152,6 +155,20 @@ const PRIMITIVES = [
     props: [
       { name: 'text', type: 'string', required: true },
       { name: 'tone', type: 'string', required: false },
+      { name: 'font', type: 'string', required: false },
+      { name: 'size', type: 'string', required: false },
+      { name: 'weight', type: 'string', required: false },
+      { name: 'leading', type: 'string', required: false },
+    ],
+  },
+  {
+    name: 'Box',
+    props: [
+      { name: 'fill', type: 'string', required: false },
+      { name: 'stroke', type: 'string', required: false },
+      { name: 'radius', type: 'string', required: false },
+      { name: 'padding', type: 'string', required: false },
+      { name: 'children', type: 'node', required: false },
     ],
   },
   {
@@ -159,9 +176,13 @@ const PRIMITIVES = [
     props: [
       { name: 'label', type: 'string', required: true },
       { name: 'height', type: 'string', required: false },
+      { name: 'note', type: 'string', required: false },
+      { name: 'children', type: 'node', required: false },
     ],
   },
 ];
+const STYLE_PROPS = new Set(['fill', 'stroke', 'radius', 'padding', 'gap', 'height', 'tone', 'font', 'size', 'weight', 'leading']);
+const isPrimitive = (component) => PRIMITIVES.some((primitive) => primitive.name === component);
 const REGISTRY_REMEDY = 'start /mneme:design-server — the registry is written by the server only';
 const SERVER_OWNED_HINT = 'hint: registry.json and tokens.css are written by the design server — a component, prop or token missing there means the server has not rewritten them; start /mneme:design-server, never edit registry.json by hand';
 const SERVER_OWNED_CODES = new Set(['UNKNOWN-COMPONENT', 'UNKNOWN-PROP', 'UNKNOWN-TOKEN']);
@@ -386,6 +407,9 @@ function checkProps(node, component, issues) {
     }
     if (prop.type === 'function') {
       issues.push({ code: 'FUNCTION-PROP-VALUE', message: `node "${node.id}": ${component.name}.${name} is a function prop; behaviour is wired in code, leave it out` });
+    }
+    if (isPrimitive(component.name) && STYLE_PROPS.has(name) && classifyPropValue(value).kind === 'literal') {
+      issues.push({ code: 'RAW-STYLE-VALUE', message: `node "${node.id}": ${component.name}.${name} carries a raw value; bind a $token or a $data path` });
     }
   }
   const slotNames = [...(node.children.length > 0 ? ['children'] : []), ...Object.keys(node.slots)];
