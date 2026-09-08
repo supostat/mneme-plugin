@@ -18,9 +18,9 @@ design NEVER launches plan — the finale hands over the READY phrase as a fence
 precedent); running it is the user's move.
 
 The skill drives ONE UI task through FOUR stages (and, in JSON mode with an empty vocabulary, a
-stage 0 before them); each stage ends in a HARD STOP — the turn ends, and continuation happens
-only on the user's explicit confirmation. Whether a stage's outcome is "obviously fine" is the
-USER's judgement, never the agent's.
+stage 0 — the design book — before them); each stage ends in a HARD STOP — the turn ends, and
+continuation happens only on the user's explicit confirmation. Whether a stage's outcome is
+"obviously fine" is the USER's judgement, never the agent's.
 
 ## Arguments
 
@@ -40,10 +40,10 @@ the presence of a running server.
 - ENTRY READ (JSON mode): at the skill's entry, BEFORE stage 1, Read the registry once for its
   `tokens` array — the server's snapshot of the vocabulary at its last build. A registry that
   does not read as JSON or is off its shape ENDS THE TURN with the named line below and its
-  remedy. An EMPTY `tokens` array opens `### Stage 0` — the project starts from scratch (the
-  server itself creates an empty `tokens.css` with one comment when the registry is configured,
-  so an empty vocabulary is a fact about the project, never an error). A non-empty array goes
-  straight to stage 1, exactly as before.
+  remedy. An EMPTY `tokens` array opens `### Stage 0` — the design book: the project starts from
+  scratch (the server itself creates an empty `tokens.css` with one comment when the registry is
+  configured, so an empty vocabulary is a fact about the project, never an error). A non-empty
+  array goes straight to stage 1, exactly as before.
 - JSON mode changes stages 2 and 3 (what gets written) and the fixation list of stage 4 (what
   gets checked); stage 1 is the same text analysis in both modes, and stage 4 keeps its shape.
 - At the ENTRY of stage 2 in JSON mode the skill Reads the registry: its component names and
@@ -54,10 +54,11 @@ the presence of a running server.
   server is not running or has not rebuilt yet — and so does a `tokens` array still empty at the
   entry of stage 2 after stage 0 wrote `tokens.css`. The remedy is always the server, never the
   file; the skill never probes the server and never waits for it.
-- PREVIEW URL: once, at the entry of stage 2 in JSON mode, if `.melete/server.out` exists, Read
-  it and print its first `http://127.0.0.1:<port>` line as DATA — the preview is the user's window
-  onto every JSON file of the page folder. No file → nothing is printed; the skill never probes
-  the server and never starts it.
+- PREVIEW URL: once — at the first turn of stage 0 when it runs, otherwise at the entry of stage 2
+  in JSON mode — if `.melete/server.out` exists, Read it and print its first
+  `http://127.0.0.1:<port>` line as DATA — the preview is the user's window onto every JSON file
+  of the page folder, the book's draft included. No file → nothing is printed; the skill never
+  probes the server and never starts it.
 - In the server's OWN chat session a PostToolUse hook validates every write of `<slug>.json` and
   feeds its verdict back as context; in a terminal session there is no such hook. The skill
   treats that context as VERDICT input when it arrives (stage 3) and works exactly the same when
@@ -71,14 +72,19 @@ the presence of a running server.
   v1 document of `### JSON-ETALON-CONTRACT`, decisions annotated in node `note`s) plus THAT page's
   composition drafts (`<slug>-draft-*.html` / `<slug>-draft-*.json`) and future iterations. The
   slug `index` is RESERVED for the pages index and FORBIDDEN as a page.
+- **The design book** `design/pages/design-book/` — the draft `design-book-draft.json` and the
+  fixed `design-book.json`, written by stage 0 in JSON mode; the slug `design-book` is the book's,
+  never a product page's. The book is a page like any other: its draft is drawn by the preview and
+  checked by nobody, its fixed file goes through the index and the checker.
 - **Pages index** `design/pages/index.html` — links to every page folder as `<slug>/<slug>.html`
   or `<slug>/<slug>.json`; maintained at fixation (see PAGES-INDEX in Stage 4) and guarded by the
   checker's NO-INDEX-LINK error.
 - **Shared layer** `design/system/` — HTML mode: `tokens.css`, `components.html` (a living pattern
   catalog), `DESIGN.md` with a MANDATORY anti-patterns-and-selection-rules section. JSON mode:
   `tokens.css` (the token vocabulary — every `$token.<name>` must be declared there; stage 0
-  writes it when the project starts from scratch) and the generated `registry.json`, which the
-  server owns; `components.html` and `DESIGN.md` are neither created nor required in JSON mode.
+  writes it from the book's chosen fixtures when the project starts from scratch) and the
+  generated `registry.json`, which the server owns; `components.html` and `DESIGN.md` are neither
+  created nor required in JSON mode.
 - Etalons LINK the shared layer, they never copy it into themselves — copying = VIOLATION.
 
 ## Permissions (VIOLATION = ABORT)
@@ -87,16 +93,16 @@ the presence of a running server.
   material only, see CARDINALITY-SOURCE), the shared design layer, the registry, the preview
   banner in `.melete/server.out`, and the screenshot the server's hook names (stage 3).
 - Write / Edit: YES, but ONLY under `design/` of the target repo (pages/ and system/), and each
-  file only at the stage that owns it (stage 0 `tokens.css` in JSON mode, stage 2 rough variants,
-  stage 3 the detailed etalon + the HTML-mode EMPTY-LIBRARY scaffold, stage 4 annotations/final
-  touches). Edit is what a SECOND version of a
-  reviewed etalon takes — a patch of the file that exists, never a rewrite of the whole page.
+  file only at the stage that owns it (stage 0 `design/pages/design-book/` and `tokens.css` in
+  JSON mode, stage 2 rough variants, stage 3 the detailed etalon + the HTML-mode EMPTY-LIBRARY
+  scaffold, stage 4 annotations/final touches). Edit is what a SECOND version of a reviewed
+  etalon takes — a patch of the file that exists, never a rewrite of the whole page.
   `design/system/registry.json` is never written — the server owns it. Writing or editing
   anywhere outside `design/` is a VIOLATION.
-- Bash: ONLY to invoke the bundled etalon checker at stage 4 (see FIXATION-CHECK) and the
-  read-only session-tokens call before rendering a DECISION block (the TOKEN-LINE replica in
-  Output format). Any other Bash use is a VIOLATION — the design server is started and stopped
-  by `/mneme:design-server`, never from here.
+- Bash: ONLY to invoke the bundled etalon checker at stage 0 (the book's fixation) and stage 4
+  (see FIXATION-CHECK), and the read-only session-tokens call before rendering a DECISION block
+  (the TOKEN-LINE replica in Output format). Any other Bash use is a VIOLATION — the design server
+  is started and stopped by `/mneme:design-server`, never from here.
 - `mcp__plugin_mneme_memory__recall`: YES — at the ENTRY of stage 1 (selection rules and prior
   decisions are the most valuable context; render findings as «prior experience»).
 - `mcp__plugin_mneme_memory__remember`: YES, but ONLY at stage 4 (fixation) — it QUEUES notes for
@@ -107,58 +113,108 @@ the presence of a running server.
 
 ## Procedure — four stages, four stops
 
-### Stage 0: Дизайн-система с нуля (JSON mode, empty vocabulary) → four DECISION turns: three decisions and the write menu
+### Stage 0: Design-book (JSON mode, empty vocabulary) → four DECISION turns, then the book's fixation
 
 JSON mode only, and only when the entry Read of the registry (see `## Mode`) found an EMPTY
 `tokens` array. The vocabulary is empty because the project has no design system yet — stage 0
-builds it BEFORE any page, one decision per turn, and writes `design/system/tokens.css` only on
-the user's digit. A non-empty vocabulary skips this stage entirely; HTML mode has no stage 0
+builds it BEFORE any page as the DESIGN BOOK: an ordinary page `design/pages/design-book/` that
+lives by the rules of every page (its draft is drawn by the preview and checked by nobody; its
+fixed file goes through the index and the checker). The directions are SEEN in the preview and
+chosen by digit, one decision per turn; `tokens.css` is written from the chosen fixtures only
+after the last digit. A non-empty vocabulary skips this stage entirely; HTML mode has no stage 0
 (no registry — no trigger).
 
-The first turn OPENS with the explicit announcement (PROSE): «проект начинается с нуля: словарь
-токенов пуст — до первой страницы разбираем дизайн-систему». Then ONE decision per turn, each a
-DECISION block (TOKEN-LINE header, vertical chips, exactly one «← рекомендую» with a reason drawn
-from the product's context, silence = pause), in this order:
+THE FIRST TURN opens with the explicit announcement (PROSE): «проект начинается с нуля: словарь
+токенов пуст — до первой страницы собираем design-book», then the PREVIEW URL line of `## Mode`
+(when the banner exists), then ONE `Write` of the draft
+`design/pages/design-book/design-book-draft.json` — an etalon v1 document of
+`### JSON-ETALON-CONTRACT`. A draft is checked by nobody, so literals and an incomplete schema are
+legal there — yet the book's style props are bound through `$data` on purpose, because the
+VARIANTS ARE FIXTURES: every direction of the colour scheme is a PAIR of fixtures
+`<variant>-light` / `<variant>-dark` (2-4 directions → 4-8 fixtures), the values live in `data`
+(`color.*`, `space.*`, `radius.*`, `type.*` and the labels), the nodes bind them via `$data`, and
+the fixture switch of the preview panel flips through the directions. The draft is `Stack`
+sections:
 
-1. ЦВЕТОВАЯ СХЕМА — 2-4 directions; every chip names its concrete values (background, surface,
-   text, muted, accent, danger) and its stance: светлая / тёмная / обе.
-2. ШКАЛА ОТСТУПОВ — 2-3 scales, each with its base and steps (e.g. 4 px geometric, 8 px linear)
-   and its radii.
-3. ТИПОГРАФИКА — 2-3 stacks, each with sizes and leading for body, lead, heading and mono.
+- colours — swatches: a `Box` with `fill: $data.color.<name>` and a `Text` label;
+- spacing — a `Row` of `Box`es with `padding` / `gap` from `$data.space.*` and radii from
+  `$data.radius.*`;
+- typography — `Text` specimens with `font` / `size` / `weight` / `leading` from `$data.type.*`;
+- the base kit — button, chip, field, card/panel, status badge, text row — compositions of `Box`
+  and `Text` (BOOK BASE KIT in Rules).
 
-A chip MUST carry the concrete values it commits to — the digit picks values, never a taste.
+The turn CLOSES with the first decision.
+
+FOUR DECISIONS, ONE PER TURN — each a DECISION block (TOKEN-LINE header, vertical chips, exactly
+one «← рекомендую» with a reason drawn from the product's context, silence = pause); the digit →
+an `Edit` of the draft → the next decision, in this order:
+
+1. ЦВЕТОВАЯ СХЕМА — every chip names its direction, its fixture pair and its values in one line
+   (`1 — <направление>: фикстуры a-light / a-dark — <значения>`). After the digit the Edit keeps
+   the chosen pair under the names `light` / `dark` and lays out the next decision's directions
+   as new fixture pairs.
+2. ШКАЛА ОТСТУПОВ — 2-3 scales, each with its base, steps and radii; fixture pairs
+   `<scale>-light` / `<scale>-dark`.
+3. ТИПОГРАФИКА — 2-3 stacks, each with sizes and leading for body, lead, heading and mono;
+   fixture pairs.
+4. БАЗОВЫЙ НАБОР — variants by NODES, not by values: the chips describe the composition
+   (`1 — шесть образцов как есть`, `2 — расширить: <кандидат из задачи или реестра>`, …); the
+   digit → the Edit adds or removes samples.
+
 Hypothesis material for the chips: Read/Grep of the project's EXISTING stylesheets (an existing
-hex or rem scale becomes ONE of the options, never the default) and the task text; recall stays
-at the entry of stage 1. The decision render (a layer-3 template of this skill, see Output
+hex or rem scale becomes ONE of the directions, never the default) and the task text; recall
+stays at the entry of stage 1. The decision render (a layer-3 template of this skill, see Output
 format):
 
 ```
-`1 — <направление>: <значения одной строкой>`
-`2 — <направление>: <значения одной строкой>` ← рекомендую: <причина из контекста продукта>
-`3 — <направление>: <значения одной строкой>`
+`1 — <направление>: <фикстуры и значения одной строкой>`
+`2 — <направление>: <фикстуры и значения одной строкой>` ← рекомендую: <причина из контекста продукта>
+`3 — <направление>: <фикстуры и значения одной строкой>`
 ```
 
-After the third digit the turn shows DATA — the assembled token list, `--<family>-<name>: <value>`
-grouped by family `color-`, `space-`, `radius-`, `font-`, `text-` (kebab-case names matching
-`[A-Za-z0-9_-]+`; ONE name per token — a dark scheme, when «обе» was chosen, is an override block
-`@media (prefers-color-scheme: dark)` under the SAME names, which the vocabulary deduplicates;
-raw values live ONLY here) — and closes with the write menu (a layer-3 template of this skill):
+THE BOOK'S FIXATION — after the LAST digit, in the SAME turn, in this order:
 
-```
-`1 — записать design/system/tokens.css и перейти к стадии 1` ← рекомендую: все значения — из цифр пользователя
-`2 — правки списка: <что>`
-```
+- (a) ONE `Write` of `design/system/tokens.css`: `:root { --<family>-<name>: <value>; … }` from
+  the values of the `light` fixture, then a block `@media (prefers-color-scheme: dark)` with the
+  SAME names from the `dark` fixture; families `color-`, `space-`, `radius-`, `font-`, `text-`,
+  kebab-case names matching `[A-Za-z0-9_-]+`; raw values live ONLY here.
+- (b) ONE `Edit` of the draft — the rebinding: every style prop of a primitive (fill, stroke,
+  radius, padding, gap, height, tone, font, size, weight, leading) whose value became a token goes
+  from `$data.<path>` to `$token.<name>`. The fixtures `light` and `dark` STAY, as in Melete's own
+  book example: both carry one set of paths — the labels, the text specimens and whatever stage 0
+  gave no token — so both are legal for the checker. The dark scheme of the tokens is viewed with
+  the preview panel's Theme switch (the theme is a property of the panel, never written into the
+  etalon); the `dark` fixture is its data.
+- (c) the fixation itself: `Write` of `design/pages/design-book/design-book.json` (its `slug` is
+  `design-book`, its content the rebound draft; the draft stays on disk), PAGES-INDEX (the link
+  `design-book/design-book.json`; a missing index is created here, as at any first fixation),
+  layer 2 —
+  `node "$CLAUDE_PLUGIN_ROOT/scripts/check-design-etalon.mjs" design/pages/design-book/design-book.json`
+  (an empty `$CLAUDE_PLUGIN_ROOT` degrades exactly as at stage 4); the hook's verdict in the
+  server's session is VERDICT input, repaired by Edit.
+- (d) PROPOSAL NODES: every sample of the base kit whose component the registry does not list
+  gets a node `proposal:<Name>` (Button, Chip, Field, Card, Badge, TextRow — by sample) with the
+  `note` «build as sample <id>», placed next to its sample in the kit section; the sample's
+  composition stays as the visual reference; a sample whose component the registry lists gets no
+  node.
+- (e) the render — VERDICT: the checker line; DATA: the list of written tokens, the proposal
+  nodes and the book's READY phrase, fenced — DATA, not a menu; the base kit is planned by it
+  FIRST, before any page:
 
-`2` rebuilds the list from the user's words and shows it again under the same menu — NO Write
-happens. `1` is ONE `Write` of the whole file (`:root { … }` by family, the dark override block
-after it when chosen); the turn announces the write as PROSE — «tokens.css записан: N токенов;
-сервер перестроит реестр — стадия 1 идёт с непустым словарём» — and stage 1 begins IN THE SAME
-TURN (recall, then the analysis → DESIGN-ANALYSIS-HARD-STOP). A later change to the written file
-is an `Edit` patch announced in the turn. The skill never probes the server and never waits for
-it: the registry is Read again at the entry of stage 2 exactly as before, and a `tokens` array
-still empty there is STALE-REGISTRY (`## Mode`) — the remedy is the server.
+  ```
+  /mneme:plan "реализовать по эталону design/pages/design-book/design-book.json"
+  ```
 
-The three decisions of stage 0 become decision notes at MEMORY (stage 4), each carrying the
+  PROSE — «tokens.css записан: N токенов; книга зафиксирована: M proposals; сервер перестроит
+  реестр» — and stage 1 begins IN THE SAME TURN (recall, then the analysis →
+  DESIGN-ANALYSIS-HARD-STOP).
+
+A later change to a written file is an `Edit` patch announced in the turn. The skill never probes
+the server and never waits for it: the registry is Read again at the entry of stage 2 exactly as
+before, and a `tokens` array still empty there is STALE-REGISTRY (`## Mode`) — the remedy is the
+server.
+
+The four decisions of stage 0 become decision notes at MEMORY (stage 4), each carrying the
 plan-fan payload with its menu's ACTUAL numbers (see MENU-CONTEXT below).
 
 ### Stage 1: UI-анализ (text, NO HTML, NO JSON) → DESIGN-ANALYSIS-HARD-STOP
@@ -196,7 +252,7 @@ choice is the user's digit.
 JSON mode — ONE DRAFT PER TURN: the preview shows exactly one file at a time (the last one
 written), so the stage moves at the pace the user can see. Read the registry and, if present, the
 preview banner (see `## Mode`); then Write ONE draft `design/pages/<slug>/<slug>-draft-a.json` —
-an etalon v1 document built from the four primitives only (`Stack`, `Row`, `Text`,
+an etalon v1 document built from the five primitives only (`Stack`, `Row`, `Text`, `Box`,
 `Placeholder` with a label naming what will stand there), structure without aesthetics — and
 close the turn with the draft menu (a layer-3 template of this skill, see Output format):
 
@@ -226,7 +282,9 @@ machine-readable MANIFEST (meta/data-attributes) — the checker's contract: dec
 JSON mode: the full etalon of the chosen variant in `design/pages/<slug>/<slug>.json` per
 `### JSON-ETALON-CONTRACT`, components from the registry (primitives only where the registry has
 nothing to offer), every prop value a literal, a `$data.<path>` or a `$token.<name>` — and never a
-value on a function prop:
+value on a function prop; a style prop of a primitive (fill, stroke, radius, padding, gap, height,
+tone, font, size, weight, leading) takes only a `$token` or a `$data` binding — a literal there is
+RAW-STYLE-VALUE:
 
 - WRITE ONCE, THEN PATCH — the first version is ONE `Write` of the whole file (the preview streams
   a Write as it grows); every later change is an `Edit` patch of the file that exists.
@@ -247,9 +305,10 @@ value on a function prop:
 EMPTY-LIBRARY: an absent or empty `design/system/` is initialized HERE with a minimal scaffold —
 announced EXPLICITLY in the turn. HTML mode: tokens.css with a base scale, an empty
 components.html, DESIGN.md with the mandatory anti-patterns-and-rules section. JSON mode: the
-vocabulary is stage 0's — by stage 3 it is non-empty; a `$token` that needs a name stage 0 did
-not produce is an `Edit` patch of tokens.css announced in the turn, never a silent scaffold; the
-registry stays the server's, and `components.html` / `DESIGN.md` are not part of the JSON layer.
+vocabulary is stage 0's, the book's — by stage 3 it is non-empty; a `$token` that needs a name
+stage 0 did not produce is an `Edit` patch of tokens.css announced in the turn, never a silent
+scaffold; the registry stays the server's, and `components.html` / `DESIGN.md` are not part of
+the JSON layer.
 This is initialization of an empty layer, NOT bootstrap-extraction from existing pages (that is
 out of scope). The scaffold DESIGN.md's anti-patterns section SEEDS fifteen one-liners (data for
 humans and review — no detector exists for them; each written as "name — why", own wording):
@@ -290,7 +349,8 @@ preview) and confirms or iterates (replace/branch).
    false-negatives are honestly documented in DESIGN.md).
    JSON mode:
    (1) every non-proposal node's component is a registry component or a primitive, and its props
-   exist there (required ones present, enums within their values);
+   exist there (required ones present, enums within their values, style props of primitives
+   bound, never literal);
    (2) every fixture carries every bound `$data` path and every state overrides a bound path;
    `default` is not declared;
    (3) node ids are unique, parents come before their children, every referenced id exists and
@@ -315,13 +375,13 @@ preview) and confirms or iterates (replace/branch).
    components.html / DESIGN.md — presented as an explicit item, promoted only on the user's
    confirmation. In JSON mode the component set is the registry's — a repeated composition is a
    proposal for the project's code, staged as a note, never a file under `design/system/`.
-4. MEMORY: `remember(type: "decision")` for ACCEPTED decisions, for the decisions of stage 0
-   (colour scheme, spacing scale, typography — each with the plan-fan payload of its own menu,
-   see MENU-CONTEXT), for ACCEPTED proposals (the `proposal:<Name>` nodes kept at step 0) AND for
-   REJECTED proposals with the refusal reason; problems noticed on NEIGHBOR pages go as proposal
-   notes too — a silent edit of another page is a VIOLATION. Anchors: repo-relative, git-tracked
-   files (existing pages/schemas; a freshly created, not-yet-committed etalon or tokens.css is
-   not an anchor — such a note carries tags instead).
+4. MEMORY: `remember(type: "decision")` for ACCEPTED decisions, for the four decisions of stage 0
+   (colour scheme, spacing scale, typography, base kit — each with the plan-fan payload of its
+   own menu, see MENU-CONTEXT), for ACCEPTED proposals (the `proposal:<Name>` nodes kept at
+   step 0) AND for REJECTED proposals with the refusal reason; problems noticed on NEIGHBOR pages
+   go as proposal notes too — a silent edit of another page is a VIOLATION. Anchors:
+   repo-relative, git-tracked files (existing pages/schemas; a freshly created, not-yet-committed
+   etalon, the book or tokens.css is not an anchor — such a note carries tags instead).
 5. HANDOFF: the ready phrase, fenced — the extension is the etalon's:
 
 ```
@@ -374,11 +434,17 @@ checker enforces it. A JSON etalon is ONE strict object — an unknown key anywh
   else. Enum props are checked only for literals.
 - Primitives (always available, not part of the registry): `Stack` {gap string, align
   start|center|end|stretch, children node}; `Row` {gap string, align, wrap boolean, children
-  node}; `Text` {text string REQUIRED, tone string}; `Placeholder` {label string REQUIRED, height
-  string} — a `Placeholder` has NO children prop: nesting under it is SLOT-NOT-NODE.
+  node}; `Text` {text string REQUIRED, tone, font, size, weight, leading — string}; `Box` {fill,
+  stroke, radius, padding — string; children node}; `Placeholder` {label string REQUIRED, height
+  string, note string, children node}.
+- STYLE PROPS of primitives — fill, stroke, radius, padding, gap, height, tone, font, size,
+  weight, leading — take only a `$token` or a `$data` binding in a fixed etalon; a literal is
+  RAW-STYLE-VALUE; drafts (`-draft-*.json`) are free — that is how the book shows variants before
+  tokens exist; registry components style themselves, their props are not checked.
 - Proposals: `proposal:<Name>` nodes are counted, never validated against the registry, and must
   carry a `note`; the preview draws them as labeled placeholders; their fate is decided by the
-  PROPOSAL-VERDICTS menu at stage 4.
+  PROPOSAL-VERDICTS menu at stage 4 — except the book's, which stage 0 places as the outcome of
+  the kit decision and no menu meets.
 - The registry (`design/system/registry.json`) is generated by the server from the project's
   component types: `components[]` with `name`, `props[]` (`name`, `type` — string | number |
   boolean | node | function | object | unknown | enum with `values` — and `required`) and
@@ -386,12 +452,12 @@ checker enforces it. A JSON etalon is ONE strict object — an unknown key anywh
   never designed: any value on it, literal or binding, is FUNCTION-PROP-VALUE — behaviour is
   wired in code, leave the prop out. A component missing there is UNKNOWN-COMPONENT; the remedy
   is the server, never the file.
-- Checker codes of the JSON branch — the fifteen of the Melete validator: UNKNOWN-COMPONENT,
+- Checker codes of the JSON branch — the sixteen of the Melete validator: UNKNOWN-COMPONENT,
   UNKNOWN-PROP, MISSING-PROP, BAD-ENUM, UNKNOWN-TOKEN, MISSING-FIXTURE-PATH, UNUSED-STATE,
   DUPLICATE-ID, ORPHAN-NODE, UNKNOWN-NODE, MULTIPLE-PARENTS, PARENT-AFTER-CHILD,
-  PROPOSAL-WITHOUT-NOTE, SLOT-NOT-NODE, FUNCTION-PROP-VALUE — plus the checker's own:
-  INVALID-ETALON (not JSON, or off
-  this contract; reported alone), SLUG-MISMATCH (file name or `slug` field ≠ folder), NO-REGISTRY
+  PROPOSAL-WITHOUT-NOTE, SLOT-NOT-NODE, FUNCTION-PROP-VALUE, RAW-STYLE-VALUE — plus the checker's
+  own: INVALID-ETALON (not JSON, or off this contract; reported alone), SLUG-MISMATCH (file name
+  or `slug` field ≠ folder), NO-REGISTRY
   (registry missing or unreadable; reported alone, with the remedy), RESERVED-SLUG and
   NO-INDEX-LINK (shared with HTML). RAW-HEX, RAW-PX and NO-TOKENS-LINK do not apply to JSON.
 
@@ -399,10 +465,11 @@ checker enforces it. A JSON etalon is ONE strict object — an unknown key anywh
 
 Every render follows the shared five-block grammar — STATUS / PROSE / DATA / VERDICT / DECISION —
 DEFINED once in the `mneme:dev` skill's `## OUTPUT-GRAMMAR` (re-stating it here is a VIOLATION).
-design OWNS seven layer-3 templates: the stage-0 decision (DATA — the options, each with the
-concrete values it commits to + closing DECISION, the decision menu of Stage 0), the stage-0
-write turn (DATA — the assembled token list + closing DECISION, the write menu of Stage 0), the
-анализ render (PROSE context + DATA blocks решения /
+design OWNS seven layer-3 templates: the stage-0 decision (DATA — the options, each naming its
+fixture pair and the values it commits to, or the kit's composition + closing DECISION, the
+decision menu of Stage 0), the book fixation render (VERDICT — the checker line + DATA — the
+token list, the proposal nodes, the book's handoff phrase; no DECISION — stage 1 follows in the
+same turn), the анализ render (PROSE context + DATA blocks решения /
 допущения / вопросы / предложения + closing DECISION when verdicts are pending), the композиция
 fan (DATA variants + closing DECISION menu — this IS the layout hard stop; in JSON mode the DATA
 is the one draft just written, optionally preceded by the preview URL line, and the DECISION is
@@ -463,11 +530,20 @@ literal English.
   a VIOLATION = ABORT.
 - MODE-BY-REGISTRY — the format is decided by the existence of `design/system/registry.json` and
   by nothing else; an unreadable registry ends the turn with its remedy, it never selects HTML.
-- STAGE-0 BY EMPTY VOCABULARY — in JSON mode an empty `tokens` array of the registry, read at
-  the skill's entry, opens stage 0 before stage 1: the announcement «проект начинается с нуля»,
-  three decisions by digit (colour scheme, spacing scale, typography) one per turn with concrete
-  values in every chip, then the write menu; `tokens.css` is written ONCE, only on the digit, and
-  announced; stage 1 follows in the same turn. A non-empty vocabulary skips stage 0 entirely.
+- STAGE-0 IS THE BOOK — in JSON mode an empty `tokens` array of the registry, read at the skill's
+  entry, opens stage 0 before stage 1: the announcement «проект начинается с нуля», ONE Write of
+  the draft `design/pages/design-book/design-book-draft.json` whose variants are fixture pairs,
+  four decisions by digit (colour scheme, spacing scale, typography, base kit) one per turn, each
+  an Edit of the draft; after the last digit, in the same turn — `tokens.css` from the chosen
+  fixtures, the rebinding to `$token`, the fixed `design-book.json` with its index link and the
+  checker, a proposal node for every kit sample the registry lacks; stage 1 follows in the same
+  turn. A non-empty vocabulary skips stage 0 entirely.
+- BOOK BASE KIT — button, chip, field, card/panel, status badge, text row; extension only by the
+  user's digit; samples are compositions of Box and Text, never project components; a real
+  component arrives through the book's proposal node and the plan.
+- THEME BY PANEL — the dark scheme of the tokens is viewed with the preview panel's Theme switch
+  once the book is fixed; the `light` and `dark` fixtures stay for the data the tokens do not
+  carry; the etalon never encodes a theme.
 - REGISTRY-IS-SERVER-OWNED — the registry and the token vocabulary are the design server's to
   write and rewrite; the skill reads them, never edits them, and never starts the server (that is
   `/mneme:design-server`).
@@ -495,10 +571,12 @@ literal English.
   state overriding a bound path, `default` never declared; declared ↔ present is the checker's
   contract; deliberate decisions are annotated in place.
 - PAGE = FOLDER, INDEX AT FIXATION — every page lives in `design/pages/<slug>/` (etalon + its
-  drafts; the slug `index` is reserved); fixation updates `design/pages/index.html` (PAGES-INDEX)
-  and the checker's NO-INDEX-LINK error turns a forgotten link into a red fixation.
+  drafts; the slug `index` is reserved, `design-book` is the book's); fixation updates
+  `design/pages/index.html` (PAGES-INDEX) and the checker's NO-INDEX-LINK error turns a forgotten
+  link into a red fixation.
 - PROPOSALS BY DIGIT — every `proposal:<Name>` node meets its own three-chip menu at stage 4
-  before the fixation check; accepted ones stay in the etalon and become decision notes.
+  before the fixation check; accepted ones stay in the etalon and become decision notes. The
+  book's proposal nodes are the kit decision's outcome and meet no separate menu.
 - ETALON-ACCEPTANCE — an implementation built from an etalon is accepted by a CHECKLIST compared
   AGAINST `design/pages/<slug>/`, and the checklist follows the etalon's FORMAT: for
   `<slug>.html` — section structure, the full state set, the accent-dosage rule, and the
@@ -514,8 +592,8 @@ literal English.
   own session. Its exceptions file `design/system/lint-intentional.json` is curated ONLY on the
   user's explicit word — the agent NEVER adds an entry on its own to silence a finding.
 - EMPTY-LIBRARY — HTML mode: an absent shared layer is initialized with the minimal scaffold at
-  stage 3, announced explicitly; JSON mode: stage 0 owns `tokens.css`, and a name it did not
-  produce is an announced Edit patch; bootstrap-extraction stays out of scope.
+  stage 3, announced explicitly; JSON mode: stage 0 (the book) owns `tokens.css`, and a name it
+  did not produce is an announced Edit patch; bootstrap-extraction stays out of scope.
 - PATTERN PROMOTION BY CONFIRMATION — 2-3 repetitions make a candidate; the user's digit promotes
   it into components.html / DESIGN.md, never the agent alone.
 - STAGED-ONLY MEMORY — remember queues; publication happens only through the finale's digit
