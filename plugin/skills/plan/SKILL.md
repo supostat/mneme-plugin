@@ -292,7 +292,12 @@ the checklist follows the etalon's FORMAT, read from the extension in the task p
 `<slug>.html` — section structure, the full state set, the accent-dosage rule, and the
 measurement units; `<slug>.json` — the node structure, the full state set, the data bindings,
 the absence of raw values, and the proposals: every `proposal:<Name>` node exists as a component
-the registry lists after the server's rebuild, with the props the node binds. The GENERATOR holds
+the registry lists after the server's rebuild, with the props the node binds. A section drawn with
+`Element` over a third-party primitive that renders bare and takes only a `className` never
+becomes a registry component, so it is accepted visually — the rendered page against the etalon's
+preview — never by comparing nodes to props; that same acceptance covers the typography of native
+controls, which inherit nothing: the `font: inherit` declaration, or an explicit binding to the
+same token, must survive the move to tokens. The GENERATOR holds
 this rule, not the author (the TYPECHECK-CRITERION-RULE precedent); it is a HUMAN acceptance
 procedure, never disguised as an agent-judged criterion.
 
