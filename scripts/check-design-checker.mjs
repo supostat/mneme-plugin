@@ -14,20 +14,25 @@
 // pages/index.html + pages/<slug>/<slug>.html|json, the checker spawned per case via spawnSync.
 //
 // scripts/fixtures/design-json/{login.json, design-book.json, tokens.css} are byte-for-byte copies
-// of the Melete fixtures at commit bd292e1 — tests/fixtures/etalons/login.json (the shared example,
+// of the Melete fixtures at commit e8850ee — tests/fixtures/etalons/login.json (the shared example,
 // valid against that registry with exactly one proposal), tests/fixtures/etalons/design-book.json
 // (the book example: light and dark fixtures, zero proposals) and
 // tests/fixtures/react-project/design/system/tokens.css. registry.json is a copy in its components
-// and tokens only: its elements block is NARROWED BY HAND to the four tags and five common
-// attributes these cases need, because the generated vocabulary is 178 tags and 20403 attribute
-// entries (~440 KB) and lives in a gitignored artifact. Parity is carried by the messages and the
-// rules — code, not data — and by mutations mirroring Melete's own validator tests.
+// and tokens only: its elements block is NARROWED BY HAND to the tags and common attributes these
+// cases need, because the generated vocabulary is 178 tags and 20403 attribute entries (~440 KB)
+// and lives in a gitignored artifact. svg stands in that narrow list for one reason: a real
+// project DECLARES it, so only a vocabulary that knows the tag can prove the refusal is asked
+// FIRST — without it the refusal case would pass on a tag the vocabulary rejects anyway. Parity is
+// carried by the messages and the rules — code, not data — and by mutations mirroring Melete's own
+// validator tests.
 //
-// Two limits are accepted deliberately: no case runs the checker against a REAL generated
+// Three limits are accepted deliberately: no case runs the checker against a REAL generated
 // vocabulary (a divergence that shows only at that size, or on an entry the narrow fixture lacks,
-// is caught by Melete's hook on a live etalon, not here), and a refusal case exists per REASON, not
+// is caught by Melete's hook on a live etalon, not here); a refusal case exists per REASON, not
 // per refused name — style shares className's reason, and a literal on an Element style prop shares
-// the RAW-STYLE-VALUE branch already covered on Box.
+// the RAW-STYLE-VALUE branch already covered on Box; and nothing here detects the NEXT drift of
+// the primitive copy — the stale-source hint names the table to update, but a divergence is found
+// by a live page going red, not by this gate.
 //
 // Dev tooling: lives at the repo ROOT, never inside plugin/ — the checker itself is a PRODUCT
 // artifact and ships; this test does not.
@@ -155,6 +160,10 @@ const UNKNOWN_ATTRIBUTE_LINE = 'UNKNOWN-ATTRIBUTE: node "widget": "input" takes 
 const REFUSED_STYLING_LINE = 'UNKNOWN-ATTRIBUTE: node "widget": attribute "className" is refused — styling goes through the style props bound to tokens';
 const REFUSED_BEHAVIOUR_LINE = 'UNKNOWN-ATTRIBUTE: node "widget": attribute "onClick" is refused — behaviour is wired in code, not in an etalon';
 const MISSING_TAG_LINE = 'MISSING-PROP: node "widget": Element requires prop "tag"';
+const REFUSED_TAG_LINE = 'REFUSED-TAG: node "widget": tag "svg" is refused — an icon is a component: bind one the registry lists, or ask for it with a proposal:Icon node';
+const ELEMENT_GAP_LINE = 'UNKNOWN-ATTRIBUTE: node "widget": "div" takes no attribute "gap"';
+const RAW_MAX_WIDTH_LINE = 'RAW-STYLE-VALUE: node "page": Stack.maxWidth carries a raw value; bind a $token or a $data path';
+const STALE_SOURCE_HINT_LINE = 'the primitives are a copy inside this checker';
 const NO_ELEMENT_VOCABULARY_LINE = 'is not a Melete registry (melete: 1 with a components list and an element vocabulary is required)';
 
 // positive: a full valid page folder with an indexed link passes
@@ -210,6 +219,12 @@ runJsonCase('json-attribute-refused-styling', 'login', withElement({ tag: 'div',
 runJsonCase('json-attribute-refused-behaviour', 'login', withElement({ tag: 'button', onClick: 'submit' }), REFUSED_BEHAVIOUR_LINE);
 runJsonCase('json-element-missing-tag', 'login', withElement({ text: 'no tag here' }), MISSING_TAG_LINE);
 runJsonCase('json-registry-without-vocabulary', 'login', unchanged, NO_ELEMENT_VOCABULARY_LINE, { registry: registryWithoutVocabulary() });
+runJsonCase('json-layout-props', 'login', mutateJson((etalon) => { Object.assign(nodeOf(etalon, 'page').props, { grow: true, alignInParent: 'end', scroll: true, maxWidth: '$token.space-4' }); }), null, { expectStdout: '1 proposal' });
+runJsonCase('json-element-layout-props', 'login', withElement({ tag: 'div', grow: true, scroll: true, maxWidth: '$token.space-4' }), null, { expectStdout: '1 proposal' });
+runJsonCase('json-element-gap-attribute', 'login', withElement({ tag: 'div', gap: '$token.space-2' }), ELEMENT_GAP_LINE);
+runJsonCase('json-refused-tag', 'login', withElement({ tag: 'svg' }), REFUSED_TAG_LINE);
+runJsonCase('json-raw-max-width', 'login', mutateJson((etalon) => { nodeOf(etalon, 'page').props.maxWidth = '48rem'; }), RAW_MAX_WIDTH_LINE);
+runJsonCase('json-stale-source-hint', 'login', mutateJson((etalon) => { nodeOf(etalon, 'page').props.flex = true; }), STALE_SOURCE_HINT_LINE);
 runJsonCase('json-unknown-token', 'login', mutateJson((etalon) => { nodeOf(etalon, 'title').props.tone = '$token.color-nope'; }), 'UNKNOWN-TOKEN');
 runJsonCase('json-missing-fixture-path', 'login', mutateJson((etalon) => { delete etalon.data.minimal.greeting; }), 'MISSING-FIXTURE-PATH');
 runJsonCase('json-unused-state', 'login', mutateJson((etalon) => { etalon.states.idle = { unbound: true }; }), 'UNUSED-STATE');
@@ -236,4 +251,4 @@ if (failures.length > 0) {
   process.exit(1);
 }
 
-console.log('Design-checker check passed: valid HTML and JSON page folders accepted; missing/flat link, manifest gaps, raw values, index gaps and the reserved slug rejected with named errors; every JSON code — the eighteen of the Melete validator plus INVALID-ETALON, SLUG-MISMATCH and NO-REGISTRY — rejected by name on a mutation of the shared example; the book example valid on both fixtures; an Element draws by its tag, its attributes are read from the registry vocabulary, and a registry without one is refused.');
+console.log('Design-checker check passed: valid HTML and JSON page folders accepted; missing/flat link, manifest gaps, raw values, index gaps and the reserved slug rejected with named errors; every JSON code — the nineteen of the Melete validator plus INVALID-ETALON, SLUG-MISMATCH and NO-REGISTRY — rejected by name on a mutation of the shared example; the book example valid on both fixtures; an Element draws by its tag, its attributes are read from the registry vocabulary, and a registry without one is refused; the four child-layout props pass on the containers that carry them, a hand-drawn svg is refused by name, and the hint names both sources a missing prop can come from.');

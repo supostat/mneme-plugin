@@ -200,7 +200,8 @@
       "button",
       "div",
       "input",
-      "select"
+      "select",
+      "svg"
     ],
     "commonAttributes": [
       "className",
