@@ -194,5 +194,35 @@
     "color-text",
     "color-muted",
     "color-surface"
-  ]
+  ],
+  "elements": {
+    "tags": [
+      "button",
+      "div",
+      "input",
+      "select"
+    ],
+    "commonAttributes": [
+      "className",
+      "id",
+      "lang",
+      "role",
+      "style"
+    ],
+    "tagAttributes": {
+      "button": [
+        "type",
+        "value"
+      ],
+      "input": [
+        "placeholder",
+        "type",
+        "value"
+      ],
+      "select": [
+        "multiple",
+        "value"
+      ]
+    }
+  }
 }
