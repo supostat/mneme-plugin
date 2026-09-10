@@ -439,15 +439,24 @@ checker enforces it. A JSON etalon is ONE strict object — an unknown key anywh
   `$token.<name>` reads `--<name>` from `design/system/tokens.css`. A literal value is anything
   else. Enum props are checked only for literals.
 - Primitives (always available, not part of the registry): `Stack` {gap string, align
-  start|center|end|stretch, children node}; `Row` {gap string, align, wrap boolean, children
-  node}; `Text` {text string REQUIRED, tone, font, size, weight, leading — string}; `Box` {fill,
-  stroke, radius, padding — string; children node}; `Element` {tag string REQUIRED, text and the
-  eleven style props — string; children node}; `Placeholder` {label string REQUIRED, height
-  string, note string, children node}.
-- STYLE PROPS of primitives — fill, stroke, radius, padding, gap, height, tone, font, size,
-  weight, leading — take only a `$token` or a `$data` binding in a fixed etalon; a literal is
-  RAW-STYLE-VALUE; drafts (`-draft-*.json`) are free — that is how the book shows variants before
-  tokens exist; registry components style themselves, their props are not checked.
+  start|center|end|stretch, the four layout props, children node}; `Row` {gap string, align, wrap
+  boolean, the four layout props, children node}; `Text` {text string REQUIRED, tone, font, size,
+  weight, leading — string}; `Box` {fill, stroke, radius, padding — string; children node};
+  `Element` {tag string REQUIRED, text string, its ten style props — every one except `gap` and
+  `height`, which do nothing on an element that is not a flex container — the four layout props,
+  children node}; `Placeholder` {label string REQUIRED, height string, note string, children
+  node}.
+- THE FOUR LAYOUT PROPS — `grow` boolean, `alignInParent` start|center|end|stretch, `scroll`
+  boolean, `maxWidth` string — say how a node behaves INSIDE its parent, as opposed to how it
+  lays out its own children, so every container carries them: `Stack`, `Row` and `Element`.
+  `maxWidth` stands in this list and among the style props both, and is counted once — it is a
+  size from the design system that a child asks its parent for.
+- STYLE PROPS of primitives — fill, stroke, radius, padding, gap, height, maxWidth, tone, font,
+  size, weight, leading — take only a `$token` or a `$data` binding in a fixed etalon; a literal
+  is RAW-STYLE-VALUE; `grow`, `alignInParent` and `scroll` stay OUT of this set, because they
+  carry a decision and not a value from the design system; drafts (`-draft-*.json`) are free —
+  that is how the book shows variants before tokens exist; registry components style themselves,
+  their props are not checked.
 - ELEMENT ATTRIBUTES — an Element takes any attribute its tag allows, except `class`,
   `className`, `style` and `on*` handlers: styling goes through style props on tokens, behaviour
   is wired in code. A `data-*` name and a custom element (a dash in the tag) always pass; a tag
@@ -466,11 +475,11 @@ checker enforces it. A JSON etalon is ONE strict object — an unknown key anywh
   FUNCTION-PROP-VALUE — behaviour is wired in code, leave the prop out. A component missing there
   is UNKNOWN-COMPONENT, and a registry with no `elements` predates the vocabulary and is
   NO-REGISTRY; the remedy is the server, never the file.
-- Checker codes of the JSON branch — the eighteen of the Melete validator: UNKNOWN-COMPONENT,
+- Checker codes of the JSON branch — the nineteen of the Melete validator: UNKNOWN-COMPONENT,
   UNKNOWN-PROP, MISSING-PROP, BAD-ENUM, UNKNOWN-TOKEN, MISSING-FIXTURE-PATH, UNUSED-STATE,
   DUPLICATE-ID, ORPHAN-NODE, UNKNOWN-NODE, MULTIPLE-PARENTS, PARENT-AFTER-CHILD,
   PROPOSAL-WITHOUT-NOTE, SLOT-NOT-NODE, FUNCTION-PROP-VALUE, RAW-STYLE-VALUE, UNKNOWN-TAG,
-  UNKNOWN-ATTRIBUTE — plus the checker's
+  UNKNOWN-ATTRIBUTE, REFUSED-TAG — plus the checker's
   own: INVALID-ETALON (not JSON, or off this contract; reported alone), SLUG-MISMATCH (file name
   or `slug` field ≠ folder), NO-REGISTRY
   (registry missing or unreadable; reported alone, with the remedy), RESERVED-SLUG and
