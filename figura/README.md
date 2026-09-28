@@ -12,7 +12,12 @@ figura/
 ├── bin/launch.sh                # d2 launcher: dev binary, cache, or the pinned release
 ├── bin/release.json             # pin of the d2 release the launcher downloads
 ├── fonts/                       # Inter and JetBrains Mono, each beside its SIL OFL license
+├── scripts/browser-locate.mjs   # finds Chromium 131 or newer
+├── scripts/cdp-session.mjs      # CDP client over --remote-debugging-pipe
+├── scripts/figura-error.mjs     # the coded error every figura failure line comes from
 ├── scripts/figura.mjs           # CLI dispatcher
+├── scripts/loopback-server.mjs  # loopback HTTP server the browser loads everything from
+├── scripts/preflight.mjs        # checks every dependency of a command at once
 ├── scripts/theme.mjs            # theme loader: CSS custom properties, D2 classes, page geometry
 ├── template/document.html       # the source format of a figura document
 ├── template/print.css           # print styles on the theme's custom properties
