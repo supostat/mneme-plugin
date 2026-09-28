@@ -17,6 +17,12 @@ const MARGIN_SIDES = ['top', 'right', 'bottom', 'left'];
 const FONT_ROLES = ['text', 'code'];
 const FONT_STYLES = ['normal', 'italic'];
 const TYPOGRAPHY_ENTRIES = ['text', 'table', 'code', 'h1', 'h2', 'h3', 'footer', 'caption'];
+const D2_FONT_SLOTS = [
+  { flag: '--font-regular', weight: 400, style: 'normal' },
+  { flag: '--font-italic', weight: 400, style: 'italic' },
+  { flag: '--font-semibold', weight: 600, style: 'normal' },
+  { flag: '--font-bold', weight: 700, style: 'normal' },
+];
 const SPACING_PROPERTIES = new Map([
   ['paragraphPoints', 'space-paragraph'],
   ['blockPoints', 'space-block'],
@@ -73,6 +79,13 @@ function validateFonts(problems, fonts) {
       problems.push(`fonts.${fontRole}.faces must list at least one font file`);
       continue;
     }
+    if (fontRole === 'text') {
+      for (const { flag, weight, style } of D2_FONT_SLOTS) {
+        if (!font.faces.some((face) => face?.weight === weight && face?.style === style)) {
+          problems.push(`fonts.text has no face with weight ${weight} and style ${style}, which d2 needs for ${flag}`);
+        }
+      }
+    }
     font.faces.forEach((face, index) => {
       const path = `fonts.${fontRole}.faces[${index}]`;
       if (typeof face?.file !== 'string' || !existsSync(resolve(BUNDLE_ROOT, face.file))) {
@@ -110,6 +123,9 @@ export function validateTheme(theme) {
     requirePoints(problems, `spacing.${key}`, theme.spacing?.[key], { allowZero: true });
   }
   requirePoints(problems, 'diagram.captionGapPoints', theme.diagram?.captionGapPoints, { allowZero: true });
+  if (!Number.isInteger(theme.diagram?.padPixels) || theme.diagram.padPixels < 0) {
+    problems.push(`diagram.padPixels is ${JSON.stringify(theme.diagram?.padPixels)}, not a non-negative whole number of pixels`);
+  }
   requirePoints(problems, 'diagram.minimumLabelPoints', theme.diagram?.minimumLabelPoints, { allowZero: false });
   if (problems.length > 0) {
     throw new Error(`theme is invalid:\n${problems.map((problem) => `  - ${problem}`).join('\n')}`);
@@ -169,6 +185,14 @@ export function d2Classes(theme) {
     ].join('\n');
   });
   return `classes: {\n${classBlocks.join('\n')}\n}\n`;
+}
+
+export function d2ThemeArguments(theme) {
+  const fontArguments = D2_FONT_SLOTS.flatMap(({ flag, weight, style }) => {
+    const face = theme.fonts.text.faces.find((candidate) => candidate.weight === weight && candidate.style === style);
+    return [flag, resolve(BUNDLE_ROOT, face.file)];
+  });
+  return ['--pad', String(theme.diagram.padPixels), ...fontArguments];
 }
 
 export function pageGeometry(theme) {

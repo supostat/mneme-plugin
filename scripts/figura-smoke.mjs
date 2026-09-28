@@ -1,17 +1,21 @@
 #!/usr/bin/env node
 //
 // Smoke gate of figura against the real tools, outside npm test: each stage needs what its tool
-// needs — the d2 stage the network, curl and tar, the browser stage Chromium 131 or newer.
+// needs — the d2 stage the network, curl and tar, the browser stage Chromium 131 or newer, the
+// render stage a d2 the launcher can serve.
 
 import { spawnSync } from 'node:child_process';
 import { copyFileSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { inflateSync } from 'node:zlib';
 import { locateChromium } from '../figura/scripts/browser-locate.mjs';
 import { openCdpSession } from '../figura/scripts/cdp-session.mjs';
 import { FiguraError } from '../figura/scripts/figura-error.mjs';
 import { startLoopbackServer } from '../figura/scripts/loopback-server.mjs';
+import { renderDiagram } from '../figura/scripts/render-diagram.mjs';
+import { loadTheme } from '../figura/scripts/theme.mjs';
 
 const FIGURA_BIN = resolve(dirname(fileURLToPath(import.meta.url)), '..', 'figura', 'bin');
 const SMOKE_NODE_LABEL = 'figura smoke node';
@@ -27,6 +31,13 @@ const SMOKE_PAGE = `<!doctype html>
   </body>
 </html>
 `;
+const ROLE_DIAGRAM = 'source: Source system {class: source}\ncore: Core service {class: core}\nsource -> core: pushes people\n';
+const ROLE_DIAGRAM_TEXTS = ['Source system', 'Core service', 'pushes people'];
+const WOFF_SIGNATURE = 'wOFF';
+const WOFF_HEADER_BYTES = 44;
+const WOFF_TABLE_ENTRY_BYTES = 20;
+const INTER_IN_ASCII = Buffer.from('Inter', 'latin1');
+const INTER_IN_UTF16BE = Buffer.from([0x00, 0x49, 0x00, 0x6e, 0x00, 0x74, 0x00, 0x65, 0x00, 0x72]);
 const MEASURE_SMOKE_TEXT = `(() => {
   const box = document.getElementById('smoke-text').getBBox();
   return { width: box.width, height: box.height };
@@ -120,6 +131,50 @@ async function measureAndPrintWithChromium(workDirectory) {
   }
 }
 
+function woffNameTable(font) {
+  const tableCount = font.readUInt16BE(12);
+  for (let index = 0; index < tableCount; index += 1) {
+    const entry = WOFF_HEADER_BYTES + index * WOFF_TABLE_ENTRY_BYTES;
+    if (font.toString('latin1', entry, entry + 4) !== 'name') continue;
+    const offset = font.readUInt32BE(entry + 4);
+    const compressedLength = font.readUInt32BE(entry + 8);
+    const originalLength = font.readUInt32BE(entry + 12);
+    const table = font.subarray(offset, offset + compressedLength);
+    return compressedLength < originalLength ? inflateSync(table) : table;
+  }
+  return Buffer.alloc(0);
+}
+
+function embeddedFontsAreInter(svg) {
+  const fonts = [...svg.matchAll(/url\("data:[^;"]+;base64,([^"]+)"\)/g)].map(([, data]) => Buffer.from(data, 'base64'));
+  if (fonts.length === 0) return 'the SVG embeds no fonts';
+  const foreign = fonts.filter((font) => {
+    if (font.toString('latin1', 0, 4) !== WOFF_SIGNATURE) return true;
+    const names = woffNameTable(font);
+    return !names.includes(INTER_IN_ASCII) && !names.includes(INTER_IN_UTF16BE);
+  });
+  return foreign.length === 0 ? undefined : `${foreign.length} of ${fonts.length} embedded fonts are not Inter`;
+}
+
+function renderRolesWithRealD2(workDirectory) {
+  const theme = loadTheme();
+  let svg;
+  try {
+    svg = renderDiagram({ ordinal: 1, source: ROLE_DIAGRAM, layout: 'elk', caption: 'render smoke' }, theme, { workDirectory });
+  } catch (error) {
+    if (error instanceof FiguraError) return [error.message];
+    throw error;
+  }
+  const lowerCaseSvg = svg.toLowerCase();
+  const problems = ROLE_DIAGRAM_TEXTS.filter((text) => !svg.includes(`>${text}<`)).map((text) => `the SVG lacks the text "${text}"`);
+  for (const role of ['source', 'core']) {
+    if (!lowerCaseSvg.includes(theme.roles[role].fill)) problems.push(`the SVG lacks the ${role} role fill ${theme.roles[role].fill}`);
+  }
+  const fontProblem = embeddedFontsAreInter(svg);
+  if (fontProblem !== undefined) problems.push(fontProblem);
+  return problems;
+}
+
 const STAGES = new Map([
   [
     'd2',
@@ -133,6 +188,13 @@ const STAGES = new Map([
     {
       check: measureAndPrintWithChromium,
       passed: 'Chromium answered over the CDP pipe, opened a page from the loopback server, measured SVG text with getBBox and printed one A4 page',
+    },
+  ],
+  [
+    'render',
+    {
+      check: renderRolesWithRealD2,
+      passed: 'the real d2 behind the launcher took the theme TTFs and role classes and wrote an SVG with the node texts in embedded Inter',
     },
   ],
 ]);

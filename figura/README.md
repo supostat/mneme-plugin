@@ -14,10 +14,13 @@ figura/
 ├── fonts/                       # Inter and JetBrains Mono, each beside its SIL OFL license
 ├── scripts/browser-locate.mjs   # finds Chromium 131 or newer
 ├── scripts/cdp-session.mjs      # CDP client over --remote-debugging-pipe
+├── scripts/extract-diagrams.mjs # finds every pre.d2 with its layout and figure caption
 ├── scripts/figura-error.mjs     # the coded error every figura failure line comes from
 ├── scripts/figura.mjs           # CLI dispatcher
+├── scripts/inline-diagrams.mjs  # puts each rendered SVG in place of its pre.d2
 ├── scripts/loopback-server.mjs  # loopback HTTP server the browser loads everything from
 ├── scripts/preflight.mjs        # checks every dependency of a command at once
+├── scripts/render-diagram.mjs   # runs d2 with the theme classes, padding and Inter files
 ├── scripts/theme.mjs            # theme loader: CSS custom properties, D2 classes, page geometry
 ├── template/document.html       # the source format of a figura document
 ├── template/print.css           # print styles on the theme's custom properties
@@ -40,7 +43,8 @@ An unknown command prints the usage and exits with status 2.
 validates it with named errors and generates two things from it: CSS custom properties, which
 `template/print.css` reads for the page box, the footer and every element, and a D2 `classes` block
 with one class per node role (source, core, tool, app, observability, neutral, note), which the build
-puts at the start of every diagram source. It also exports the page and column geometry, the space
+puts at the start of every diagram source, and the d2 arguments for the diagram padding and the four
+Inter files. It also exports the page and column geometry, the space
 reserved under a diagram for two caption lines, and the smallest label size a check accepts.
 
 Chromium has no `string()` for margin boxes, so the footer title cannot come from the stylesheet: the

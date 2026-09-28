@@ -154,6 +154,14 @@ if (theme !== undefined) {
     },
     'fonts.text.faces[0].file "fonts/inter/Inter-Missing.ttf" does not exist in the figura bundle',
   );
+  expectRejection(
+    'text font without a d2 slot',
+    theme,
+    (brokenTheme) => {
+      brokenTheme.fonts.text.faces = brokenTheme.fonts.text.faces.filter((face) => face.weight !== 600);
+    },
+    'fonts.text has no face with weight 600 and style normal, which d2 needs for --font-semibold',
+  );
   checkPrintCssFonts(theme);
 }
 

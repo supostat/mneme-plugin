@@ -62,6 +62,7 @@
   },
   "diagram": {
     "captionGapPoints": 12,
+    "padPixels": 10,
     "minimumLabelPoints": 7
   }
 }
