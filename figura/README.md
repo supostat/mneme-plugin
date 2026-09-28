@@ -11,7 +11,12 @@ figura/
 ├── bin/figura                   # entry: checks for Node.js 22 or newer, then runs the CLI
 ├── bin/launch.sh                # d2 launcher: dev binary, cache, or the pinned release
 ├── bin/release.json             # pin of the d2 release the launcher downloads
-└── scripts/figura.mjs           # CLI dispatcher
+├── fonts/                       # Inter and JetBrains Mono, each beside its SIL OFL license
+├── scripts/figura.mjs           # CLI dispatcher
+├── scripts/theme.mjs            # theme loader: CSS custom properties, D2 classes, page geometry
+├── template/document.html       # the source format of a figura document
+├── template/print.css           # print styles on the theme's custom properties
+└── theme/theme.json             # the one source of colors, fonts, sizes and page geometry
 ```
 
 ## Entry
@@ -23,6 +28,18 @@ Otherwise it hands every argument to `scripts/figura.mjs`.
 
 `bin/figura version` prints the plugin name and the version from `.claude-plugin/plugin.json`.
 An unknown command prints the usage and exits with status 2.
+
+## Theme
+
+`theme/theme.json` is the only place that holds a color, a size or a page measure. `scripts/theme.mjs`
+validates it with named errors and generates two things from it: CSS custom properties, which
+`template/print.css` reads for the page box, the footer and every element, and a D2 `classes` block
+with one class per node role (source, core, tool, app, observability, neutral, note), which the build
+puts at the start of every diagram source. It also exports the page and column geometry, the space
+reserved under a diagram for two caption lines, and the smallest label size a check accepts.
+
+Chromium has no `string()` for margin boxes, so the footer title cannot come from the stylesheet: the
+build adds an `@page` rule with the document's `<title>` as the content of `@bottom-left`.
 
 ## d2 launcher
 

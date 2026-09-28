@@ -1,0 +1,67 @@
+{
+  "page": {
+    "widthPoints": 595.28,
+    "heightPoints": 841.89,
+    "marginPoints": { "top": 50, "right": 50, "bottom": 50, "left": 50 }
+  },
+  "text": { "primary": "#2c2c2a", "muted": "#5f5e5a", "accent": "#534ab7" },
+  "roles": {
+    "source": { "fill": "#faece7", "stroke": "#993c1d", "text": "#993c1d" },
+    "core": { "fill": "#eeedfe", "stroke": "#534ab7", "text": "#534ab7" },
+    "tool": { "fill": "#e6f1fb", "stroke": "#0c447c", "text": "#0c447c" },
+    "app": { "fill": "#e1f5ee", "stroke": "#0f6e56", "text": "#0f6e56" },
+    "observability": { "fill": "#fbeaf0", "stroke": "#72243e", "text": "#72243e" },
+    "neutral": { "fill": "#f1efe8", "stroke": "#5f5e5a", "text": "#5f5e5a" },
+    "note": { "fill": "#faeeda", "stroke": "#ef9f27", "text": "#854f0b" }
+  },
+  "callouts": {
+    "warning": { "line": "#ef9f27", "label": "#854f0b" },
+    "note": { "line": "#185fa5", "label": "#0c447c" },
+    "decision": { "line": "#3b6d11", "label": "#3b6d11" }
+  },
+  "table": {
+    "headerFill": "#eeedfe",
+    "rule": "#d3d1c7",
+    "ruleWidthPoints": 0.4,
+    "cellPaddingBlockPoints": 4,
+    "cellPaddingInlinePoints": 6
+  },
+  "fonts": {
+    "text": {
+      "family": "Inter",
+      "faces": [
+        { "file": "fonts/inter/Inter-Regular.ttf", "weight": 400, "style": "normal" },
+        { "file": "fonts/inter/Inter-Italic.ttf", "weight": 400, "style": "italic" },
+        { "file": "fonts/inter/Inter-SemiBold.ttf", "weight": 600, "style": "normal" },
+        { "file": "fonts/inter/Inter-Bold.ttf", "weight": 700, "style": "normal" }
+      ]
+    },
+    "code": {
+      "family": "JetBrains Mono",
+      "faces": [
+        { "file": "fonts/jetbrains-mono/JetBrainsMono-Regular.ttf", "weight": 400, "style": "normal" },
+        { "file": "fonts/jetbrains-mono/JetBrainsMono-Bold.ttf", "weight": 700, "style": "normal" }
+      ]
+    }
+  },
+  "typography": {
+    "text": { "sizePoints": 9.3, "lineHeightPoints": 13.2 },
+    "table": { "sizePoints": 8.3, "lineHeightPoints": 11 },
+    "code": { "sizePoints": 9.3, "lineHeightPoints": 13.2 },
+    "h1": { "sizePoints": 24, "lineHeightPoints": 29 },
+    "h2": { "sizePoints": 17, "lineHeightPoints": 22 },
+    "h3": { "sizePoints": 12.5, "lineHeightPoints": 18 },
+    "footer": { "sizePoints": 7.5, "lineHeightPoints": 9 },
+    "caption": { "sizePoints": 7.3, "lineHeightPoints": 10 }
+  },
+  "spacing": {
+    "paragraphPoints": 6,
+    "blockPoints": 8,
+    "headingBeforePoints": 12,
+    "headingAfterPoints": 6
+  },
+  "diagram": {
+    "captionGapPoints": 12,
+    "minimumLabelPoints": 7
+  }
+}
