@@ -88,6 +88,7 @@ requireMarker(
   "github.actor != 'github-actions[bot]'",
   'the auto-bump actor guard breaks the bump-on-bump loop',
 );
+requireMarker(ciPath, ci, 'scripts/auto-bump.mjs', 'every bundle is bumped from its version base by the script, not by inline shell');
 
 const pagesPath = '.github/workflows/pages.yml';
 const pages = load(pagesPath);
