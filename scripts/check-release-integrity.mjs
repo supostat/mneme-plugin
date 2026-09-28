@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 //
-// Network integrity check of a release pin (plugin/bin/release.json) or a raw
+// Network integrity check of a release pin (<bundle>/bin/release.json) or a raw
 // dispatch payload: every sha256 target must resolve to a downloadable asset
 // whose actual digest matches the declared one. Runs in CI and as the
 // release-sync guard — NOT in npm test, because it touches the network.
@@ -11,7 +11,8 @@
 
 import { readFileSync } from 'node:fs';
 import { createHash } from 'node:crypto';
-import { resolve } from 'node:path';
+import { dirname, resolve } from 'node:path';
+import { releaseAssetUrl } from './release-assets.mjs';
 
 const [targetPath, flag] = process.argv.slice(2);
 if (!targetPath) {
@@ -45,9 +46,23 @@ if (document?.sha256 === null || typeof document?.sha256 !== 'object' || Object.
   process.exit(1);
 }
 
+const pinMode = typeof document.base_url === 'string' && document.base_url.length > 0;
+
+function pluginOwningPin() {
+  const manifestPath = resolve(dirname(resolve(targetPath)), '..', '.claude-plugin', 'plugin.json');
+  try {
+    return JSON.parse(readFileSync(manifestPath, 'utf8')).name;
+  } catch (cause) {
+    console.error(`check-release-integrity: cannot tell which plugin owns ${targetPath} — ${manifestPath}: ${cause.message}`);
+    process.exit(1);
+  }
+}
+
+const pinOwner = pinMode ? pluginOwningPin() : undefined;
+
 function assetUrl(target) {
-  if (typeof document.base_url === 'string' && document.base_url.length > 0) {
-    return `${document.base_url}/mneme-${target}`;
+  if (pinMode) {
+    return releaseAssetUrl(pinOwner, document, target);
   }
   if (Array.isArray(document.assets)) {
     return document.assets.find((url) => typeof url === 'string' && url.endsWith(`/mneme-${target}`));
@@ -57,7 +72,13 @@ function assetUrl(target) {
 
 const problems = [];
 for (const [target, declared] of Object.entries(document.sha256)) {
-  const url = assetUrl(target);
+  let url;
+  try {
+    url = assetUrl(target);
+  } catch (cause) {
+    problems.push(`${target}: ${cause.message}`);
+    continue;
+  }
   if (url === undefined) {
     problems.push(`${target}: no asset URL derivable (neither base_url nor a matching assets[] entry)`);
     continue;

@@ -1,0 +1,15 @@
+#!/bin/sh
+
+set -eu
+
+fail_without_node() {
+  printf 'figura: error: node 22+ not found — install Node.js 22 or newer (https://nodejs.org)\n' >&2
+  exit 1
+}
+
+command -v node >/dev/null 2>&1 || fail_without_node
+node_version=$(node -p 'process.versions.node' 2>/dev/null) || fail_without_node
+[ "${node_version%%.*}" -ge 22 ] 2>/dev/null || fail_without_node
+
+self_dir=$(CDPATH='' cd -- "$(dirname -- "$0")" && pwd)
+exec node "$self_dir/../scripts/figura.mjs" "$@"

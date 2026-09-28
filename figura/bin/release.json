@@ -1,0 +1,11 @@
+{
+  "engine_version": "0.9.0",
+  "plugin_version": "0.1.0",
+  "base_url": "https://github.com/terrastruct/d2/releases/download/v0.9.0",
+  "sha256": {
+    "darwin-arm64": "eaf6c0c143e56dd9fa97bfb6df25ea9c1ebce40245f056a0768cf1a6c15d3064",
+    "darwin-x64": "cad39576a480d6bb02ea142fef1726647914b0d2da51ccc9b30b660a2b1babf0",
+    "linux-arm64": "ac2c028697199479acb321db1e3d68caee9f2ba492ed73caa3cd13f3829bf913",
+    "linux-x64": "5669ddc46b99e942cc96078f4a4e36d5e62103348f4c05179ede27802fdd87a9"
+  }
+}

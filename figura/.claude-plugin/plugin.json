@@ -1,0 +1,9 @@
+{
+  "name": "figura",
+  "description": "Technical A4 PDF documents with D2 diagrams for Claude Code: one HTML source, one theme for the page and the diagrams, and a layout check before every build.",
+  "author": {
+    "name": "Igor Pugachev",
+    "email": "i.pugachev@gmail.com"
+  },
+  "version": "0.1.0"
+}

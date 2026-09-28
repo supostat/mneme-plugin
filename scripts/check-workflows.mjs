@@ -82,6 +82,14 @@ requireMarker(
 );
 requireMarker(ciPath, ci, 'check-release-integrity.mjs', 'the pinned assets must be verified in CI');
 requireMarker(ciPath, ci, '--allow-missing', 'CI integrity must tolerate the pre-release state (no pin yet)');
+requireMarker(ciPath, ci, 'shellcheck figura/bin/launch.sh', 'the figura d2 launcher shellcheck gate must run in CI');
+requireMarker(ciPath, ci, 'shellcheck figura/bin/figura', 'the figura entry shellcheck gate must run in CI');
+requireMarker(
+  ciPath,
+  ci,
+  'node scripts/check-release-integrity.mjs figura/bin/release.json',
+  'the hand-edited d2 pin must be verified against the real release in CI',
+);
 requireMarker(
   ciPath,
   ci,

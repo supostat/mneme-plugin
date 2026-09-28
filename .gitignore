@@ -3,6 +3,11 @@
 # ignored: the launcher and the release pin beside it ARE tracked.
 plugin/bin/mneme
 
+# figura's dev d2: a local d2 binary next to figura/bin/launch.sh wins over the
+# pinned release. Only the binary itself is ignored: the launcher and the pin
+# beside it ARE tracked.
+figura/bin/d2
+
 # dev-workflow / engram runtime + session data (machine-local, not distribution)
 .engram/
 
