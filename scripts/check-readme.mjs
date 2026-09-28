@@ -4,10 +4,10 @@
 // must carry the two install commands, the Ollama prerequisite, the optional
 // design-server prerequisites IN THEIR PLACE (a prerequisite that follows the
 // install commands is read too late) and the launcher's named failure modes.
-// plugin/README.md is the bundle reference: it
-// must stay free of version literals (they drift the moment automation bumps
-// plugin.json) and must keep the "Landing: site/" line that check-landing.mjs
-// also pins.
+// Every bundle's README.md is that bundle's reference: it must stay free of
+// version literals, which drift the moment automation bumps the bundle's
+// plugin.json. mneme's plugin/README.md must also keep the "Landing: site/"
+// line that check-landing.mjs pins too.
 //
 // Dev tooling: lives at the repo ROOT, never inside plugin/, so it is not
 // shipped in the installed bundle.
@@ -17,6 +17,7 @@
 import { readFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { readMarketplaceBundles } from './marketplace-bundles.mjs';
 
 const repoRoot = process.argv[2]
   ? resolve(process.argv[2])
@@ -88,17 +89,31 @@ if (rootReadme !== null) {
 
 const SEMVER_LITERAL = /\b\d+\.\d+\.\d+\b/;
 
-const bundleReadme = load('plugin/README.md');
-if (bundleReadme !== null) {
+function listBundles() {
+  try {
+    return readMarketplaceBundles(repoRoot);
+  } catch (cause) {
+    failures.push(cause.message);
+    return [];
+  }
+}
+
+for (const bundle of listBundles()) {
+  const readmePath = `${bundle.relativeDirectory}/README.md`;
+  const bundleReadme = load(readmePath);
+  if (bundleReadme === null) continue;
   const literal = bundleReadme.match(SEMVER_LITERAL);
   if (literal !== null) {
     failures.push(
-      `plugin/README.md: carries the version literal "${literal[0]}" — versions are maintained by automation and README copies drift; describe the mechanism, not the number`,
+      `${readmePath}: carries the version literal "${literal[0]}" — versions are maintained by automation and README copies drift; describe the mechanism, not the number`,
     );
   }
-  if (!bundleReadme.includes('Landing: site/')) {
-    failures.push('plugin/README.md: the "Landing: site/" line is required (check-landing.mjs pins it too)');
-  }
+}
+
+const LANDING_README = 'plugin/README.md';
+const landingReadme = load(LANDING_README);
+if (landingReadme !== null && !landingReadme.includes('Landing: site/')) {
+  failures.push(`${LANDING_README}: the "Landing: site/" line is required (check-landing.mjs pins it too)`);
 }
 
 if (failures.length > 0) {
@@ -107,5 +122,5 @@ if (failures.length > 0) {
   process.exit(1);
 }
 console.log(
-  'README check passed: install/troubleshooting invariants hold, the design-server prerequisites sit inside Quick start after the mandatory ones, and the bundle reference is version-literal-free.',
+  'README check passed: install/troubleshooting invariants hold, the design-server prerequisites sit inside Quick start after the mandatory ones, and every bundle reference is version-literal-free.',
 );

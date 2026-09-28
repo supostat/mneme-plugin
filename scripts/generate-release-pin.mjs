@@ -1,25 +1,26 @@
 #!/usr/bin/env node
 //
-// Generator of the release pin plugin/bin/release.json — the machine-written
-// contract between the engine-release dispatch payload and the sed/grep parser
-// in plugin/bin/launch.sh. The pin's layout is FIXED AND FLAT (one key per
+// Generator of a bundle's release pin <bundle-dir>/bin/release.json — the
+// machine-written contract between a release and the sed/grep parser in that
+// bundle's bin/launch.sh. The pin's layout is FIXED AND FLAT (one key per
 // line, JSON.stringify with 2-space indent): changing the shape means changing
-// the launcher's parser in the same commit.
+// the launchers' parsers in the same commit.
 //
 // Modes:
-//   node scripts/generate-release-pin.mjs <payload.json> [repoRoot]
-//     payload = the repository_dispatch client_payload {version, assets[], sha256{target}};
-//     writes plugin/bin/release.json with plugin_version stamped from plugin.json.
-//   node scripts/generate-release-pin.mjs --restamp [repoRoot]
-//     rewrites ONLY plugin_version in the existing pin from the current
-//     plugin.json — the companion of a version bump without an engine release.
+//   node scripts/generate-release-pin.mjs <payload.json> <bundle-dir>
+//     payload = the engine-release repository_dispatch client_payload
+//     {version, assets[], sha256{target}} of the mneme engine (assets named
+//     mneme-<target>); writes <bundle-dir>/bin/release.json with plugin_version
+//     stamped from <bundle-dir>/.claude-plugin/plugin.json.
+//   node scripts/generate-release-pin.mjs --restamp <bundle-dir>
+//     rewrites ONLY plugin_version in the bundle's existing pin from its current
+//     plugin.json — the companion of a version bump without a new release.
 //
 // Dev tooling: lives at the repo ROOT, never inside plugin/, so it is not
 // shipped in the installed bundle.
 
 import { readFileSync, writeFileSync } from 'node:fs';
-import { dirname, resolve } from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { resolve } from 'node:path';
 
 const KNOWN_TARGETS = ['darwin-arm64', 'darwin-x64', 'linux-x64', 'linux-arm64'];
 
@@ -43,15 +44,14 @@ function readJson(path, label) {
   return null;
 }
 
-const [firstArg, secondArg] = process.argv.slice(2);
-if (firstArg === undefined) {
-  die('usage: generate-release-pin.mjs <payload.json>|--restamp [repoRoot]');
+const [firstArg, bundleArgument] = process.argv.slice(2);
+if (firstArg === undefined || bundleArgument === undefined) {
+  console.error('generate-release-pin: usage: generate-release-pin.mjs <payload.json> <bundle-dir> | --restamp <bundle-dir>');
+  process.exit(2);
 }
-const repoRoot = secondArg
-  ? resolve(secondArg)
-  : resolve(dirname(fileURLToPath(import.meta.url)), '..');
-const pluginManifestPath = resolve(repoRoot, 'plugin/.claude-plugin/plugin.json');
-const pinPath = resolve(repoRoot, 'plugin/bin/release.json');
+const bundleDirectory = resolve(bundleArgument);
+const pluginManifestPath = resolve(bundleDirectory, '.claude-plugin/plugin.json');
+const pinPath = resolve(bundleDirectory, 'bin/release.json');
 
 const pluginManifest = readJson(pluginManifestPath, 'plugin.json');
 const pluginVersion = pluginManifest.version;

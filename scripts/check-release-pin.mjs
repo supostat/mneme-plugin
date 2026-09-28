@@ -105,7 +105,7 @@ try {
   }
 
   // Case 1: generator output from a valid payload passes the validator.
-  const generated = run([generator, writePayload(root), root]);
+  const generated = run([generator, writePayload(root), join(root, 'plugin')]);
   if (generated.status !== 0) {
     failures.push(`the generator rejected a valid dispatch payload:\n${generated.output.trim()}`);
   } else if (!existsSync(pinPath)) {
@@ -140,7 +140,7 @@ try {
   }
 
   // Case 4: --restamp repairs exactly that drift.
-  const restamp = run([generator, '--restamp', root]);
+  const restamp = run([generator, '--restamp', join(root, 'plugin')]);
   if (restamp.status !== 0) {
     failures.push(`--restamp failed on a drifted pin:\n${restamp.output.trim()}`);
   } else {

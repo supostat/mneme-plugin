@@ -34,7 +34,7 @@ jobs:
         run: node scripts/check-release-integrity.mjs "$RUNNER_TEMP/engine-release-payload.json"
 
       - name: Generate the release pin
-        run: node scripts/generate-release-pin.mjs "$RUNNER_TEMP/engine-release-payload.json"
+        run: node scripts/generate-release-pin.mjs "$RUNNER_TEMP/engine-release-payload.json" plugin
 
       - name: Patch-bump the plugin version and restamp the pin
         run: |
@@ -46,7 +46,7 @@ jobs:
             manifest.version = `${major}.${minor}.${patch + 1}`;
             fs.writeFileSync(path, JSON.stringify(manifest, null, 2) + "\n");
           '
-          node scripts/generate-release-pin.mjs --restamp
+          node scripts/generate-release-pin.mjs --restamp plugin
 
       - name: Validate the result
         run: npm test

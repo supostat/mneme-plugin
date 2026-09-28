@@ -67,7 +67,7 @@ jobs:
             fs.writeFileSync(path, JSON.stringify(manifest, null, 2) + "\n");
           '
           if [ -f plugin/bin/release.json ]; then
-            node scripts/generate-release-pin.mjs --restamp
+            node scripts/generate-release-pin.mjs --restamp plugin
             git add plugin/bin/release.json
           fi
           git config user.name "github-actions[bot]"

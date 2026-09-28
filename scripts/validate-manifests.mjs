@@ -2,9 +2,10 @@
 import { readFileSync, readdirSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { MARKETPLACE_MANIFEST_PATH, readMarketplaceBundles } from './marketplace-bundles.mjs';
 
-// The root defaults to this repo; scripts/check-skill-names.mjs passes a fixture root instead,
-// so the negative case of every rule can be exercised without planting fixtures in plugin/skills.
+// The root defaults to this repo; the gate scripts pass a fixture root instead, so the negative
+// case of every rule can be exercised without planting fixtures in a real bundle.
 const repoRoot = process.argv[2]
   ? resolve(process.argv[2])
   : resolve(dirname(fileURLToPath(import.meta.url)), '..');
@@ -14,6 +15,8 @@ const KEBAB_CASE = /^[a-z0-9]+(-[a-z0-9]+)*$/;
 const ABSOLUTE_PATH_LEAK = /\/(Users|home|root)\b/;
 const REQUIRED_SKILL_KEYS = ['name', 'description', 'allowed-tools'];
 const FORBIDDEN_IN_BUNDLE = ['.dev-vault', '.claude', '.mcp.json', '.engram', 'docs', 'CLAUDE.md', '.env', '.git'];
+const LAUNCHER_COMMAND = '${CLAUDE_PLUGIN_ROOT}/bin/launch.sh';
+const SHA256_HEX = /^[0-9a-f]{64}$/;
 
 function loadManifest(relativePath) {
   let raw;
@@ -40,29 +43,30 @@ function loadManifest(relativePath) {
   return parsed;
 }
 
-function validatePlugin(manifest) {
+function validatePlugin(manifest, manifestPath) {
   if (!manifest) return;
   if (typeof manifest.name !== 'string' || !KEBAB_CASE.test(manifest.name)) {
-    errors.push('plugin.json: "name" must be a non-empty kebab-case string');
+    errors.push(`${manifestPath}: "name" must be a non-empty kebab-case string`);
   }
   const servers = manifest.mcpServers;
-  if (typeof servers !== 'object' || servers === null || Object.keys(servers).length === 0) {
-    errors.push('plugin.json: "mcpServers" must declare at least one server');
+  if (servers === undefined) return; // A bundle of skills and scripts declares no MCP server at all.
+  if (typeof servers !== 'object' || servers === null || Array.isArray(servers)) {
+    errors.push(`${manifestPath}: "mcpServers" must be an object of named servers when present`);
     return;
   }
   for (const [id, server] of Object.entries(servers)) {
     const command = server?.command;
     if (typeof command !== 'string' || command.length === 0) {
-      errors.push(`plugin.json: mcpServers.${id}.command must be a non-empty string`);
+      errors.push(`${manifestPath}: mcpServers.${id}.command must be a non-empty string`);
       continue;
     }
     if (command.startsWith('/')) {
-      errors.push(`plugin.json: mcpServers.${id}.command is an absolute path — use \${CLAUDE_PLUGIN_ROOT} so it resolves wherever the plugin is installed`);
+      errors.push(`${manifestPath}: mcpServers.${id}.command is an absolute path — use \${CLAUDE_PLUGIN_ROOT} so it resolves wherever the plugin is installed`);
     } else if (!command.includes('${CLAUDE_PLUGIN_ROOT}')) {
-      errors.push(`plugin.json: mcpServers.${id}.command must reference \${CLAUDE_PLUGIN_ROOT} (portable plugin-root path)`);
-    } else if (command !== '${CLAUDE_PLUGIN_ROOT}/bin/launch.sh') {
+      errors.push(`${manifestPath}: mcpServers.${id}.command must reference \${CLAUDE_PLUGIN_ROOT} (portable plugin-root path)`);
+    } else if (command !== LAUNCHER_COMMAND) {
       errors.push(
-        `plugin.json: mcpServers.${id}.command is "${command}" but must be exactly "\${CLAUDE_PLUGIN_ROOT}/bin/launch.sh" — the server always starts through the launcher (local dev build or cached pinned release); pointing at the raw binary breaks installs from GitHub, where the binary is gitignored`,
+        `${manifestPath}: mcpServers.${id}.command is "${command}" but must be exactly "\${CLAUDE_PLUGIN_ROOT}/bin/launch.sh" — the server always starts through the launcher (local dev build or cached pinned release); pointing at the raw binary breaks installs from GitHub, where the binary is gitignored`,
       );
     }
   }
@@ -90,17 +94,14 @@ function validateMarketplace(manifest) {
   });
 }
 
-function validateCrossReferences(pluginManifest, marketplaceManifest) {
-  if (!pluginManifest || !marketplaceManifest || !Array.isArray(marketplaceManifest.plugins)) return;
-  const rootPluginName = pluginManifest.name;
-  marketplaceManifest.plugins.forEach((plugin, index) => {
-    if (plugin?.source?.startsWith('./') && plugin?.name !== rootPluginName) {
-      errors.push(`marketplace.json: plugins[${index}].source "${plugin?.source}" points at this repo, but its name "${plugin?.name}" does not match plugin.json name "${rootPluginName}"`);
-    }
-  });
+function validateCrossReference(bundle, manifest, manifestPath) {
+  if (!manifest || manifest.name === bundle.name) return;
+  errors.push(
+    `marketplace.json: plugin "${bundle.name}" (source "${bundle.source}") does not match the name "${manifest.name}" declared in ${manifestPath} — a marketplace element and the manifest of its own source must carry the same name`,
+  );
 }
 
-function validateSkillFile(relativePath) {
+function validateSkillFile(relativePath, directoryName) {
   let raw;
   try {
     raw = readFileSync(resolve(repoRoot, relativePath), 'utf8');
@@ -121,15 +122,13 @@ function validateSkillFile(relativePath) {
       errors.push(`${relativePath}: frontmatter is missing required key "${key}"`);
     }
   }
-  assertSkillNameMatchesDirectory(relativePath, frontmatter[1]);
+  assertSkillNameMatchesDirectory(relativePath, frontmatter[1], directoryName);
 }
 
-function assertSkillNameMatchesDirectory(relativePath, frontmatterBody) {
+function assertSkillNameMatchesDirectory(relativePath, frontmatterBody, directoryName) {
   const declaredNameMatch = frontmatterBody.match(/^name:\s*(.+)$/m);
-  const directoryMatch = relativePath.match(/^plugin\/skills\/([^/]+)\/SKILL\.md$/);
-  if (!declaredNameMatch || !directoryMatch) return;
+  if (!declaredNameMatch) return;
   const declaredName = declaredNameMatch[1].trim().replace(/^["']|["']$/g, '');
-  const directoryName = directoryMatch[1];
   // Claude Code prefixes a plugin skill's command with the PLUGIN's own namespace, so the
   // skill name itself carries no prefix: skill "arch" of plugin "mneme" is invoked as
   // /mneme:arch. Spelling the prefix into the name (or its "__" directory encoding) makes
@@ -142,93 +141,108 @@ function assertSkillNameMatchesDirectory(relativePath, frontmatterBody) {
   }
 }
 
-function validateSkills() {
+function validateSkills(bundle) {
+  const skillsPath = `${bundle.relativeDirectory}/skills`;
   let entries;
   try {
-    entries = readdirSync(resolve(repoRoot, 'plugin/skills'), { withFileTypes: true });
+    entries = readdirSync(resolve(repoRoot, skillsPath), { withFileTypes: true });
   } catch {
-    errors.push('plugin/skills: directory not found — the plugin must ship at least one skill');
+    errors.push(`${skillsPath}: directory not found — every bundle must ship at least one skill`);
     return;
   }
   const skillDirectories = entries.filter((entry) => entry.isDirectory());
   if (skillDirectories.length === 0) {
-    errors.push('plugin/skills: no skill subdirectories found');
+    errors.push(`${skillsPath}: no skill subdirectories found — every bundle must ship at least one skill`);
     return;
   }
   for (const skillDirectory of skillDirectories) {
-    validateSkillFile(`plugin/skills/${skillDirectory.name}/SKILL.md`);
+    validateSkillFile(`${skillsPath}/${skillDirectory.name}/SKILL.md`, skillDirectory.name);
   }
 }
 
-const RELEASE_PIN_PATH = 'plugin/bin/release.json';
-const SHA256_HEX = /^[0-9a-f]{64}$/;
-
-function validateReleasePin(pluginManifest) {
+function validateReleasePin(bundle, manifest, manifestPath) {
+  const pinPath = `${bundle.relativeDirectory}/bin/release.json`;
   let raw;
   try {
-    raw = readFileSync(resolve(repoRoot, RELEASE_PIN_PATH), 'utf8');
+    raw = readFileSync(resolve(repoRoot, pinPath), 'utf8');
   } catch {
-    return; // No pin yet — the pre-release state until release-sync writes one.
+    return; // No pin — the bundle ships no pinned binary, or its release has not been pinned yet.
   }
   let pin;
   try {
     pin = JSON.parse(raw);
   } catch (cause) {
-    errors.push(`${RELEASE_PIN_PATH}: invalid JSON — ${cause.message}`);
+    errors.push(`${pinPath}: invalid JSON — ${cause.message}`);
     return;
   }
   if (pin === null || typeof pin !== 'object' || Array.isArray(pin)) {
-    errors.push(`${RELEASE_PIN_PATH}: root must be a JSON object`);
+    errors.push(`${pinPath}: root must be a JSON object`);
     return;
   }
   for (const field of ['engine_version', 'plugin_version', 'base_url']) {
     if (typeof pin[field] !== 'string' || pin[field].length === 0) {
-      errors.push(`${RELEASE_PIN_PATH}: "${field}" must be a non-empty string`);
+      errors.push(`${pinPath}: "${field}" must be a non-empty string`);
     }
   }
   if (typeof pin.base_url === 'string' && !pin.base_url.startsWith('https://')) {
-    errors.push(`${RELEASE_PIN_PATH}: "base_url" must be an https:// URL`);
+    errors.push(`${pinPath}: "base_url" must be an https:// URL`);
   }
   if (pin.sha256 === null || typeof pin.sha256 !== 'object' || Array.isArray(pin.sha256) || Object.keys(pin.sha256).length === 0) {
-    errors.push(`${RELEASE_PIN_PATH}: "sha256" must be a non-empty object of per-target digests`);
+    errors.push(`${pinPath}: "sha256" must be a non-empty object of per-target digests`);
   } else {
     for (const [target, checksum] of Object.entries(pin.sha256)) {
       if (typeof checksum !== 'string' || !SHA256_HEX.test(checksum)) {
-        errors.push(`${RELEASE_PIN_PATH}: sha256["${target}"] must be a lowercase 64-hex digest`);
+        errors.push(`${pinPath}: sha256["${target}"] must be a lowercase 64-hex digest`);
       }
     }
   }
-  if (pluginManifest && typeof pin.plugin_version === 'string' && pin.plugin_version !== pluginManifest.version) {
+  if (manifest && typeof pin.plugin_version === 'string' && pin.plugin_version !== manifest.version) {
     errors.push(
-      `${RELEASE_PIN_PATH}: plugin_version "${pin.plugin_version}" does not match plugin.json version "${pluginManifest.version}" — after bumping the version, regenerate the pin (scripts/generate-release-pin.mjs --restamp)`,
+      `${pinPath}: plugin_version "${pin.plugin_version}" does not match plugin.json version "${manifest.version}" (${manifestPath}) — after bumping the version, regenerate the pin (scripts/generate-release-pin.mjs --restamp ${bundle.relativeDirectory})`,
     );
   }
 }
 
-function validateBundleHygiene() {
+function validateBundleHygiene(bundle) {
   let entries;
   try {
-    entries = readdirSync(resolve(repoRoot, 'plugin'), { withFileTypes: true });
+    entries = readdirSync(bundle.directory, { withFileTypes: true });
   } catch {
-    errors.push('plugin/: bundle directory not found');
+    errors.push(`${bundle.relativeDirectory}/: bundle directory not found (marketplace source "${bundle.source}")`);
     return;
   }
   const names = new Set(entries.map((entry) => entry.name));
   for (const forbidden of FORBIDDEN_IN_BUNDLE) {
     if (names.has(forbidden)) {
-      errors.push(`plugin/${forbidden}: repo-internal path must NOT sit inside the shipped bundle (marketplace source "./plugin" copies everything under plugin/)`);
+      errors.push(
+        `${bundle.relativeDirectory}/${forbidden}: repo-internal path must NOT sit inside the shipped bundle (marketplace source "${bundle.source}" copies everything under ${bundle.relativeDirectory}/)`,
+      );
     }
   }
 }
 
-const pluginManifest = loadManifest('plugin/.claude-plugin/plugin.json');
-const marketplaceManifest = loadManifest('.claude-plugin/marketplace.json');
-validatePlugin(pluginManifest);
+function listBundles(marketplaceManifest) {
+  if (!marketplaceManifest || !Array.isArray(marketplaceManifest.plugins)) return [];
+  try {
+    return readMarketplaceBundles(repoRoot);
+  } catch (cause) {
+    errors.push(cause.message);
+    return [];
+  }
+}
+
+const marketplaceManifest = loadManifest(MARKETPLACE_MANIFEST_PATH);
 validateMarketplace(marketplaceManifest);
-validateCrossReferences(pluginManifest, marketplaceManifest);
-validateReleasePin(pluginManifest);
-validateSkills();
-validateBundleHygiene();
+const bundles = listBundles(marketplaceManifest);
+for (const bundle of bundles) {
+  const manifestPath = `${bundle.relativeDirectory}/.claude-plugin/plugin.json`;
+  const manifest = loadManifest(manifestPath);
+  validatePlugin(manifest, manifestPath);
+  validateCrossReference(bundle, manifest, manifestPath);
+  validateReleasePin(bundle, manifest, manifestPath);
+  validateSkills(bundle);
+  validateBundleHygiene(bundle);
+}
 
 if (errors.length > 0) {
   console.error('Manifest validation FAILED:');
@@ -236,4 +250,8 @@ if (errors.length > 0) {
   process.exit(1);
 }
 
-console.log('Manifest validation passed: plugin.json, marketplace.json and skills are valid and portable.');
+const bundleCount = `${bundles.length} ${bundles.length === 1 ? 'bundle' : 'bundles'}`;
+const bundleNames = bundles.map((bundle) => bundle.name).join(', ');
+console.log(
+  `Manifest validation passed: ${bundleCount} (${bundleNames}) — marketplace.json, every plugin manifest, release pin and skill are valid and portable.`,
+);

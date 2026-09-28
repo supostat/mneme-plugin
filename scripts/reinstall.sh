@@ -1,22 +1,20 @@
 #!/usr/bin/env bash
 #
-# Reinstall the mneme plugin from this repo's local marketplace.
+# Reinstall every plugin of this repo's local marketplace.
 #
 # A directory-source install re-copies the CURRENT working tree, so uninstall +
-# install is what picks up edits to the plugin (manifests, SKILL.md, a rebuilt
-# bin/mneme) — `claude plugin update` is version-gated and no-ops while
-# plugin.json's version is unchanged. This script automates that dance.
+# install is what picks up edits to a bundle (manifests, SKILL.md, a rebuilt
+# binary) — `claude plugin update` is version-gated and no-ops while a
+# plugin.json version is unchanged. This script automates that dance.
 #
-# Dev tooling: lives at the repo ROOT, never inside plugin/, so it is not shipped
-# in the installed bundle (same rule as scripts/validate-manifests.mjs).
+# Dev tooling: lives at the repo ROOT, never inside a bundle, so it is not
+# shipped in any installed plugin (same rule as scripts/validate-manifests.mjs).
 #
 # Usage: npm run reinstall   (or: bash scripts/reinstall.sh)
 
 set -euo pipefail
 
-readonly PLUGIN="mneme"
 readonly MARKETPLACE="mneme-marketplace"
-readonly REF="${PLUGIN}@${MARKETPLACE}"
 
 repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$repo_root"
@@ -25,9 +23,11 @@ cd "$repo_root"
 echo "→ validating manifests"
 npm test
 
+plugin_names="$(node scripts/marketplace-bundles.mjs --names)"
+
 # Register the local marketplace if absent, else refresh its cached listing so
 # the current working tree is what gets copied.
-if claude plugin marketplace list 2>/dev/null | grep -q "$MARKETPLACE"; then
+if claude plugin marketplace list 2>/dev/null | grep -qF "$MARKETPLACE"; then
   echo "→ refreshing marketplace $MARKETPLACE"
   claude plugin marketplace update "$MARKETPLACE"
 else
@@ -35,16 +35,20 @@ else
   claude plugin marketplace add ./
 fi
 
-# Uninstall the prior copy if present (install alone will not replace it).
-if claude plugin list 2>/dev/null | grep -q "$REF"; then
-  echo "→ uninstalling $REF"
-  claude plugin uninstall "$REF"
-fi
-
-echo "→ installing $REF (copies the current working tree)"
-claude plugin install "$REF"
+reinstalled=()
+while IFS= read -r plugin_name; do
+  ref="${plugin_name}@${MARKETPLACE}"
+  # Uninstall the prior copy if present (install alone will not replace it).
+  if claude plugin list 2>/dev/null | grep -qF "$ref"; then
+    echo "→ uninstalling $ref"
+    claude plugin uninstall "$ref"
+  fi
+  echo "→ installing $ref (copies the current working tree)"
+  claude plugin install "$ref"
+  reinstalled+=("$ref")
+done <<< "$plugin_names"
 
 echo
-echo "✔ reinstalled $REF"
-echo "  The running session still holds the old registration — run /reload-plugins"
-echo "  (or restart the session) to pick up the new one."
+echo "✔ reinstalled ${reinstalled[*]}"
+echo "  The running session still holds the old registrations — run /reload-plugins"
+echo "  (or restart the session) to pick up the new ones."
