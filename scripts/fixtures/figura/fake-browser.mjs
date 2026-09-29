@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 
-import { readFileSync } from 'node:fs';
+import { readFileSync, writeFileSync } from 'node:fs';
 import { Socket } from 'node:net';
 import { basename } from 'node:path';
 
@@ -32,6 +32,12 @@ let targetCount = 0;
 
 function reply(message) {
   replies.write(`${JSON.stringify(message)}${MESSAGE_TERMINATOR}`);
+}
+
+async function recordPrintedPage(sessionId) {
+  if (process.env.FIGURA_FAKE_PRINTED_PAGE === undefined) return;
+  const response = await fetch(pageUrlBySession.get(sessionId));
+  writeFileSync(process.env.FIGURA_FAKE_PRINTED_PAGE, await response.text());
 }
 
 function evaluate(id, sessionId) {
@@ -80,7 +86,7 @@ function handle({ id, method, params, sessionId }) {
       evaluate(id, sessionId);
       break;
     case 'Page.printToPDF':
-      reply({ id, sessionId, result: { data: Buffer.from(TWO_PAGE_PDF, 'latin1').toString('base64') } });
+      recordPrintedPage(sessionId).then(() => reply({ id, sessionId, result: { data: Buffer.from(TWO_PAGE_PDF, 'latin1').toString('base64') } }));
       break;
     case 'Browser.close':
       reply({ id, result: {} });

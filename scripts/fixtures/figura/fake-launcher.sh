@@ -5,6 +5,9 @@ set -eu
 if [ "${1:-}" = '--warm' ]; then
   exit 0
 fi
+if [ -n "${FIGURA_FAKE_LAUNCHER_LOG:-}" ]; then
+  printf '%s\n' "$*" >>"$FIGURA_FAKE_LAUNCHER_LOG"
+fi
 
 source_file=''
 output_file=''

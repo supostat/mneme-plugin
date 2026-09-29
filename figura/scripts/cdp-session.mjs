@@ -40,7 +40,7 @@ export class CdpSession {
     this.#commandPipe = child.stdio[3];
     this.#profileDirectory = profileDirectory;
     this.#commandTimeoutMilliseconds = commandTimeoutMilliseconds;
-    this.#exited = new Promise((resolve) => child.once('exit', resolve));
+    this.#exited = new Promise((resolve) => child.once('exit', (code, signal) => resolve({ code, signal })));
     child.stdio[4].on('data', (chunk) => this.#receive(chunk));
     child.stderr.on('data', (chunk) => {
       this.#stderrTail = `${this.#stderrTail}${chunk.toString('utf8')}`.slice(-STDERR_TAIL_CHARACTERS);
@@ -48,15 +48,7 @@ export class CdpSession {
     child.once('error', (error) => {
       this.#failAll(new FiguraError('BROWSER-EXITED', `the browser could not start: ${error.message}`));
     });
-    child.once('close', (code, signal) => {
-      const stderrTail = this.#stderrTail.trim();
-      this.#failAll(
-        new FiguraError(
-          'BROWSER-EXITED',
-          `the browser exited (code ${code}, signal ${signal})${stderrTail === '' ? '' : `: ${stderrTail}`}`,
-        ),
-      );
-    });
+    child.once('close', (code, signal) => this.#failAll(this.#exitFailure(code, signal)));
     this.#commandPipe.on('error', (error) => {
       this.#failAll(new FiguraError('BROWSER-EXITED', `the browser closed its command pipe: ${error.message}`));
     });
@@ -112,11 +104,15 @@ export class CdpSession {
     if (this.#failure === undefined) {
       this.#write({ id: this.#nextId++, method: 'Browser.close' });
     }
-    if (!(await settlesWithin(this.#exited, EXIT_GRACE_MILLISECONDS))) {
-      this.#child.kill('SIGKILL');
-      await this.#exited;
-    }
+    if (!(await settlesWithin(this.#exited, EXIT_GRACE_MILLISECONDS))) this.#child.kill('SIGKILL');
+    const { code, signal } = await this.#exited;
+    this.#failAll(this.#exitFailure(code, signal));
     rmSync(this.#profileDirectory, { recursive: true, force: true });
+  }
+
+  #exitFailure(code, signal) {
+    const stderrTail = this.#stderrTail.trim();
+    return new FiguraError('BROWSER-EXITED', `the browser exited (code ${code}, signal ${signal})${stderrTail === '' ? '' : `: ${stderrTail}`}`);
   }
 
   #write(message) {
