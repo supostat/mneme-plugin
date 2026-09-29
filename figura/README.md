@@ -46,6 +46,30 @@ figura/
 └── theme/theme.json             # the one source of colors, fonts, sizes and page geometry
 ```
 
+## Skill
+
+`skills/document/SKILL.md` is `/figura:document`, and Claude Code also picks it on its own for a PDF,
+a document, a spec with flowcharts or sequence diagrams, or an ERD. It copies `template/document.html`
+into the project, writes the source, builds it with `bin/figura build`, fixes every coded failure,
+reads every preview page that holds a diagram and rebuilds until the pages read well; the examples in
+`reference/` are its models. The skill reaches the bundle through `${CLAUDE_PLUGIN_ROOT}`, which
+Claude Code substitutes when the skill loads; the Bash environment does not carry that variable.
+
+## Source format
+
+A document is one HTML file in the shape of `template/document.html`:
+
+- `<html lang="…">` and a `<title>`, which the footer prints on the left of every page;
+- headings `h1` to `h3`, paragraphs, `ul` and `ol` lists, `strong` and inline `code`, and
+  `<pre><code>` blocks for JSON, SQL or shell;
+- a `table` with a `thead`, whose header row repeats on every page the table spans;
+- `div.callout.warning`, `div.callout.note` or `div.callout.decision`, with the label in a leading
+  `strong`;
+- one diagram per `figure`: a `pre.d2` holding D2 source and a `figcaption.caption` whose `strong` is
+  the title and whose rest is the key thought. `data-layout="dagre"` on the `pre` swaps the default
+  ELK layout for dagre. Shapes take the theme's classes (`source`, `core`, `tool`, `app`,
+  `observability`, `neutral`, `note`, and `table` for `sql_table`) instead of colors.
+
 ## Entry
 
 `bin/figura` is a POSIX sh script, because Node.js is not guaranteed on the user's machine. It
@@ -117,6 +141,24 @@ caption lines, and the smallest label size a check accepts.
 
 Chromium has no `string()` for margin boxes, so the footer title cannot come from the stylesheet: the
 build adds an `@page` rule with the document's `<title>` as the content of `@bottom-left`.
+
+## Dependencies
+
+`bin/figura` checks node itself. Every command then runs preflight, which checks all the
+dependencies of that command at once and names each missing one with its recipe:
+
+- Node.js 22 or newer for every command: `figura: error: node 22+ not found — install Node.js 22 or
+  newer (https://nodejs.org)`.
+- Chromium 131 or newer for `check` and `build`, looked up in `FIGURA_CHROME`, then as
+  `google-chrome`, `google-chrome-stable`, `chromium` and `chromium-browser` on `PATH`, then in the
+  macOS application bundles: `brew install --cask google-chrome` (macOS) or `apt install chromium`
+  (Debian/Ubuntu).
+- poppler's `pdftoppm` for `build`: `brew install poppler` (macOS) or `apt install poppler-utils`
+  (Debian/Ubuntu).
+- `psql` only for `erd --source psql`: `brew install libpq && brew link --force libpq` (macOS) or
+  `apt install postgresql-client` (Debian/Ubuntu).
+- d2 installs itself: the launcher below downloads the pinned release on first use, which needs curl,
+  tar and sha256sum or shasum.
 
 ## d2 launcher
 

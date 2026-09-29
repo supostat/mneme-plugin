@@ -6,7 +6,7 @@ import { FiguraError } from './figura-error.mjs';
 export const MINIMUM_CHROMIUM_MAJOR = 131;
 export const CHROMIUM_INSTALL_RECIPE =
   'install Chromium 131 or newer: brew install --cask google-chrome (macOS) or apt install chromium (Debian/Ubuntu), or point FIGURA_CHROME at a Chromium binary';
-const CHROMIUM_UPGRADE_RECIPE =
+export const CHROMIUM_UPGRADE_RECIPE =
   'upgrade it: brew upgrade --cask google-chrome (macOS) or apt install --only-upgrade chromium (Debian/Ubuntu), or point FIGURA_CHROME at a Chromium 131 or newer';
 const PATH_COMMANDS = ['google-chrome', 'google-chrome-stable', 'chromium', 'chromium-browser'];
 const MACOS_APPLICATIONS = [

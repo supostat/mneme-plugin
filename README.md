@@ -208,3 +208,47 @@ Several models are comma-separated and names must match exactly. A declaration
 is still checked against observation — one smaller than a window actually seen
 is dropped. The reverse is not detectable: declare 1M and then switch to a 200k
 model, and the percentage will understate how full the context is.
+
+## figura
+
+figura is the second plugin of this marketplace. It builds technical A4 PDF
+documents from one HTML source: text, tables, callouts, code and diagrams in
+D2 of six types (architecture, sequence, mapping, ERD, flowchart and state),
+all in one theme for the page and the diagrams. Every build checks each
+diagram against the page and renders a preview of every page, so Claude looks
+at the pages before it hands over the PDF.
+
+**Prerequisites:** Node.js 22 or newer, Chromium 131 or newer (Google Chrome
+qualifies) and poppler for the page previews; `psql` only for an ERD read
+from a live PostgreSQL. d2 downloads itself on first use into `~/.figura/bin/`,
+pinned and checked against its SHA256.
+
+From any Claude Code session:
+
+```
+claude plugin marketplace add supostat/mneme-plugin
+claude plugin install figura@mneme-marketplace
+```
+
+Ask for a PDF, a document, a spec with flowcharts or sequence diagrams, or an
+ERD, or call `/figura:document` directly: Claude writes the source, builds it
+with the bundled `figura` CLI, reads every page that holds a diagram and fixes
+what it sees before it hands over the PDF. An ERD comes from the real schema:
+Prisma, TypeORM entities, `db/schema.rb`, or a live database through
+`DATABASE_URL`. Bundle internals: [figura/README.md](figura/README.md).
+
+### figura troubleshooting
+
+Before it builds, figura checks every dependency and names all the missing
+ones at once, each on its own line under `figura: <document> FAILED:`.
+
+| Error line | Meaning | What to do |
+| --- | --- | --- |
+| `figura: error: node 22+ not found — install Node.js 22 or newer (https://nodejs.org)` | Node.js is missing or older than 22. | Install Node.js 22 or newer. |
+| `CHROMIUM-NOT-FOUND: no Chromium in FIGURA_CHROME, on PATH (google-chrome, google-chrome-stable, chromium, chromium-browser) or in /Applications — install Chromium 131 or newer: brew install --cask google-chrome (macOS) or apt install chromium (Debian/Ubuntu), or point FIGURA_CHROME at a Chromium binary` | No browser to measure the diagrams and print the PDF. | Install Chrome or Chromium, or set `FIGURA_CHROME`. |
+| `CHROMIUM-TOO-OLD: … — upgrade it: brew upgrade --cask google-chrome (macOS) or apt install --only-upgrade chromium (Debian/Ubuntu), or point FIGURA_CHROME at a Chromium 131 or newer` | The browser is older than 131 and cannot print the page footer. | Upgrade it as the line says. |
+| `PDFTOPPM-NOT-FOUND: pdftoppm is not on PATH — install poppler: brew install poppler (macOS) or apt install poppler-utils (Debian/Ubuntu)` | No poppler to render the page previews. | Install poppler. |
+| `PSQL-NOT-FOUND: psql is not on PATH — install the PostgreSQL client: brew install libpq && brew link --force libpq (macOS) or apt install postgresql-client (Debian/Ubuntu)` | Only `figura erd --source psql` needs psql. | Install the PostgreSQL client. |
+| `D2-UNAVAILABLE: … — figura-launch: error: download failed (no network or missing release asset): …` | The pinned d2 could not be downloaded. | Check the network; the next build retries. |
+| `D2-UNAVAILABLE: … — figura-launch: error: checksum mismatch for …` | The downloaded d2 does not match the pin. The archive is removed and **nothing is executed**. | Retry; if it persists, open an issue. |
+| `D2-UNAVAILABLE: … — figura-launch: error: unsupported platform: …` / `figura-launch: error: unsupported architecture: …` | d2 has no build for this system. | macOS and Linux on arm64/x64 are the supported set. |
