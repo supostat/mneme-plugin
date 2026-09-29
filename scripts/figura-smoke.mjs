@@ -2,10 +2,11 @@
 //
 // Smoke gate of figura against the real tools, outside npm test: each stage needs what its tool
 // needs — the d2 stage the network, curl and tar, the browser stage Chromium 131 or newer, the
-// render stage a d2 the launcher can serve, the checks stage both d2 and Chromium.
+// render stage a d2 the launcher can serve, the checks stage both d2 and Chromium, the pdf stage d2,
+// Chromium and poppler (pdftoppm, pdftotext).
 
 import { spawnSync } from 'node:child_process';
-import { copyFileSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs';
+import { copyFileSync, existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -21,6 +22,10 @@ import { loadTheme } from '../figura/scripts/theme.mjs';
 
 const FIGURA_BIN = resolve(dirname(fileURLToPath(import.meta.url)), '..', 'figura', 'bin');
 const FIXTURE_DIAGRAMS = resolve(dirname(fileURLToPath(import.meta.url)), 'fixtures', 'figura', 'diagrams');
+const TEMPLATE_DOCUMENT = resolve(dirname(fileURLToPath(import.meta.url)), '..', 'figura', 'template', 'document.html');
+const TEMPLATE_TITLE_WORDS = ['Document', 'title'];
+const FOOTER_BAND_POINTS = 50;
+const POPPLER_RECIPE = 'install poppler: brew install poppler (macOS) or apt install poppler-utils (Debian/Ubuntu)';
 const EXPECTED_FIXTURE_CODES = new Map([
   ['clean', undefined],
   ['label-overlap', 'LABEL-OVERLAP'],
@@ -89,21 +94,53 @@ function renderWithPinnedD2(workDirectory) {
   return problems;
 }
 
+function pdfPageCount(pdf) {
+  return (pdf.toString('latin1').match(/\/Type\s*\/Page(?!s)/g) ?? []).length;
+}
+
+function a4Problems(pdf) {
+  const mediaBoxes = [...pdf.toString('latin1').matchAll(/\/MediaBox\s*\[\s*0\s+0\s+([\d.]+)\s+([\d.]+)\s*\]/g)];
+  if (mediaBoxes.length === 0) return ['the printed PDF carries no MediaBox'];
+  return mediaBoxes
+    .map(([, width, height]) => [Number(width), Number(height)])
+    .filter(
+      ([width, height]) =>
+        Math.abs(width - A4_POINTS.width) > PAGE_SIZE_TOLERANCE_POINTS || Math.abs(height - A4_POINTS.height) > PAGE_SIZE_TOLERANCE_POINTS,
+    )
+    .map(([width, height]) => `a printed page is ${width}×${height} pt, not A4`);
+}
+
 function printedPdfProblems(pdf) {
-  const pdfText = pdf.toString('latin1');
-  const mediaBox = /\/MediaBox\s*\[\s*0\s+0\s+([\d.]+)\s+([\d.]+)\s*\]/.exec(pdfText);
-  const pageCount = (pdfText.match(/\/Type\s*\/Page(?!s)/g) ?? []).length;
-  const problems = [];
-  if (mediaBox === null) {
-    problems.push('the printed PDF carries no MediaBox');
-  } else {
-    const [width, height] = [Number(mediaBox[1]), Number(mediaBox[2])];
-    const isA4 =
-      Math.abs(width - A4_POINTS.width) <= PAGE_SIZE_TOLERANCE_POINTS &&
-      Math.abs(height - A4_POINTS.height) <= PAGE_SIZE_TOLERANCE_POINTS;
-    if (!isA4) problems.push(`the printed page is ${width}×${height} pt, not A4`);
+  const pageCount = pdfPageCount(pdf);
+  return [...a4Problems(pdf), ...(pageCount === 1 ? [] : [`the print of one page produced ${pageCount} pages`])];
+}
+
+function firstPageFooterWords(pdfPath) {
+  const layout = spawnSync('pdftotext', ['-bbox', pdfPath, '-'], { encoding: 'utf8' });
+  if (layout.error?.code === 'ENOENT') return { problem: `pdftotext is not on PATH — ${POPPLER_RECIPE}` };
+  const firstPage = layout.stdout.split('<page ')[1] ?? '';
+  const pageHeight = Number(/height="([\d.]+)"/.exec(firstPage)?.[1]);
+  const words = [...firstPage.matchAll(/<word xMin="[\d.]+" yMin="([\d.]+)" xMax="[\d.]+" yMax="[\d.]+">([^<]*)<\/word>/g)]
+    .filter(([, yMin]) => Number(yMin) > pageHeight - FOOTER_BAND_POINTS)
+    .map(([, , word]) => word);
+  return { words };
+}
+
+function buildTemplateWithRealTools(workDirectory) {
+  const documentPath = join(workDirectory, 'smoke-document.html');
+  copyFileSync(TEMPLATE_DOCUMENT, documentPath);
+  const build = spawnSync('/bin/sh', [join(FIGURA_BIN, 'figura'), 'build', documentPath], { cwd: workDirectory, encoding: 'utf8' });
+  if (build.status !== 0) return [`figura build exited with ${build.status}: ${`${build.stderr}${build.stdout}`.trim()}`];
+  const pdf = readFileSync(join(workDirectory, 'smoke-document.pdf'));
+  const problems = a4Problems(pdf);
+  const footer = firstPageFooterWords(join(workDirectory, 'smoke-document.pdf'));
+  if (footer.problem !== undefined) return [...problems, footer.problem];
+  for (const expectedWord of [...TEMPLATE_TITLE_WORDS, '1']) {
+    if (!footer.words.includes(expectedWord)) problems.push(`the footer of page 1 lacks "${expectedWord}" (it reads ${JSON.stringify(footer.words)})`);
   }
-  if (pageCount !== 1) problems.push(`the print of one page produced ${pageCount} pages`);
+  const previews = readdirSync(join(workDirectory, '.figura', 'smoke-document')).filter((fileName) => fileName.endsWith('.png'));
+  const pageCount = pdfPageCount(pdf);
+  if (previews.length !== pageCount) problems.push(`${previews.length} previews for ${pageCount} pages`);
   return problems;
 }
 
@@ -246,6 +283,13 @@ const STAGES = new Map([
     {
       check: checkFixturesWithRealTools,
       passed: 'the real d2 and Chromium measured the fixtures: the clean one passes, the others fail with LABEL-OVERLAP, TEXT-OVERFLOW, DIAGRAM-TOO-WIDE and DIAGRAM-TOO-TALL',
+    },
+  ],
+  [
+    'pdf',
+    {
+      check: buildTemplateWithRealTools,
+      passed: 'figura build printed the template as A4 with the title and page number in the footer and one preview per page',
     },
   ],
 ]);

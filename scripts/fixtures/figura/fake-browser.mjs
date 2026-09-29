@@ -6,6 +6,16 @@ import { basename } from 'node:path';
 
 const MESSAGE_TERMINATOR = '\0';
 const FAKE_VERSION = 'Chromium 131.0.6778.0';
+const TWO_PAGE_PDF = [
+  '%PDF-1.4',
+  '1 0 obj << /Type /Catalog /Pages 2 0 R >> endobj',
+  '2 0 obj << /Type /Pages /Kids [3 0 R 4 0 R] /Count 2 >> endobj',
+  '3 0 obj << /Type /Page /Parent 2 0 R /MediaBox [0 0 594.96 841.92] >> endobj',
+  '4 0 obj << /Type /Page /Parent 2 0 R /MediaBox [0 0 594.96 841.92] >> endobj',
+  'trailer << /Root 1 0 R >>',
+  '%%EOF',
+  '',
+].join('\n');
 
 if (process.argv.includes('--version')) {
   console.log(FAKE_VERSION);
@@ -28,11 +38,7 @@ function evaluate(id, sessionId) {
   if (recordedMeasurements === undefined) return;
   const fileName = basename(new URL(pageUrlBySession.get(sessionId)).pathname);
   const measurement = recordedMeasurements[fileName];
-  if (measurement === undefined) {
-    reply({ id, sessionId, result: { result: { type: 'undefined' }, exceptionDetails: { text: `no recorded measurement for ${fileName}` } } });
-    return;
-  }
-  reply({ id, sessionId, result: { result: { type: 'object', value: measurement } } });
+  reply({ id, sessionId, result: { result: measurement === undefined ? { type: 'undefined' } : { type: 'object', value: measurement } } });
 }
 
 function handle({ id, method, params, sessionId }) {
@@ -72,6 +78,9 @@ function handle({ id, method, params, sessionId }) {
       break;
     case 'Runtime.evaluate':
       evaluate(id, sessionId);
+      break;
+    case 'Page.printToPDF':
+      reply({ id, sessionId, result: { data: Buffer.from(TWO_PAGE_PDF, 'latin1').toString('base64') } });
       break;
     case 'Browser.close':
       reply({ id, result: {} });

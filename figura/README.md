@@ -13,6 +13,7 @@ figura/
 ├── bin/release.json             # pin of the d2 release the launcher downloads
 ├── fonts/                       # Inter and JetBrains Mono, each beside its SIL OFL license
 ├── scripts/browser-locate.mjs   # finds Chromium 131 or newer
+├── scripts/build-report.mjs     # the failure report and the build success line
 ├── scripts/cdp-session.mjs      # CDP client over --remote-debugging-pipe
 ├── scripts/extract-diagrams.mjs # finds every pre.d2 with its layout and figure caption
 ├── scripts/figura-error.mjs     # the coded error every figura failure line comes from
@@ -22,6 +23,8 @@ figura/
 ├── scripts/loopback-server.mjs  # loopback HTTP server the browser loads everything from
 ├── scripts/measure-diagram.mjs  # opens each SVG in Chromium and collects the boxes of shapes and labels
 ├── scripts/preflight.mjs        # checks every dependency of a command at once
+├── scripts/print-pdf.mjs        # assembles the printable document and prints it to PDF
+├── scripts/rasterize-pages.mjs  # writes one PNG preview per page into .figura/<name>/
 ├── scripts/render-diagram.mjs   # runs d2 with the theme classes, padding and Inter files
 ├── scripts/theme.mjs            # theme loader: CSS custom properties, D2 classes, page geometry
 ├── template/document.html       # the source format of a figura document
@@ -44,6 +47,15 @@ caption, LABEL-OVERLAP when a label crosses a foreign shape or label, and TEXT-O
 spills out of its own shape. It prints one success line, or `figura: <document> FAILED:` with one
 `CODE: what — remedy` line per problem and exit status 1; it builds no PDF. An unknown command prints
 the usage and exits with status 2.
+
+`bin/figura build <document.html>` runs the same check and stops without a PDF on any problem.
+Otherwise it prints the document next to its source (`doc.html` gives `doc.pdf`) with the theme,
+the title on the left of the footer and the page number on the right, keeps every heading on the
+page of the block that follows it, and renders one preview per page with
+`pdftoppm -png -r 120` into `.figura/<name>/page-NN.png`. When it first creates `.figura/`, it puts
+a `.gitignore` holding `*` there, so the project's git never sees the previews. Every build starts by
+removing the previous PDF and previews of the document. Success is one line with the page, diagram
+and warning counts and the preview paths.
 
 ## Theme
 

@@ -4,20 +4,20 @@ import { existsSync, mkdtempSync, readFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { locateChromium } from './browser-locate.mjs';
+import { buildSuccessLine, failureReport } from './build-report.mjs';
 import { extractDiagrams } from './extract-diagrams.mjs';
 import { FiguraError } from './figura-error.mjs';
+import { inlineDiagrams } from './inline-diagrams.mjs';
 import { layoutLimits, layoutProblems } from './layout-checks.mjs';
 import { measureDiagrams } from './measure-diagram.mjs';
 import { preflight } from './preflight.mjs';
+import { printableDocument, printPdf } from './print-pdf.mjs';
+import { clearPreviews, rasterizePages } from './rasterize-pages.mjs';
 import { renderDiagram } from './render-diagram.mjs';
 import { loadTheme } from './theme.mjs';
 
 const MANIFEST_URL = new URL('../.claude-plugin/plugin.json', import.meta.url);
-const USAGE = 'usage: figura <command>\ncommands:\n  version\n  check <document.html>';
-
-function failureReport(documentPath, problems) {
-  return [`figura: ${documentPath} FAILED:`, ...problems.map((problem) => `  - ${problem.message}`)].join('\n');
-}
+const USAGE = 'usage: figura <command>\ncommands:\n  version\n  check <document.html>\n  build <document.html>';
 
 function printVersion() {
   const manifest = JSON.parse(readFileSync(MANIFEST_URL, 'utf8'));
@@ -54,16 +54,22 @@ async function checkDocument(documentPath, workDirectory) {
   return { html, theme, diagrams: rendered, problems };
 }
 
-async function checkCommand([documentArgument]) {
+function existingDocumentPath(documentArgument) {
   if (documentArgument === undefined) {
     console.error(USAGE);
-    return 2;
+    return undefined;
   }
   const documentPath = resolve(documentArgument);
   if (!existsSync(documentPath)) {
     console.error(`figura: error: ${documentPath} does not exist`);
-    return 2;
+    return undefined;
   }
+  return documentPath;
+}
+
+async function checkCommand([documentArgument]) {
+  const documentPath = existingDocumentPath(documentArgument);
+  if (documentPath === undefined) return 2;
   const missing = preflight('check');
   if (missing.length > 0) {
     console.error(failureReport(documentPath, missing));
@@ -87,9 +93,43 @@ async function checkCommand([documentArgument]) {
   }
 }
 
+async function buildCommand([documentArgument]) {
+  const documentPath = existingDocumentPath(documentArgument);
+  if (documentPath === undefined) return 2;
+  const pdfPath = `${documentPath.replace(/\.html?$/i, '')}.pdf`;
+  rmSync(pdfPath, { force: true });
+  clearPreviews(documentPath);
+  const missing = preflight('build');
+  if (missing.length > 0) {
+    console.error(failureReport(documentPath, missing));
+    return 1;
+  }
+  const workDirectory = mkdtempSync(join(tmpdir(), 'figura-build-'));
+  try {
+    const { html, theme, diagrams, problems } = await checkDocument(documentPath, workDirectory);
+    if (problems.length > 0) {
+      console.error(failureReport(documentPath, problems));
+      return 1;
+    }
+    const printable = printableDocument(inlineDiagrams(html, diagrams), theme);
+    const { pageCount } = await printPdf(printable, { executablePath: locateChromium().executablePath, pdfPath });
+    const previewPaths = rasterizePages(pdfPath, documentPath);
+    console.log(buildSuccessLine({ pdfPath, pageCount, diagramCount: diagrams.length, warnings: [], previewPaths }));
+    return 0;
+  } catch (error) {
+    if (!(error instanceof FiguraError)) throw error;
+    rmSync(pdfPath, { force: true });
+    console.error(failureReport(documentPath, [error]));
+    return 1;
+  } finally {
+    rmSync(workDirectory, { recursive: true, force: true });
+  }
+}
+
 const COMMANDS = new Map([
   ['version', printVersion],
   ['check', checkCommand],
+  ['build', buildCommand],
 ]);
 
 const [commandName, ...commandArguments] = process.argv.slice(2);

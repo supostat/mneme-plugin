@@ -17,7 +17,7 @@ const NAMED_CHARACTERS = new Map([
 ]);
 const LARGEST_CODE_POINT = 0x10ffff;
 
-function decodeHtmlText(text) {
+export function decodeHtmlText(text) {
   return text.replace(CHARACTER_REFERENCE, (reference, body) => {
     if (!body.startsWith('#')) return NAMED_CHARACTERS.get(body.toLowerCase()) ?? reference;
     const codePoint = /^#x/i.test(body) ? Number.parseInt(body.slice(2), 16) : Number.parseInt(body.slice(1), 10);

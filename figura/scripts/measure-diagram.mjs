@@ -75,6 +75,9 @@ export async function measureDiagrams(svgPaths, { executablePath, commandTimeout
           'run the check again; if it repeats, the SVG from d2 is not what figura expects',
         );
       }
+      if (evaluation.result.value === undefined) {
+        throw new FiguraError('MEASURE-FAILED', `measuring ${basename(svgPath)} returned nothing`, 'run the check again');
+      }
       measurements.push(evaluation.result.value);
     }
     return measurements;
