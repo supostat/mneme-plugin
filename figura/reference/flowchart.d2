@@ -1,0 +1,17 @@
+direction: right
+
+platform: "Platform team\nfew people" {class: neutral}
+owners: "App owners\n/teams/app-owners" {class: neutral}
+services: "Service accounts\nprovisioning, CI" {class: neutral}
+
+admin: "Directory admin role\nno scoping" {class: core}
+scoped: "Scoped admin permissions\nclients: view, configure\ngroups: manage members" {class: core}
+narrow: "Narrow roles\nprovisioning: users only\nCI: clients, through Git" {class: core}
+
+everything: "Everything\nin the directory" {class: app}
+own: "Only their own client\nand its groups" {class: app}
+api: "Only the API\neach integration needs" {class: app}
+
+platform -> admin -> everything
+owners -> scoped -> own
+services -> narrow -> api

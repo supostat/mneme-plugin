@@ -1,0 +1,110 @@
+---
+name: document
+description: Builds technical A4 PDF documents with D2 diagrams (architecture, sequence, mapping, ERD, flowchart and state) from one HTML source, checks every diagram against the page and previews every page. Use it when the user asks for a PDF, a document, a spec with flowcharts or sequence diagrams, or an ERD of a database or an ORM schema.
+allowed-tools: [Read, Write, Edit, Bash]
+---
+
+# /figura:document — technical A4 PDFs with D2 diagrams
+
+figura turns one HTML source into an A4 PDF: text, tables, callouts, code and diagrams written in D2.
+The theme owns every color, font and measure, D2 owns the layout of each diagram, and the print
+stylesheet owns the page. You write the source; you never place anything by coordinates.
+
+## Workflow
+
+1. Copy the template `${CLAUDE_PLUGIN_ROOT}/template/document.html` to where the document belongs
+   in the project (for example `docs/<name>.html`) and write the content in its format (below).
+   `${CLAUDE_PLUGIN_ROOT}/reference/demo.html` uses every block and every diagram type.
+2. Build it with Bash: `${CLAUDE_PLUGIN_ROOT}/bin/figura build docs/<name>.html`.
+3. Read the report. A failed build prints `figura: <document> FAILED:` and one
+   `CODE: what — remedy` line per problem, and writes no PDF. Fix every line (see
+   `## Failure codes`) and build again.
+4. Review the pages. A successful build prints one line with the PDF path and the previews in
+   `.figura/<name>/page-NN.png`. Open every preview page that holds a diagram with Read and look for
+   what the checks cannot see: an edge crossing a title, a label that says too little, a crowded
+   diagram, a heading left alone at the bottom of a page. Fix the source and build again until
+   the pages read well.
+5. Deliver the build's success line and the PDF path.
+
+`${CLAUDE_PLUGIN_ROOT}/bin/figura check docs/<name>.html` runs the same checks without printing a
+PDF.
+
+## Source format
+
+- `<html lang="…">` and a `<title>`; the title goes into the footer of every page.
+- Headings `h1`–`h3`, paragraphs, `ul` and `ol` lists, `strong`, inline `code`.
+- Code blocks: `<pre><code>…</code></pre>` for JSON, SQL and shell.
+- Tables: `table` with a `thead`; the header row repeats on every page the table spans.
+- Callouts: `<div class="callout warning">`, `callout note` or `callout decision`, with the label
+  in a `strong` first.
+- Diagrams: one per `figure`, as
+  `<figure><pre class="d2">…</pre><figcaption class="caption"><strong>Title.</strong> The key
+  thought.</figcaption></figure>`. Escape `<` and `&` in the D2 source as `&lt;` and `&amp;`.
+
+## Diagram rules
+
+- Give every shape a role class, never a color: `class: source`, `core`, `tool`, `app`,
+  `observability`, `neutral` or `note`. A `sql_table` takes `class: table`.
+- Keep labels short: a name and at most one short line under it.
+- No more than 15 shapes in one diagram. Split a larger picture into several diagrams.
+- One idea per diagram, and its caption says it: a title in `strong`, then the key thought.
+- Number the messages of a sequence diagram: `1. …`, `2. …`; draw replies and events dashed with
+  `{style.stroke-dash: 3}`.
+- Layout: ELK by default. When ELK stretches a diagram too tall or too wide, set
+  `data-layout="dagre"` on its `pre`; the architecture and state references are drawn with dagre.
+- Structure is D2's job: `direction`, containers, `label.near` and connections. Never set positions,
+  sizes or colors.
+
+One reference example per diagram type, each building clean on A4:
+
+- `${CLAUDE_PLUGIN_ROOT}/reference/architecture.d2` — a container of components with the systems
+  around it, solid and dashed labelled connections (`data-layout="dagre"`).
+- `${CLAUDE_PLUGIN_ROOT}/reference/sequence.d2` — `shape: sequence_diagram`, numbered messages,
+  dashed replies, notes on lifelines.
+- `${CLAUDE_PLUGIN_ROOT}/reference/mapping.d2` — column containers with connections between them.
+- `${CLAUDE_PLUGIN_ROOT}/reference/erd.d2` — `sql_table` shapes with keys, domains as containers,
+  crow's foot ends; the format `figura erd` writes.
+- `${CLAUDE_PLUGIN_ROOT}/reference/flowchart.d2` — who, mechanism and scope in three columns:
+  `direction: right`, no containers.
+- `${CLAUDE_PLUGIN_ROOT}/reference/state.d2` — states and labelled transitions
+  (`data-layout="dagre"`).
+
+## ERD from a real schema
+
+`figura erd` reads a schema and writes `erd-NN.d2` files, splitting a schema that does not fit one
+page into parts; paste each part into its own `figure`. A relation cut by the split ends in a stub
+that names the other diagram.
+
+- Prisma: `${CLAUDE_PLUGIN_ROOT}/bin/figura erd --source prisma prisma/schema.prisma --out docs/erd`
+  (a directory of `.prisma` files works too).
+- TypeORM: `--source typeorm src` reads the entity files; names follow TypeORM's default naming
+  strategy, so a project with a custom naming strategy gets truer names from the database.
+- Rails: `--source rails db/schema.rb`.
+- A live PostgreSQL: `--source psql` reads the address from `DATABASE_URL`. Prefer the environment
+  variable to `--url`, because a command-line argument shows in the process list.
+- A hand-written schema: `--source manual <schema.json>` in the format of
+  `${CLAUDE_PLUGIN_ROOT}/reference/erd-manual.json`.
+
+Flags: `--hide-service-columns` hides the created, updated and deleted timestamps, `--tables a,b`
+keeps a subset, and `--domains '{"domain": ["table", "prefix*"]}'` groups tables into domains. A
+`TYPEORM-UNSUPPORTED` warning lists the entity declarations the parser left out of the diagrams.
+
+## Failure codes
+
+| Code | What to do |
+| --- | --- |
+| `DIAGRAM-TOO-WIDE` | Change the direction, try `data-layout="dagre"`, shorten labels, or split the diagram |
+| `DIAGRAM-TOO-TALL` | Change the direction, try `data-layout="dagre"`, or split the diagram |
+| `LABEL-OVERLAP` | Shorten or drop the label, or change the layout or the direction |
+| `TEXT-OVERFLOW` | Shorten the label or break it into two short lines |
+| `D2-FAILED` | Fix the D2 syntax at the line the message names |
+| `DOCUMENT-INVALID` | Fix the HTML the message names |
+| `ERD-INVALID` | Fix the schema, or the `--tables` or `--domains` value the message names |
+| `PSQL-FAILED` | Check that the database is reachable and the credentials are right |
+| `CDP-TIMEOUT`, `CDP-COMMAND-FAILED`, `BROWSER-EXITED`, `MEASURE-FAILED`, `PRINT-FAILED`, `PREVIEW-FAILED` | Build again; if the same line comes back, report it to the user as it is |
+| `D2-UNAVAILABLE`, `CHROMIUM-NOT-FOUND`, `CHROMIUM-TOO-OLD`, `PDFTOPPM-NOT-FOUND`, `PSQL-NOT-FOUND` | Install what the message names, with the command it gives |
+
+## Output
+
+The build's success line and the PDF path, as plain text. The documents are the product; this skill
+presents no menus.

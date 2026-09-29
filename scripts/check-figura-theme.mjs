@@ -1,14 +1,16 @@
 #!/usr/bin/env node
 //
-// Gate for figura/scripts/theme.mjs: the theme yields CSS custom properties and a D2 class for every
-// role and exports the page geometry, the caption reserve and the label threshold; a broken theme
-// fails with its named error; figura/template/print.css loads only the theme's existing font files.
+// Gate for figura/scripts/theme.mjs: the theme yields CSS custom properties, a D2 class for every
+// role and a table class for sql_table shapes, and exports the page geometry, the caption reserve
+// and the label threshold; a broken theme fails with its named error; figura/template/print.css
+// loads only the theme's existing font files.
 
 import { existsSync, readFileSync } from 'node:fs';
 import { dirname, join, relative, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import {
   ROLE_NAMES,
+  SQL_TABLE_CLASS,
   captionReservePoints,
   d2Classes,
   loadTheme,
@@ -35,7 +37,7 @@ function parseD2Classes(classesText) {
       colorsByClass.set(currentClass, {});
       continue;
     }
-    const color = /^\s+(fill|stroke|font-color): "(#[0-9a-f]{6})"$/.exec(line);
+    const color = /^\s+(fill|stroke|font-color): "(#[0-9a-f]{6}|transparent)"$/.exec(line);
     if (color !== null && currentClass !== undefined) colorsByClass.get(currentClass)[color[1]] = color[2];
   }
   return colorsByClass;
@@ -61,6 +63,11 @@ function checkRoleOutputs(theme) {
     } else if (JSON.stringify(classColors) !== JSON.stringify(expected)) {
       failures.push(`D2 class "${role}" carries ${JSON.stringify(classColors)}, expected ${JSON.stringify(expected)}`);
     }
+  }
+  const tableColors = colorsByClass.get(SQL_TABLE_CLASS);
+  const expectedTableColors = { fill: theme.table.headerFill, stroke: 'transparent', 'font-color': theme.text.primary };
+  if (JSON.stringify(tableColors) !== JSON.stringify(expectedTableColors)) {
+    failures.push(`D2 class "${SQL_TABLE_CLASS}" carries ${JSON.stringify(tableColors)}, expected ${JSON.stringify(expectedTableColors)} — d2 fills sql_table rows with the stroke value`);
   }
 }
 
@@ -171,5 +178,5 @@ if (failures.length > 0) {
   process.exit(1);
 }
 console.log(
-  'figura theme check passed: every role has its CSS properties and D2 class, the geometry, caption reserve and label threshold are exported, a missing role, a bad color and a missing font file are each rejected by name, and print.css loads only the theme fonts.',
+  'figura theme check passed: every role has its CSS properties and D2 class, sql_table shapes have their table class, the geometry, caption reserve and label threshold are exported, a missing role, a bad color and a missing font file are each rejected by name, and print.css loads only the theme fonts.',
 );

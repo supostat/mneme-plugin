@@ -1,0 +1,14 @@
+direction: down
+
+invited: "Invited\nprofile from HR" {class: neutral}
+active: "Active\nsigns in, holds groups" {class: app}
+suspended: "Suspended\nsign-in blocked" {class: note}
+departed: "Departed\naccess removed" {class: source}
+deleted: "Deleted\nafter retention" {class: neutral}
+
+invited -> active: first sign-in
+active -> suspended: 60 days idle
+suspended -> active: HR renews
+active -> departed: leaving date
+suspended -> departed: 14 more days
+departed -> deleted: retention ends

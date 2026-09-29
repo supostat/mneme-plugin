@@ -1,0 +1,290 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Staff identity platform</title>
+  </head>
+  <body>
+    <h1>Staff identity platform</h1>
+    <p>One identity core is the master for staff identity. The <strong>HR system</strong> writes people into it, <code>workflows</code> turn their attributes into group membership, and every app is a client with its own roles. Developers never hold full admin: the developer portal shows their apps, and structural changes land through Git.</p>
+
+    <h2>Who owns what</h2>
+    <table>
+      <thead>
+        <tr>
+          <th>Component</th>
+          <th>Owns</th>
+          <th>Never does</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>HR system</td>
+          <td>Who exists, their HR attributes, joining and leaving dates</td>
+          <td>Decide app access</td>
+        </tr>
+        <tr>
+          <td>Identity core</td>
+          <td>Sign-in, sessions, groups, roles, tokens and lifecycle rules</td>
+          <td>Hold app-specific business data</td>
+        </tr>
+        <tr>
+          <td>Git + CI</td>
+          <td>Client definitions, roles, group-to-role mappings and permissions</td>
+          <td>Hold secrets in plain text</td>
+        </tr>
+        <tr>
+          <td>Provisioning worker</td>
+          <td>Pushing users out to apps that keep local accounts</td>
+          <td>Decide who gets access</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <h2>Architecture</h2>
+    <figure>
+      <pre class="d2" data-layout="dagre">
+direction: down
+
+people: "HR system\nsource of people" {class: source}
+portal: "Developer portal\ncatalog, templates" {class: tool}
+delivery: "Git + CI\ninfra as code" {class: neutral}
+monitoring: "Monitoring\nper-app dashboards" {class: observability}
+
+directory: "Identity core: staff realm" {
+  label.near: outside-right-top
+  inbound: "Inbound API and profile\nHR writes users, attributes" {class: core}
+  workflows: "Workflows and groups\nattributes to client roles" {class: core}
+  clients: "Clients\none per app, own roles" {class: core}
+  inbound -> workflows -> clients
+}
+
+provisioner: "Provisioning worker\nper-client config" {class: tool}
+scheduling: "Scheduling app\nOIDC + SCIM" {class: app}
+expenses: "Expenses app\nOIDC + SCIM" {class: app}
+inventory: "Inventory app\nOIDC + SCIM" {class: app}
+
+people -> directory.inbound
+portal -> delivery: pull request
+delivery -> directory.workflows
+directory.clients -> provisioner
+provisioner -> scheduling: provisioning
+provisioner -> expenses
+provisioner -> inventory
+directory -> monitoring: sign-in events {style.stroke-dash: 3}
+portal -> monitoring: embeds dashboards {style.stroke-dash: 3}
+</pre>
+      <figcaption class="caption"><strong>The platform at a glance.</strong> People come from HR, access comes from groups, and every structural change goes through Git.</figcaption>
+    </figure>
+
+    <h2>Clients, roles and groups</h2>
+    <p>Each app gets one client and defines its own roles on it. Roles are never assigned to people directly: they are mapped onto groups, and people join groups. One group can hold any number of roles across any number of apps.</p>
+
+    <figure>
+      <pre class="d2">
+direction: right
+
+groups: Groups {
+  managers: site-managers {class: app}
+  staff: staff {class: app}
+  approvers: approvers {class: app}
+}
+
+roles: Client roles {
+  view: shifts.view {class: source}
+  edit: shifts.edit {class: source}
+  publish: shifts.publish {class: source}
+  claims: claims.view {class: source}
+  approve: claims.approve {class: source}
+}
+
+token: "Scheduling token\nshifts.view\nshifts.edit\nshifts.publish\nsites: S012, S044" {class: core}
+
+groups.managers -> roles.view
+groups.managers -> roles.edit
+groups.managers -> roles.publish
+groups.managers -> roles.claims
+groups.staff -> roles.view
+groups.approvers -> roles.claims
+groups.approvers -> roles.approve
+roles -> token
+</pre>
+      <figcaption class="caption"><strong>Groups carry roles into tokens.</strong> A site manager in one group gets four roles across two apps, and the scheduling token carries only its own.</figcaption>
+    </figure>
+
+    <h3>Rules for every client</h3>
+    <ul>
+      <li>Client roles, not directory-wide roles, for anything app-specific.</li>
+      <li>Roles are verbs on the app&apos;s own nouns, such as <code>shifts.publish</code>, defined by the app team.</li>
+      <li>Site scoping lives in the <code>sites</code> claim, never in role names.</li>
+    </ul>
+
+    <h3>Example token</h3>
+    <pre><code>{
+  "azp": "scheduling",
+  "employee_type": "salaried",
+  "sites": ["S012", "S044"],
+  "resource_access": { "scheduling": { "roles": ["shifts.view", "shifts.publish"] } }
+}</code></pre>
+
+    <h2>Joiners, end to end</h2>
+    <ol>
+      <li>The HR system creates the user through the inbound provisioning API.</li>
+      <li>Workflows put the user into the groups the attributes call for.</li>
+      <li>The provisioning worker creates the account in every app in scope.</li>
+    </ol>
+
+    <figure>
+      <pre class="d2">
+shape: sequence_diagram
+
+hr: HR system {class: source}
+directory: Identity core {class: core}
+provisioner: Provisioning worker {class: tool}
+app: Scheduling app {class: app}
+
+hr -> directory: "1. Create user (employee ID, type, sites)"
+directory."The profile validates the attributes" {class: note}
+directory."Workflows add the type and site groups" {class: note}
+directory -> provisioner: "2. Event: user created, groups changed" {style.stroke-dash: 3}
+provisioner."The app is in scope for this user" {class: note}
+provisioner -> app: "3. Create user"
+app -> provisioner: "4. 201 Created" {style.stroke-dash: 3}
+</pre>
+      <figcaption class="caption"><strong>A joiner needs no human.</strong> HR creates the person once, and every app in scope gets its account from the event.</figcaption>
+    </figure>
+
+    <div class="callout warning"><strong>Check before relying on it</strong> Confirm that an attribute update, not only user creation, triggers a workflow on your exact version, and keep one owner per group branch.</div>
+
+    <h2>Delegation</h2>
+    <p>Scoped admin permissions grant specific admin actions on specific clients and groups instead of broad administrative roles.</p>
+
+    <figure>
+      <pre class="d2">
+direction: right
+
+platform: "Platform team\nfew people" {class: neutral}
+owners: "App owners\n/teams/app-owners" {class: neutral}
+services: "Service accounts\nprovisioning, CI" {class: neutral}
+
+admin: "Directory admin role\nno scoping" {class: core}
+scoped: "Scoped admin permissions\nclients: view, configure\ngroups: manage members" {class: core}
+narrow: "Narrow roles\nprovisioning: users only\nCI: clients, through Git" {class: core}
+
+everything: "Everything\nin the directory" {class: app}
+own: "Only their own client\nand its groups" {class: app}
+api: "Only the API\neach integration needs" {class: app}
+
+platform -> admin -> everything
+owners -> scoped -> own
+services -> narrow -> api
+</pre>
+      <figcaption class="caption"><strong>Who can change what.</strong> Each team reaches only its own client and groups, and each integration only the API it needs.</figcaption>
+    </figure>
+
+    <div class="callout note"><strong>Note</strong> Delegate through group membership: user permissions apply to the whole directory, not to a chosen set of users.</div>
+
+    <h2>Account lifecycle</h2>
+    <figure>
+      <pre class="d2" data-layout="dagre">
+direction: down
+
+invited: "Invited\nprofile from HR" {class: neutral}
+active: "Active\nsigns in, holds groups" {class: app}
+suspended: "Suspended\nsign-in blocked" {class: note}
+departed: "Departed\naccess removed" {class: source}
+deleted: "Deleted\nafter retention" {class: neutral}
+
+invited -> active: first sign-in
+active -> suspended: 60 days idle
+suspended -> active: HR renews
+active -> departed: leaving date
+suspended -> departed: 14 more days
+departed -> deleted: retention ends
+</pre>
+      <figcaption class="caption"><strong>Every account ends deleted.</strong> Idle accounts are suspended first, and HR decides whether they come back.</figcaption>
+    </figure>
+
+    <h2>Data model</h2>
+    <p>The ERD comes from the real schema: <code>figura erd</code> reads Prisma, TypeORM, <code>schema.rb</code> or the live database and splits a large schema into diagrams that fit the page.</p>
+
+    <pre><code>figura erd --source prisma prisma/schema.prisma --out docs/erd --hide-service-columns</code></pre>
+
+    <figure>
+      <pre class="d2">
+"identity": {
+  label.near: top-left
+  "accounts": {
+    shape: sql_table
+    class: table
+    "id": "uuid" {constraint: primary_key}
+    "email": "varchar(320)" {constraint: unique}
+    "display_name": "text"
+  }
+  "credentials": {
+    shape: sql_table
+    class: table
+    "id": "uuid" {constraint: primary_key}
+    "account_id": "uuid" {constraint: [foreign_key; unique]}
+    "password_hash": "text"
+  }
+}
+"sales": {
+  label.near: top-left
+  "orders": {
+    shape: sql_table
+    class: table
+    "id": "uuid" {constraint: primary_key}
+    "account_id": "uuid" {constraint: foreign_key}
+    "placed_at": "timestamptz"
+  }
+}
+"identity"."credentials"."account_id" -> "identity"."accounts"."id": {source-arrowhead.shape: cf-one; target-arrowhead.shape: cf-one}
+"sales"."orders"."account_id" -> "identity"."accounts"."id": {source-arrowhead.shape: cf-many; target-arrowhead.shape: cf-one}
+</pre>
+      <figcaption class="caption"><strong>Accounts at the centre.</strong> Credentials belong to exactly one account, and an account places any number of orders.</figcaption>
+    </figure>
+
+    <pre><code>select a.email, count(o.id) as orders
+from accounts a
+left join orders o on o.account_id = a.id
+group by a.email;</code></pre>
+
+    <div class="callout decision"><strong>Decision</strong> The HR system is the only writer of HR attributes, so nobody can grant themselves access by editing their own profile.</div>
+
+    <h2 lang="ru">Раздел на русском</h2>
+    <p lang="ru">Кадровая система — единственный источник данных о людях. Ядро идентификации превращает их атрибуты в <strong>группы</strong>, а группы — в роли приложений; токен несёт только роли своего приложения.</p>
+    <table lang="ru">
+      <thead>
+        <tr>
+          <th>Компонент</th>
+          <th>Отвечает за</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>Кадровая система</td>
+          <td>Кто работает, их атрибуты, даты найма и увольнения</td>
+        </tr>
+        <tr>
+          <td>Ядро идентификации</td>
+          <td>Вход, группы, роли и токены</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <figure>
+      <pre class="d2">
+direction: down
+
+hr: "Кадровая система\nисточник данных о людях" {class: source}
+core: "Ядро идентификации\nгруппы и роли" {class: core}
+app: "Приложение\nвход по OIDC" {class: app}
+
+hr -> core: создаёт пользователя
+core -> app: выдаёт токен
+</pre>
+      <figcaption class="caption"><strong>Путь пользователя.</strong> Человек появляется в кадровой системе один раз, а доступ получает через группы.</figcaption>
+    </figure>
+  </body>
+</html>

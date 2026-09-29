@@ -1,0 +1,26 @@
+direction: right
+
+groups: Groups {
+  managers: site-managers {class: app}
+  staff: staff {class: app}
+  approvers: approvers {class: app}
+}
+
+roles: Client roles {
+  view: shifts.view {class: source}
+  edit: shifts.edit {class: source}
+  publish: shifts.publish {class: source}
+  claims: claims.view {class: source}
+  approve: claims.approve {class: source}
+}
+
+token: "Scheduling token\nshifts.view\nshifts.edit\nshifts.publish\nsites: S012, S044" {class: core}
+
+groups.managers -> roles.view
+groups.managers -> roles.edit
+groups.managers -> roles.publish
+groups.managers -> roles.claims
+groups.staff -> roles.view
+groups.approvers -> roles.claims
+groups.approvers -> roles.approve
+roles -> token

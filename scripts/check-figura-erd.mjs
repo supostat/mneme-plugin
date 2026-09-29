@@ -60,12 +60,12 @@ function checkD2(referenceModel) {
   const source = erdD2(referenceModel, allTables);
   for (const expected of [
     'shape: sql_table',
-    'class: core',
+    'class: table',
     '"id": "uuid" {constraint: primary_key}',
     '"email": "text" {constraint: unique}',
     '"account_id": "uuid" {constraint: foreign_key}',
     '"order_id": "uuid" {constraint: [primary_key; foreign_key]}',
-    '"identity": {',
+    '"identity": {\n  label.near: top-left',
     '"sales": {',
     '"sales"."orders"."account_id" -> "identity"."accounts"."id": {source-arrowhead.shape: cf-many; target-arrowhead.shape: cf-one}',
     '"identity"."credentials"."account_id" -> "identity"."accounts"."id": {source-arrowhead.shape: cf-one; target-arrowhead.shape: cf-one}',

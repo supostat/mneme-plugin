@@ -1,0 +1,29 @@
+"identity": {
+  label.near: top-left
+  "accounts": {
+    shape: sql_table
+    class: table
+    "id": "uuid" {constraint: primary_key}
+    "email": "varchar(320)" {constraint: unique}
+    "display_name": "text"
+  }
+  "credentials": {
+    shape: sql_table
+    class: table
+    "id": "uuid" {constraint: primary_key}
+    "account_id": "uuid" {constraint: [foreign_key; unique]}
+    "password_hash": "text"
+  }
+}
+"sales": {
+  label.near: top-left
+  "orders": {
+    shape: sql_table
+    class: table
+    "id": "uuid" {constraint: primary_key}
+    "account_id": "uuid" {constraint: foreign_key}
+    "placed_at": "timestamptz"
+  }
+}
+"identity"."credentials"."account_id" -> "identity"."accounts"."id": {source-arrowhead.shape: cf-one; target-arrowhead.shape: cf-one}
+"sales"."orders"."account_id" -> "identity"."accounts"."id": {source-arrowhead.shape: cf-many; target-arrowhead.shape: cf-one}

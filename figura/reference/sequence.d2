@@ -1,0 +1,14 @@
+shape: sequence_diagram
+
+hr: HR system {class: source}
+directory: Identity core {class: core}
+provisioner: Provisioning worker {class: tool}
+app: Scheduling app {class: app}
+
+hr -> directory: "1. Create user (employee ID, type, sites)"
+directory."The profile validates the attributes" {class: note}
+directory."Workflows add the type and site groups" {class: note}
+directory -> provisioner: "2. Event: user created, groups changed" {style.stroke-dash: 3}
+provisioner."The app is in scope for this user" {class: note}
+provisioner -> app: "3. Create user"
+app -> provisioner: "4. 201 Created" {style.stroke-dash: 3}

@@ -1,0 +1,29 @@
+direction: down
+
+people: "HR system\nsource of people" {class: source}
+portal: "Developer portal\ncatalog, templates" {class: tool}
+delivery: "Git + CI\ninfra as code" {class: neutral}
+monitoring: "Monitoring\nper-app dashboards" {class: observability}
+
+directory: "Identity core: staff realm" {
+  label.near: outside-right-top
+  inbound: "Inbound API and profile\nHR writes users, attributes" {class: core}
+  workflows: "Workflows and groups\nattributes to client roles" {class: core}
+  clients: "Clients\none per app, own roles" {class: core}
+  inbound -> workflows -> clients
+}
+
+provisioner: "Provisioning worker\nper-client config" {class: tool}
+scheduling: "Scheduling app\nOIDC + SCIM" {class: app}
+expenses: "Expenses app\nOIDC + SCIM" {class: app}
+inventory: "Inventory app\nOIDC + SCIM" {class: app}
+
+people -> directory.inbound
+portal -> delivery: pull request
+delivery -> directory.workflows
+directory.clients -> provisioner
+provisioner -> scheduling: provisioning
+provisioner -> expenses
+provisioner -> inventory
+directory -> monitoring: sign-in events {style.stroke-dash: 3}
+portal -> monitoring: embeds dashboards {style.stroke-dash: 3}

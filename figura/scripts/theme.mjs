@@ -9,6 +9,8 @@ const CSS_SAFE_FAMILY = /^[A-Za-z0-9 -]+$/;
 const CAPTION_RESERVE_LINES = 2;
 
 export const ROLE_NAMES = ['source', 'core', 'tool', 'app', 'observability', 'neutral', 'note'];
+export const SQL_TABLE_CLASS = 'table';
+const SQL_TABLE_BODY_FILL = 'transparent';
 const ROLE_COLOR_KEYS = ['fill', 'stroke', 'text'];
 const CALLOUT_KINDS = ['warning', 'note', 'decision'];
 const CALLOUT_COLOR_KEYS = ['line', 'label'];
@@ -171,20 +173,17 @@ export function themeCss(theme) {
   return `:root {\n${properties.map(([name, value]) => `  --figura-${name}: ${value};`).join('\n')}\n}\n`;
 }
 
+function d2ClassBlock(name, { fill, stroke, fontColor }) {
+  return [`  ${name}: {`, '    style: {', `      fill: "${fill}"`, `      stroke: "${stroke}"`, `      font-color: "${fontColor}"`, '    }', '  }'].join('\n');
+}
+
 export function d2Classes(theme) {
-  const classBlocks = ROLE_NAMES.map((role) => {
+  const roleBlocks = ROLE_NAMES.map((role) => {
     const { fill, stroke, text } = theme.roles[role];
-    return [
-      `  ${role}: {`,
-      '    style: {',
-      `      fill: "${fill}"`,
-      `      stroke: "${stroke}"`,
-      `      font-color: "${text}"`,
-      '    }',
-      '  }',
-    ].join('\n');
+    return d2ClassBlock(role, { fill, stroke, fontColor: text });
   });
-  return `classes: {\n${classBlocks.join('\n')}\n}\n`;
+  const tableBlock = d2ClassBlock(SQL_TABLE_CLASS, { fill: theme.table.headerFill, stroke: SQL_TABLE_BODY_FILL, fontColor: theme.text.primary });
+  return `classes: {\n${[...roleBlocks, tableBlock].join('\n')}\n}\n`;
 }
 
 export function d2ThemeArguments(theme) {

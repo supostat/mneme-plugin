@@ -1,7 +1,8 @@
 import { isServiceColumn } from './erd-model.mjs';
+import { SQL_TABLE_CLASS } from './theme.mjs';
 
-const TABLE_CLASS = 'core';
 const STUB_CLASS = 'neutral';
+const DOMAIN_LABEL_POSITION = 'top-left';
 const ARROWHEADS = new Map([
   ['many-to-one', ['cf-many', 'cf-one']],
   ['one-to-one', ['cf-one', 'cf-one']],
@@ -39,7 +40,7 @@ function tableLines(table, indent, { foreignKeyColumns, referencedColumns, hideS
   return [
     `${indent}${quoted(table.name)}: {`,
     `${indent}  shape: sql_table`,
-    `${indent}  class: ${TABLE_CLASS}`,
+    `${indent}  class: ${SQL_TABLE_CLASS}`,
     ...columns.map((column) => `${indent}  ${quoted(column.name)}: ${quoted(column.type)}${columnConstraints(table, column, foreignKeyColumns)}`),
     `${indent}}`,
   ];
@@ -59,7 +60,7 @@ export function erdD2(model, partTableNames, { hideServiceColumns = false, diagr
   const lines = [];
   const domains = [...new Set(tables.map((table) => table.domain).filter((domain) => domain !== undefined))].sort();
   for (const domain of domains) {
-    lines.push(`${quoted(domain)}: {`);
+    lines.push(`${quoted(domain)}: {`, `  label.near: ${DOMAIN_LABEL_POSITION}`);
     for (const table of tables.filter((candidate) => candidate.domain === domain)) lines.push(...tableLines(table, '  ', lineOptions));
     lines.push('}');
   }

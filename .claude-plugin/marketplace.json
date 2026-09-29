@@ -10,6 +10,12 @@
       "source": "./plugin",
       "description": "Persistent cross-project memory for Claude Code, packaged as a plugin.",
       "category": "productivity"
+    },
+    {
+      "name": "figura",
+      "source": "./figura",
+      "description": "Technical A4 PDF documents with D2 diagrams for Claude Code: one HTML source, one theme for the page and the diagrams, and a layout check before every build.",
+      "category": "documentation"
     }
   ]
 }

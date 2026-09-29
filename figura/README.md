@@ -11,6 +11,8 @@ figura/
 ├── bin/figura                   # entry: checks for Node.js 22 or newer, then runs the CLI
 ├── bin/launch.sh                # d2 launcher: dev binary, cache, or the pinned release
 ├── bin/release.json             # pin of the d2 release the launcher downloads
+├── reference/*.d2               # one example per diagram type, each building clean on A4
+├── reference/demo.html          # every block, every diagram type and a section in Russian
 ├── reference/erd-manual.json    # the format of a hand-written schema for figura erd
 ├── fonts/                       # Inter and JetBrains Mono, each beside its SIL OFL license
 ├── scripts/browser-locate.mjs   # finds Chromium 131 or newer
@@ -38,6 +40,7 @@ figura/
 ├── scripts/rasterize-pages.mjs  # writes one PNG preview per page into .figura/<name>/
 ├── scripts/render-diagram.mjs   # runs d2 with the theme classes, padding and Inter files
 ├── scripts/theme.mjs            # theme loader: CSS custom properties, D2 classes, page geometry
+├── skills/document/SKILL.md     # /figura:document: write the source, build, review every page
 ├── template/document.html       # the source format of a figura document
 ├── template/print.css           # print styles on the theme's custom properties
 └── theme/theme.json             # the one source of colors, fonts, sizes and page geometry
@@ -103,12 +106,14 @@ domains.
 ## Theme
 
 `theme/theme.json` is the only place that holds a color, a size or a page measure. `scripts/theme.mjs`
-validates it with named errors and generates two things from it: CSS custom properties, which
-`template/print.css` reads for the page box, the footer and every element, and a D2 `classes` block
-with one class per node role (source, core, tool, app, observability, neutral, note), which the build
-puts at the start of every diagram source, and the d2 arguments for the diagram padding and the four
-Inter files. It also exports the page and column geometry, the space
-reserved under a diagram for two caption lines, and the smallest label size a check accepts.
+validates it with named errors and generates from it the CSS custom properties that
+`template/print.css` reads for the page box, the footer and every element; a D2 `classes` block, which
+the build puts at the start of every diagram source, with one class per node role (source, core,
+tool, app, observability, neutral, note) and the `table` class for `sql_table` shapes, whose header
+takes the tone of document table headers and whose rows stay unfilled, since d2 fills the rows of a
+`sql_table` with its stroke color; and the d2 arguments for the diagram padding and the four Inter
+files. It also exports the page and column geometry, the space reserved under a diagram for two
+caption lines, and the smallest label size a check accepts.
 
 Chromium has no `string()` for margin boxes, so the footer title cannot come from the stylesheet: the
 build adds an `@page` rule with the document's `<title>` as the content of `@bottom-left`.
