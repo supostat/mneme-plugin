@@ -1,0 +1,50 @@
+{
+  "widthPixels": 352,
+  "heightPixels": 87,
+  "objects": [
+    {
+      "id": "cell",
+      "kind": "shape",
+      "box": {
+        "x": 123,
+        "y": 11,
+        "width": 60,
+        "height": 65
+      },
+      "labels": [
+        {
+          "text": "A label much wider than its fixed cell",
+          "box": {
+            "x": 10.26190185546875,
+            "y": 34.13492202758789,
+            "width": 285.4761962890625,
+            "height": 19.089946746826172
+          },
+          "fontPixels": 16
+        }
+      ]
+    },
+    {
+      "id": "next",
+      "kind": "shape",
+      "box": {
+        "x": 183,
+        "y": 11,
+        "width": 158,
+        "height": 65
+      },
+      "labels": [
+        {
+          "text": "Neighbour cell",
+          "box": {
+            "x": 205.04663848876953,
+            "y": 34.13492202758789,
+            "width": 113.90674591064453,
+            "height": 19.089946746826172
+          },
+          "fontPixels": 16
+        }
+      ]
+    }
+  ]
+}

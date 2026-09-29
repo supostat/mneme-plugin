@@ -1,0 +1,106 @@
+{
+  "widthPixels": 184,
+  "heightPixels": 537,
+  "objects": [
+    {
+      "id": "source",
+      "kind": "shape",
+      "box": {
+        "x": 11,
+        "y": 11,
+        "width": 162,
+        "height": 65
+      },
+      "labels": [
+        {
+          "text": "Source system",
+          "box": {
+            "x": 33.4892578125,
+            "y": 33.470149993896484,
+            "width": 117.02149200439453,
+            "height": 19.464818954467773
+          },
+          "fontPixels": 16
+        }
+      ]
+    },
+    {
+      "id": "core",
+      "kind": "shape",
+      "box": {
+        "x": 20,
+        "y": 236,
+        "width": 144,
+        "height": 65
+      },
+      "labels": [
+        {
+          "text": "Core service",
+          "box": {
+            "x": 42.327144622802734,
+            "y": 258.47015380859375,
+            "width": 99.34571838378906,
+            "height": 19.464818954467773
+          },
+          "fontPixels": 16
+        }
+      ]
+    },
+    {
+      "id": "app",
+      "kind": "shape",
+      "box": {
+        "x": 25,
+        "y": 461,
+        "width": 134,
+        "height": 65
+      },
+      "labels": [
+        {
+          "text": "Application",
+          "box": {
+            "x": 47.27385711669922,
+            "y": 483.47015380859375,
+            "width": 89.4522933959961,
+            "height": 19.464818954467773
+          },
+          "fontPixels": 16
+        }
+      ]
+    },
+    {
+      "id": "(source -> core)[0]",
+      "kind": "connection",
+      "box": null,
+      "labels": [
+        {
+          "text": "pushes people",
+          "box": {
+            "x": 36.56201171875,
+            "y": 145.97015380859375,
+            "width": 110.84474182128906,
+            "height": 19.464818954467773
+          },
+          "fontPixels": 16
+        }
+      ]
+    },
+    {
+      "id": "(core -> app)[0]",
+      "kind": "connection",
+      "box": null,
+      "labels": [
+        {
+          "text": "signs in",
+          "box": {
+            "x": 63.06218719482422,
+            "y": 370.9701843261719,
+            "width": 57.875633239746094,
+            "height": 19.482011795043945
+          },
+          "fontPixels": 16
+        }
+      ]
+    }
+  ]
+}

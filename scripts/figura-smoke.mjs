@@ -2,7 +2,7 @@
 //
 // Smoke gate of figura against the real tools, outside npm test: each stage needs what its tool
 // needs — the d2 stage the network, curl and tar, the browser stage Chromium 131 or newer, the
-// render stage a d2 the launcher can serve.
+// render stage a d2 the launcher can serve, the checks stage both d2 and Chromium.
 
 import { spawnSync } from 'node:child_process';
 import { copyFileSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs';
@@ -13,11 +13,21 @@ import { inflateSync } from 'node:zlib';
 import { locateChromium } from '../figura/scripts/browser-locate.mjs';
 import { openCdpSession } from '../figura/scripts/cdp-session.mjs';
 import { FiguraError } from '../figura/scripts/figura-error.mjs';
+import { layoutLimits, layoutProblems } from '../figura/scripts/layout-checks.mjs';
 import { startLoopbackServer } from '../figura/scripts/loopback-server.mjs';
+import { measureDiagrams } from '../figura/scripts/measure-diagram.mjs';
 import { renderDiagram } from '../figura/scripts/render-diagram.mjs';
 import { loadTheme } from '../figura/scripts/theme.mjs';
 
 const FIGURA_BIN = resolve(dirname(fileURLToPath(import.meta.url)), '..', 'figura', 'bin');
+const FIXTURE_DIAGRAMS = resolve(dirname(fileURLToPath(import.meta.url)), 'fixtures', 'figura', 'diagrams');
+const EXPECTED_FIXTURE_CODES = new Map([
+  ['clean', undefined],
+  ['label-overlap', 'LABEL-OVERLAP'],
+  ['text-overflow', 'TEXT-OVERFLOW'],
+  ['too-wide', 'DIAGRAM-TOO-WIDE'],
+  ['too-tall', 'DIAGRAM-TOO-TALL'],
+]);
 const SMOKE_NODE_LABEL = 'figura smoke node';
 const A4_POINTS = { width: 595.28, height: 841.89 };
 const PAGE_SIZE_TOLERANCE_POINTS = 1;
@@ -160,7 +170,7 @@ function renderRolesWithRealD2(workDirectory) {
   const theme = loadTheme();
   let svg;
   try {
-    svg = renderDiagram({ ordinal: 1, source: ROLE_DIAGRAM, layout: 'elk', caption: 'render smoke' }, theme, { workDirectory });
+    ({ svg } = renderDiagram({ ordinal: 1, source: ROLE_DIAGRAM, layout: 'elk', caption: 'render smoke' }, theme, { workDirectory }));
   } catch (error) {
     if (error instanceof FiguraError) return [error.message];
     throw error;
@@ -173,6 +183,40 @@ function renderRolesWithRealD2(workDirectory) {
   const fontProblem = embeddedFontsAreInter(svg);
   if (fontProblem !== undefined) problems.push(fontProblem);
   return problems;
+}
+
+async function checkFixturesWithRealTools(workDirectory) {
+  let executablePath;
+  try {
+    executablePath = locateChromium().executablePath;
+  } catch (error) {
+    if (error instanceof FiguraError) return [error.message];
+    throw error;
+  }
+  const theme = loadTheme();
+  const fixtures = [...EXPECTED_FIXTURE_CODES.keys()].map((name, index) => ({
+    ordinal: index + 1,
+    caption: name,
+    layout: 'elk',
+    source: readFileSync(join(FIXTURE_DIAGRAMS, `${name}.d2`), 'utf8'),
+  }));
+  let rendered;
+  try {
+    rendered = fixtures.map((fixture) => ({ ...fixture, ...renderDiagram(fixture, theme, { workDirectory }) }));
+  } catch (error) {
+    if (error instanceof FiguraError) return [error.message];
+    throw error;
+  }
+  const measurements = await measureDiagrams(rendered.map((diagram) => diagram.svgPath), { executablePath });
+  const limits = layoutLimits(theme);
+  return rendered.flatMap((diagram, index) => {
+    const codes = layoutProblems(diagram, measurements[index], limits).map((problem) => problem.code);
+    const expectedCode = EXPECTED_FIXTURE_CODES.get(diagram.caption);
+    if (expectedCode === undefined) {
+      return codes.length === 0 ? [] : [`the clean fixture failed the checks with ${[...new Set(codes)].join(', ')}`];
+    }
+    return codes.includes(expectedCode) ? [] : [`the ${diagram.caption} fixture did not fail with ${expectedCode} (got ${JSON.stringify([...new Set(codes)])})`];
+  });
 }
 
 const STAGES = new Map([
@@ -195,6 +239,13 @@ const STAGES = new Map([
     {
       check: renderRolesWithRealD2,
       passed: 'the real d2 behind the launcher took the theme TTFs and role classes and wrote an SVG with the node texts in embedded Inter',
+    },
+  ],
+  [
+    'checks',
+    {
+      check: checkFixturesWithRealTools,
+      passed: 'the real d2 and Chromium measured the fixtures: the clean one passes, the others fail with LABEL-OVERLAP, TEXT-OVERFLOW, DIAGRAM-TOO-WIDE and DIAGRAM-TOO-TALL',
     },
   ],
 ]);

@@ -132,7 +132,7 @@ try {
   checkExtraction(diagrams);
   const renderedDiagrams = diagrams.map((diagram) => ({
     ...diagram,
-    svg: renderDiagram(diagram, theme, { workDirectory, launcherPath: FAKE_LAUNCHER }),
+    svg: renderDiagram(diagram, theme, { workDirectory, launcherPath: FAKE_LAUNCHER }).svg,
   }));
   checkD2Invocation(theme, diagrams[0], 'elk');
   checkD2Invocation(theme, diagrams[1], 'dagre');

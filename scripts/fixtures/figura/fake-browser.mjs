@@ -1,17 +1,41 @@
 #!/usr/bin/env node
 
+import { readFileSync } from 'node:fs';
 import { Socket } from 'node:net';
+import { basename } from 'node:path';
 
 const MESSAGE_TERMINATOR = '\0';
+const FAKE_VERSION = 'Chromium 131.0.6778.0';
+
+if (process.argv.includes('--version')) {
+  console.log(FAKE_VERSION);
+  process.exit(0);
+}
+
+const recordedMeasurements =
+  process.env.FIGURA_FAKE_MEASUREMENTS === undefined ? undefined : JSON.parse(readFileSync(process.env.FIGURA_FAKE_MEASUREMENTS, 'utf8'));
 const commands = new Socket({ fd: 3, readable: true, writable: false });
 const replies = new Socket({ fd: 4, readable: false, writable: true });
+const pageUrlBySession = new Map();
 let partialMessage = '';
+let targetCount = 0;
 
 function reply(message) {
   replies.write(`${JSON.stringify(message)}${MESSAGE_TERMINATOR}`);
 }
 
-function handle({ id, method }) {
+function evaluate(id, sessionId) {
+  if (recordedMeasurements === undefined) return;
+  const fileName = basename(new URL(pageUrlBySession.get(sessionId)).pathname);
+  const measurement = recordedMeasurements[fileName];
+  if (measurement === undefined) {
+    reply({ id, sessionId, result: { result: { type: 'undefined' }, exceptionDetails: { text: `no recorded measurement for ${fileName}` } } });
+    return;
+  }
+  reply({ id, sessionId, result: { result: { type: 'object', value: measurement } } });
+}
+
+function handle({ id, method, params, sessionId }) {
   switch (method) {
     case 'Browser.getVersion':
       reply({ id, result: { protocolVersion: '1.3', product: 'HeadlessChrome/131.0.0.0' } });
@@ -23,7 +47,31 @@ function handle({ id, method }) {
       reply({ id, result: {} });
       reply({ method: 'Target.targetCreated', params: { targetInfo: { targetId: 'fake-page', type: 'page', url: 'about:blank' } } });
       break;
+    case 'Target.createTarget':
+      targetCount += 1;
+      reply({ id, result: { targetId: `fake-target-${targetCount}` } });
+      break;
+    case 'Target.attachToTarget':
+      reply({ id, result: { sessionId: `fake-session-${params.targetId}` } });
+      break;
+    case 'Page.enable':
+      if (sessionId === undefined) {
+        reply({ id, error: { code: -32601, message: `'${method}' wasn't found` } });
+      } else {
+        reply({ id, sessionId, result: {} });
+      }
+      break;
+    case 'Page.navigate':
+      if (sessionId === undefined) {
+        reply({ id, error: { code: -32601, message: `'${method}' wasn't found` } });
+        break;
+      }
+      pageUrlBySession.set(sessionId, params.url);
+      reply({ id, sessionId, result: { frameId: 'fake-frame', loaderId: `fake-loader-${id}` } });
+      reply({ method: 'Page.loadEventFired', sessionId, params: { timestamp: 0 } });
+      break;
     case 'Runtime.evaluate':
+      evaluate(id, sessionId);
       break;
     case 'Browser.close':
       reply({ id, result: {} });

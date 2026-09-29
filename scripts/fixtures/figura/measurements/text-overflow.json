@@ -1,0 +1,56 @@
+{
+  "widthPixels": 416,
+  "heightPixels": 87,
+  "objects": [
+    {
+      "id": "pinned",
+      "kind": "shape",
+      "box": {
+        "x": 11,
+        "y": 23,
+        "width": 50,
+        "height": 40
+      },
+      "labels": [
+        {
+          "text": "Label pinned inside a small box",
+          "box": {
+            "x": 15.825738906860352,
+            "y": 33.592594146728516,
+            "width": 242.34854125976562,
+            "height": 19.259258270263672
+          },
+          "fontPixels": 16
+        }
+      ]
+    },
+    {
+      "id": "next",
+      "kind": "shape",
+      "box": {
+        "x": 323,
+        "y": 11,
+        "width": 82,
+        "height": 65
+      },
+      "labels": [
+        {
+          "text": "Next",
+          "box": {
+            "x": 345.5704345703125,
+            "y": 34.092594146728516,
+            "width": 36.859127044677734,
+            "height": 19.259258270263672
+          },
+          "fontPixels": 16
+        }
+      ]
+    },
+    {
+      "id": "(pinned -> next)[0]",
+      "kind": "connection",
+      "box": null,
+      "labels": []
+    }
+  ]
+}

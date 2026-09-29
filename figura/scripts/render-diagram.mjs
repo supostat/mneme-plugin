@@ -42,5 +42,5 @@ export function renderDiagram(diagram, theme, { workDirectory, launcherPath = BU
       'fix the D2 source of this diagram and build again',
     );
   }
-  return readFileSync(svgPath, 'utf8');
+  return { svgPath, svg: readFileSync(svgPath, 'utf8') };
 }

@@ -18,7 +18,9 @@ figura/
 ├── scripts/figura-error.mjs     # the coded error every figura failure line comes from
 ├── scripts/figura.mjs           # CLI dispatcher
 ├── scripts/inline-diagrams.mjs  # puts each rendered SVG in place of its pre.d2
+├── scripts/layout-checks.mjs    # width, height, overlap and overflow rules on a measured diagram
 ├── scripts/loopback-server.mjs  # loopback HTTP server the browser loads everything from
+├── scripts/measure-diagram.mjs  # opens each SVG in Chromium and collects the boxes of shapes and labels
 ├── scripts/preflight.mjs        # checks every dependency of a command at once
 ├── scripts/render-diagram.mjs   # runs d2 with the theme classes, padding and Inter files
 ├── scripts/theme.mjs            # theme loader: CSS custom properties, D2 classes, page geometry
@@ -35,7 +37,13 @@ looks for `node`, reads the major version from `process.versions.node`, and stop
 Otherwise it hands every argument to `scripts/figura.mjs`.
 
 `bin/figura version` prints the plugin name and the version from `.claude-plugin/plugin.json`.
-An unknown command prints the usage and exits with status 2.
+`bin/figura check <document.html>` runs preflight, renders every diagram with d2, measures it in
+Chromium and applies the layout checks: DIAGRAM-TOO-WIDE when the scale to the column drops the
+smallest label under the theme floor, DIAGRAM-TOO-TALL when the diagram does not fit a page above its
+caption, LABEL-OVERLAP when a label crosses a foreign shape or label, and TEXT-OVERFLOW when a label
+spills out of its own shape. It prints one success line, or `figura: <document> FAILED:` with one
+`CODE: what — remedy` line per problem and exit status 1; it builds no PDF. An unknown command prints
+the usage and exits with status 2.
 
 ## Theme
 

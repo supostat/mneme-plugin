@@ -1,0 +1,5 @@
+source: Source system {class: source}
+core: Core service {class: core}
+app: Application {class: app}
+source -> core: pushes people
+core -> app: signs in

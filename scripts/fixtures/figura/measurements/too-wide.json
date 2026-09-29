@@ -1,0 +1,336 @@
+{
+  "widthPixels": 5484,
+  "heightPixels": 87,
+  "objects": [
+    {
+      "id": "step01",
+      "kind": "shape",
+      "box": {
+        "x": 11,
+        "y": 11,
+        "width": 389,
+        "height": 65
+      },
+      "labels": [
+        {
+          "text": "Step 01 of a pipeline far too long for one row",
+          "box": {
+            "x": 34.40834045410156,
+            "y": 34.9920654296875,
+            "width": 342.1833190917969,
+            "height": 21.761905670166016
+          },
+          "fontPixels": 16
+        }
+      ]
+    },
+    {
+      "id": "step02",
+      "kind": "shape",
+      "box": {
+        "x": 470,
+        "y": 11,
+        "width": 392,
+        "height": 65
+      },
+      "labels": [
+        {
+          "text": "Step 02 of a pipeline far too long for one row",
+          "box": {
+            "x": 493.3215026855469,
+            "y": 34.9920654296875,
+            "width": 345.3569030761719,
+            "height": 21.761905670166016
+          },
+          "fontPixels": 16
+        }
+      ]
+    },
+    {
+      "id": "step03",
+      "kind": "shape",
+      "box": {
+        "x": 932,
+        "y": 11,
+        "width": 393,
+        "height": 65
+      },
+      "labels": [
+        {
+          "text": "Step 03 of a pipeline far too long for one row",
+          "box": {
+            "x": 955.7081909179688,
+            "y": 34.9920654296875,
+            "width": 345.5836181640625,
+            "height": 21.761905670166016
+          },
+          "fontPixels": 16
+        }
+      ]
+    },
+    {
+      "id": "step04",
+      "kind": "shape",
+      "box": {
+        "x": 1395,
+        "y": 11,
+        "width": 393,
+        "height": 65
+      },
+      "labels": [
+        {
+          "text": "Step 04 of a pipeline far too long for one row",
+          "box": {
+            "x": 1418.4815673828125,
+            "y": 34.9920654296875,
+            "width": 346.0369873046875,
+            "height": 21.761905670166016
+          },
+          "fontPixels": 16
+        }
+      ]
+    },
+    {
+      "id": "step05",
+      "kind": "shape",
+      "box": {
+        "x": 1858,
+        "y": 11,
+        "width": 392,
+        "height": 65
+      },
+      "labels": [
+        {
+          "text": "Step 05 of a pipeline far too long for one row",
+          "box": {
+            "x": 1881.3782958984375,
+            "y": 34.9920654296875,
+            "width": 345.2435607910156,
+            "height": 21.761905670166016
+          },
+          "fontPixels": 16
+        }
+      ]
+    },
+    {
+      "id": "step06",
+      "kind": "shape",
+      "box": {
+        "x": 2320,
+        "y": 11,
+        "width": 393,
+        "height": 65
+      },
+      "labels": [
+        {
+          "text": "Step 06 of a pipeline far too long for one row",
+          "box": {
+            "x": 2343.651611328125,
+            "y": 34.9920654296875,
+            "width": 345.69696044921875,
+            "height": 21.761905670166016
+          },
+          "fontPixels": 16
+        }
+      ]
+    },
+    {
+      "id": "step07",
+      "kind": "shape",
+      "box": {
+        "x": 2783,
+        "y": 11,
+        "width": 392,
+        "height": 65
+      },
+      "labels": [
+        {
+          "text": "Step 07 of a pipeline far too long for one row",
+          "box": {
+            "x": 2806.71826171875,
+            "y": 34.9920654296875,
+            "width": 344.5635070800781,
+            "height": 21.761905670166016
+          },
+          "fontPixels": 16
+        }
+      ]
+    },
+    {
+      "id": "step08",
+      "kind": "shape",
+      "box": {
+        "x": 3245,
+        "y": 11,
+        "width": 393,
+        "height": 65
+      },
+      "labels": [
+        {
+          "text": "Step 08 of a pipeline far too long for one row",
+          "box": {
+            "x": 3268.651611328125,
+            "y": 34.9920654296875,
+            "width": 345.69696044921875,
+            "height": 21.761905670166016
+          },
+          "fontPixels": 16
+        }
+      ]
+    },
+    {
+      "id": "step09",
+      "kind": "shape",
+      "box": {
+        "x": 3708,
+        "y": 11,
+        "width": 393,
+        "height": 65
+      },
+      "labels": [
+        {
+          "text": "Step 09 of a pipeline far too long for one row",
+          "box": {
+            "x": 3731.651611328125,
+            "y": 34.9920654296875,
+            "width": 345.69696044921875,
+            "height": 21.761905670166016
+          },
+          "fontPixels": 16
+        }
+      ]
+    },
+    {
+      "id": "step10",
+      "kind": "shape",
+      "box": {
+        "x": 4171,
+        "y": 11,
+        "width": 389,
+        "height": 65
+      },
+      "labels": [
+        {
+          "text": "Step 10 of a pipeline far too long for one row",
+          "box": {
+            "x": 4194.408203125,
+            "y": 34.9920654296875,
+            "width": 342.1833190917969,
+            "height": 21.761905670166016
+          },
+          "fontPixels": 16
+        }
+      ]
+    },
+    {
+      "id": "step11",
+      "kind": "shape",
+      "box": {
+        "x": 4630,
+        "y": 11,
+        "width": 385,
+        "height": 65
+      },
+      "labels": [
+        {
+          "text": "Step 11 of a pipeline far too long for one row",
+          "box": {
+            "x": 4653.3349609375,
+            "y": 34.9920654296875,
+            "width": 338.3296203613281,
+            "height": 21.761905670166016
+          },
+          "fontPixels": 16
+        }
+      ]
+    },
+    {
+      "id": "step12",
+      "kind": "shape",
+      "box": {
+        "x": 5085,
+        "y": 11,
+        "width": 388,
+        "height": 65
+      },
+      "labels": [
+        {
+          "text": "Step 12 of a pipeline far too long for one row",
+          "box": {
+            "x": 5108.24853515625,
+            "y": 34.9920654296875,
+            "width": 341.50323486328125,
+            "height": 21.761905670166016
+          },
+          "fontPixels": 16
+        }
+      ]
+    },
+    {
+      "id": "(step01 -> step02)[0]",
+      "kind": "connection",
+      "box": null,
+      "labels": []
+    },
+    {
+      "id": "(step02 -> step03)[0]",
+      "kind": "connection",
+      "box": null,
+      "labels": []
+    },
+    {
+      "id": "(step03 -> step04)[0]",
+      "kind": "connection",
+      "box": null,
+      "labels": []
+    },
+    {
+      "id": "(step04 -> step05)[0]",
+      "kind": "connection",
+      "box": null,
+      "labels": []
+    },
+    {
+      "id": "(step05 -> step06)[0]",
+      "kind": "connection",
+      "box": null,
+      "labels": []
+    },
+    {
+      "id": "(step06 -> step07)[0]",
+      "kind": "connection",
+      "box": null,
+      "labels": []
+    },
+    {
+      "id": "(step07 -> step08)[0]",
+      "kind": "connection",
+      "box": null,
+      "labels": []
+    },
+    {
+      "id": "(step08 -> step09)[0]",
+      "kind": "connection",
+      "box": null,
+      "labels": []
+    },
+    {
+      "id": "(step09 -> step10)[0]",
+      "kind": "connection",
+      "box": null,
+      "labels": []
+    },
+    {
+      "id": "(step10 -> step11)[0]",
+      "kind": "connection",
+      "box": null,
+      "labels": []
+    },
+    {
+      "id": "(step11 -> step12)[0]",
+      "kind": "connection",
+      "box": null,
+      "labels": []
+    }
+  ]
+}
