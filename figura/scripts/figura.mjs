@@ -2,11 +2,15 @@
 
 import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { join, relative, resolve } from 'node:path';
+import { join, resolve } from 'node:path';
 import { locateChromium } from './browser-locate.mjs';
-import { buildSuccessLine, failureReport } from './build-report.mjs';
+import { buildSuccessLine, failureReport, pathFromWorkingDirectory, warningReport } from './build-report.mjs';
 import { modelSubset, schemaModel, withDomains } from './erd-model.mjs';
 import { readManualSchema } from './erd-source-manual.mjs';
+import { readPrismaSchema } from './erd-source-prisma.mjs';
+import { postgresConnection, readPostgresSchema } from './erd-source-psql.mjs';
+import { readRailsSchema } from './erd-source-rails.mjs';
+import { readTypeormSchema } from './erd-source-typeorm.mjs';
 import { planErdDiagrams } from './erd-split.mjs';
 import { extractDiagrams } from './extract-diagrams.mjs';
 import { FiguraError } from './figura-error.mjs';
@@ -26,9 +30,16 @@ const USAGE = [
   '  version',
   '  check <document.html>',
   '  build <document.html>',
-  '  erd --source manual <schema.json> --out <directory> [--hide-service-columns] [--tables a,b] [--domains <json>]',
+  '  erd --source manual|prisma|typeorm|rails <path> --out <directory> [--hide-service-columns] [--tables a,b] [--domains <json>]',
+  '  erd --source psql [--url <postgres-url>] --out <directory> [--hide-service-columns] [--tables a,b] [--domains <json>]',
 ].join('\n');
-const ERD_SOURCES = ['manual'];
+const FILE_ERD_SOURCES = new Map([
+  ['manual', readManualSchema],
+  ['prisma', readPrismaSchema],
+  ['typeorm', readTypeormSchema],
+  ['rails', readRailsSchema],
+]);
+const DATABASE_ERD_SOURCE = 'psql';
 const ERD_OUTPUT_FILE = /^erd-\d+\.d2$/;
 
 function printVersion() {
@@ -145,6 +156,7 @@ function erdOptions(commandArguments) {
     ['--out', 'outDirectory'],
     ['--tables', 'tables'],
     ['--domains', 'domains'],
+    ['--url', 'url'],
   ]);
   for (let index = 0; index < commandArguments.length; index += 1) {
     const argument = commandArguments[index];
@@ -159,8 +171,10 @@ function erdOptions(commandArguments) {
       return undefined;
     }
   }
-  const complete = ERD_SOURCES.includes(options.source) && options.schemaPath !== undefined && options.outDirectory !== undefined;
-  return complete ? options : undefined;
+  const hasInput = FILE_ERD_SOURCES.has(options.source)
+    ? options.schemaPath !== undefined && options.url === undefined
+    : options.source === DATABASE_ERD_SOURCE && options.schemaPath === undefined;
+  return hasInput && options.outDirectory !== undefined ? options : undefined;
 }
 
 function domainPatterns(domainsArgument) {
@@ -173,6 +187,16 @@ function domainPatterns(domainsArgument) {
     Object.values(parsed).every((patterns) => Array.isArray(patterns) && patterns.every((pattern) => typeof pattern === 'string'));
   if (!isMapping) throw new SyntaxError('expected {"domain": ["table", "prefix*"]}');
   return parsed;
+}
+
+function erdSchemaSource(options) {
+  if (options.source !== DATABASE_ERD_SOURCE) {
+    const schemaPath = resolve(options.schemaPath);
+    return { subject: schemaPath, read: () => FILE_ERD_SOURCES.get(options.source)(schemaPath) };
+  }
+  const connection = postgresConnection(options.url ?? process.env.DATABASE_URL ?? '');
+  if (connection === undefined) return undefined;
+  return { subject: options.url === undefined ? 'DATABASE_URL' : '--url', read: () => readPostgresSchema(connection) };
 }
 
 function writeErdDiagrams(outDirectory, diagrams) {
@@ -200,19 +224,25 @@ async function erdCommand(commandArguments) {
     console.error(`figura: error: --domains is not a domain mapping: ${error.message}`);
     return 2;
   }
-  const schemaPath = resolve(options.schemaPath);
+  const schemaSource = erdSchemaSource(options);
+  if (schemaSource === undefined) {
+    console.error('figura: error: erd --source psql needs a postgres:// or postgresql:// URL in --url or DATABASE_URL');
+    return 2;
+  }
   const missing = preflight('erd', { erdSource: options.source });
   if (missing.length > 0) {
-    console.error(failureReport(schemaPath, missing));
+    console.error(failureReport(schemaSource.subject, missing));
     return 1;
   }
   const workDirectory = mkdtempSync(join(tmpdir(), 'figura-erd-'));
   try {
-    const { model: sourceModel, problems } = schemaModel(readManualSchema(schemaPath));
+    const { schema, warnings } = schemaSource.read();
+    if (warnings.length > 0) console.error(warningReport(schemaSource.subject, warnings));
+    const { model: sourceModel, problems } = schemaModel(schema);
     const tableNames = options.tables?.split(',').map((tableName) => tableName.trim()).filter((tableName) => tableName !== '');
     const subset = tableNames === undefined ? { model: sourceModel, problems: [] } : modelSubset(sourceModel, tableNames);
     if (problems.length + subset.problems.length > 0) {
-      console.error(failureReport(schemaPath, [...problems, ...subset.problems]));
+      console.error(failureReport(schemaSource.subject, [...problems, ...subset.problems]));
       return 1;
     }
     const plan = planErdDiagrams(withDomains(subset.model, patterns), {
@@ -221,17 +251,18 @@ async function erdCommand(commandArguments) {
       workDirectory,
     });
     if (plan.problems.length > 0) {
-      console.error(failureReport(schemaPath, plan.problems));
+      console.error(failureReport(schemaSource.subject, plan.problems));
       return 1;
     }
     const outDirectory = resolve(options.outDirectory);
     const written = writeErdDiagrams(outDirectory, plan.diagrams);
     const count = plan.diagrams.length;
-    console.log(`figura: wrote ${count} ERD ${count === 1 ? 'diagram' : 'diagrams'} to ${relative(process.cwd(), outDirectory) || '.'} — ${written.join(', ')}`);
+    const warningCount = `${warnings.length} ${warnings.length === 1 ? 'warning' : 'warnings'}`;
+    console.log(`figura: wrote ${count} ERD ${count === 1 ? 'diagram' : 'diagrams'} to ${pathFromWorkingDirectory(outDirectory) || '.'} — ${written.join(', ')}; ${warningCount}`);
     return 0;
   } catch (error) {
     if (!(error instanceof FiguraError)) throw error;
-    console.error(failureReport(schemaPath, [error]));
+    console.error(failureReport(schemaSource.subject, [error]));
     return 1;
   } finally {
     rmSync(workDirectory, { recursive: true, force: true });

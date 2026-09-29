@@ -1,0 +1,96 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum Role {
+  ADMIN
+  MEMBER
+
+  @@map("account_role")
+}
+
+model Account {
+  id          String      @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  email       String      @unique @db.VarChar(320)
+  displayName String?     @map("display_name")
+  role        Role        @default(MEMBER)
+  createdAt   DateTime    @default(now()) @map("created_at")
+  updatedAt   DateTime    @updatedAt @map("updated_at")
+  deletedAt   DateTime?   @map("deleted_at")
+  credential  Credential?
+  orders      Order[]
+
+  @@map("accounts")
+}
+
+model Credential {
+  id           String  @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  passwordHash String  @map("password_hash")
+  accountId    String  @unique @map("account_id") @db.Uuid
+  account      Account @relation(fields: [accountId], references: [id])
+
+  @@map("credentials")
+}
+
+/// Orders keep a free-form metadata document, "{}" by default.
+model Order {
+  id        String      @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  number    Int
+  placedAt  DateTime    @map("placed_at") @db.Timestamptz(6)
+  metadata  Json?       @default("{}")
+  createdAt DateTime    @default(now()) @map("created_at")
+  accountId String      @map("account_id") @db.Uuid
+  account   Account     @relation(fields: [accountId], references: [id])
+  items     OrderItem[]
+
+  @@unique([accountId, number])
+  @@map("orders")
+}
+
+model OrderItem {
+  orderId   String  @map("order_id") @db.Uuid
+  productId BigInt  @map("product_id")
+  quantity  Int
+  order     Order   @relation(fields: [orderId], references: [id])
+  product   Product @relation(fields: [productId], references: [id])
+
+  @@id([orderId, productId])
+  @@map("order_item")
+}
+
+model Product {
+  id         BigInt      @id @default(autoincrement())
+  sku        String      @db.VarChar(32)
+  title      String
+  price      Decimal     @db.Decimal(10, 2)
+  categoryId BigInt?     @map("category_id")
+  category   Category?   @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+  tags       Tag[]
+  items      OrderItem[]
+
+  @@unique([sku])
+  @@map("products")
+}
+
+model Category {
+  id       BigInt     @id @default(autoincrement())
+  name     String     @db.VarChar(64)
+  parentId BigInt?    @map("parent_id")
+  parent   Category?  @relation("CategoryTree", fields: [parentId], references: [id], onDelete: SetNull)
+  children Category[] @relation("CategoryTree")
+  products Product[]
+
+  @@map("categories")
+}
+
+model Tag {
+  id       Int       @id @default(autoincrement())
+  label    String    @unique @db.VarChar(64)
+  products Product[]
+
+  @@map("tags")
+}

@@ -11,7 +11,7 @@ export function readManualSchema(schemaPath) {
     throw new FiguraError('ERD-INVALID', `cannot read ${schemaPath}: ${cause.message}`, FORMAT_REMEDY);
   }
   try {
-    return JSON.parse(text);
+    return { schema: JSON.parse(text), warnings: [] };
   } catch (cause) {
     throw new FiguraError('ERD-INVALID', `${schemaPath} is not valid JSON: ${cause.message}`, FORMAT_REMEDY);
   }

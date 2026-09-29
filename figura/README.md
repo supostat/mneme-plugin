@@ -17,8 +17,14 @@ figura/
 ├── scripts/build-report.mjs     # the failure report and the build success line
 ├── scripts/cdp-session.mjs      # CDP client over --remote-debugging-pipe
 ├── scripts/erd-d2.mjs           # D2 sql_table source of a part of a schema
-├── scripts/erd-model.mjs        # schema model with named errors, domains and subsets
+├── scripts/erd-model.mjs        # schema model with named errors, domains, subsets and cardinality
+├── scripts/erd-postgres-type.mjs # PostgreSQL type names every ERD source converges on
+├── scripts/erd-source-files.mjs # reads a schema file or every schema file under a directory
 ├── scripts/erd-source-manual.mjs # reads a hand-written schema JSON
+├── scripts/erd-source-prisma.mjs # reads Prisma models, enums and implicit many-to-many
+├── scripts/erd-source-psql.mjs  # reads the live database through one psql catalog query
+├── scripts/erd-source-rails.mjs # reads a Rails db/schema.rb
+├── scripts/erd-source-typeorm.mjs # reads TypeORM entities with a limited decorator parser
 ├── scripts/erd-split.mjs        # splits a schema into parts that fit an A4 page
 ├── scripts/extract-diagrams.mjs # finds every pre.d2 with its layout and figure caption
 ├── scripts/figura-error.mjs     # the coded error every figura failure line comes from
@@ -62,9 +68,31 @@ a `.gitignore` holding `*` there, so the project's git never sees the previews. 
 removing the previous PDF and previews of the document. Success is one line with the page, diagram
 and warning counts and the preview paths.
 
-`bin/figura erd --source manual <schema.json> --out <directory>` turns a schema into D2 `sql_table`
-diagrams: primary, foreign and unique keys as constraints, crow's foot ends for many-to-one and
-one-to-one relations, and domains as containers. `reference/erd-manual.json` shows the schema format.
+`bin/figura erd --source <source> --out <directory>` turns a schema into D2 `sql_table` diagrams:
+primary, foreign and unique keys as constraints, crow's foot ends for many-to-one and one-to-one
+relations, and domains as containers. The source is one of five:
+
+- `manual <schema.json>` — a hand-written schema in the format of `reference/erd-manual.json`;
+- `prisma <schema.prisma or a directory of .prisma files>` — models, `@id`, `@@id`, `@unique`,
+  `@@unique`, `@relation`, `@map`, `@@map` and `@db.*` types, enums as types, and an implicit
+  many-to-many as its `_AToB` join table;
+- `typeorm <an entity file or a directory>` — `@Entity` classes with the columns of their base
+  classes, the column and date column decorators, `@ManyToOne`, `@OneToOne` and `@ManyToMany` with
+  their join columns and join tables, and unique `@Index`; names follow TypeORM's default naming
+  strategy, and every declaration the parser does not model is named in a `TYPEORM-UNSUPPORTED`
+  warning;
+- `rails <db/schema.rb>` — `create_table` with its `id:` and `primary_key:`, column types with
+  `limit:`, `precision:` and `null:`, unique `t.index` and `t.unique_constraint`, and
+  `add_foreign_key`, whose default column Rails' own singular rules name;
+- `psql [--url <postgres-url>]` — the live database of `--url` or `DATABASE_URL`, read in its current
+  schema by one catalog query through `psql -X -A -t -w -v ON_ERROR_STOP=1`; the password reaches psql
+  only through `PGPASSWORD`, and figura prints neither the address nor the password.
+
+Every source names column types as PostgreSQL does (`varchar(320)`, `timestamptz`, `numeric(10,2)`,
+the type name of an enum), so one schema reads the same from any source. A column is unique when a
+unique constraint or index covers it alone, and a relation is one-to-one when its foreign key column is
+unique on its own. Warnings print to stderr, and the success line counts them.
+
 Each connected group of tables that does not fit an A4 page is split by domain, then breadth-first into
 parts of at most twelve tables, halved until every part passes the width and height checks; a relation
 cut by the split ends in a stub that names the other diagram. The parts land in `erd-NN.d2` files that go

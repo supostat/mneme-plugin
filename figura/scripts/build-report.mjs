@@ -9,7 +9,11 @@ export function failureReport(documentPath, problems) {
   return [`figura: ${documentPath} FAILED:`, ...problems.map((problem) => `  - ${problem.message}`)].join('\n');
 }
 
-function pathFromWorkingDirectory(existingPath) {
+export function warningReport(subject, warnings) {
+  return [`figura: ${subject} WARNING:`, ...warnings.map((warning) => `  - ${warning.message}`)].join('\n');
+}
+
+export function pathFromWorkingDirectory(existingPath) {
   return relative(process.cwd(), realpathSync(existingPath));
 }
 

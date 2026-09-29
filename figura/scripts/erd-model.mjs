@@ -8,6 +8,12 @@ export function isServiceColumn(columnName) {
   return SERVICE_COLUMNS.has(columnName);
 }
 
+export function foreignKeyCardinality(tableColumns, columnName) {
+  const column = tableColumns.find((candidate) => candidate.name === columnName);
+  const isSolePrimaryKey = column?.primaryKey === true && tableColumns.filter((candidate) => candidate.primaryKey === true).length === 1;
+  return column?.unique === true || isSolePrimaryKey ? 'one-to-one' : 'many-to-one';
+}
+
 function isName(value) {
   return typeof value === 'string' && value !== '';
 }
