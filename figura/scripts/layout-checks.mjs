@@ -57,7 +57,7 @@ export function diagramScale(measurement, limits) {
   return Math.min(1, limits.columnWidthPoints / (measurement.widthPixels * POINTS_PER_PIXEL));
 }
 
-function sizeProblems(diagram, measurement, limits) {
+export function diagramSizeProblems(diagram, measurement, limits) {
   const problems = [];
   const scale = diagramScale(measurement, limits);
   const widthPoints = measurement.widthPixels * POINTS_PER_PIXEL;
@@ -120,5 +120,5 @@ function geometryProblems(diagram, measurement) {
 }
 
 export function layoutProblems(diagram, measurement, limits) {
-  return [...sizeProblems(diagram, measurement, limits), ...geometryProblems(diagram, measurement)];
+  return [...diagramSizeProblems(diagram, measurement, limits), ...geometryProblems(diagram, measurement)];
 }

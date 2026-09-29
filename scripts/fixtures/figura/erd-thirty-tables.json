@@ -1,0 +1,1011 @@
+{
+  "tables": [
+    {
+      "name": "accounts",
+      "domain": "identity",
+      "columns": [
+        {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true
+        },
+        {
+          "name": "email",
+          "type": "text",
+          "unique": true
+        },
+        {
+          "name": "display_name",
+          "type": "text",
+          "nullable": true
+        },
+        {
+          "name": "created_at",
+          "type": "timestamptz"
+        },
+        {
+          "name": "updated_at",
+          "type": "timestamptz"
+        }
+      ]
+    },
+    {
+      "name": "account_roles",
+      "domain": "identity",
+      "columns": [
+        {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true
+        },
+        {
+          "name": "account_id",
+          "type": "uuid"
+        },
+        {
+          "name": "role_id",
+          "type": "uuid"
+        },
+        {
+          "name": "created_at",
+          "type": "timestamptz"
+        }
+      ]
+    },
+    {
+      "name": "roles",
+      "domain": "identity",
+      "columns": [
+        {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true
+        },
+        {
+          "name": "name",
+          "type": "text",
+          "unique": true
+        },
+        {
+          "name": "created_at",
+          "type": "timestamptz"
+        }
+      ]
+    },
+    {
+      "name": "sessions",
+      "domain": "identity",
+      "columns": [
+        {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true
+        },
+        {
+          "name": "account_id",
+          "type": "uuid"
+        },
+        {
+          "name": "expires_at",
+          "type": "timestamptz"
+        },
+        {
+          "name": "created_at",
+          "type": "timestamptz"
+        }
+      ]
+    },
+    {
+      "name": "credentials",
+      "domain": "identity",
+      "columns": [
+        {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true
+        },
+        {
+          "name": "account_id",
+          "type": "uuid",
+          "unique": true
+        },
+        {
+          "name": "password_hash",
+          "type": "text"
+        },
+        {
+          "name": "created_at",
+          "type": "timestamptz"
+        }
+      ]
+    },
+    {
+      "name": "invoices",
+      "domain": "billing",
+      "columns": [
+        {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true
+        },
+        {
+          "name": "account_id",
+          "type": "uuid"
+        },
+        {
+          "name": "total_cents",
+          "type": "integer"
+        },
+        {
+          "name": "created_at",
+          "type": "timestamptz"
+        },
+        {
+          "name": "updated_at",
+          "type": "timestamptz"
+        }
+      ]
+    },
+    {
+      "name": "invoice_lines",
+      "domain": "billing",
+      "columns": [
+        {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true
+        },
+        {
+          "name": "invoice_id",
+          "type": "uuid"
+        },
+        {
+          "name": "product_id",
+          "type": "uuid"
+        },
+        {
+          "name": "amount_cents",
+          "type": "integer"
+        },
+        {
+          "name": "created_at",
+          "type": "timestamptz"
+        }
+      ]
+    },
+    {
+      "name": "payments",
+      "domain": "billing",
+      "columns": [
+        {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true
+        },
+        {
+          "name": "invoice_id",
+          "type": "uuid"
+        },
+        {
+          "name": "amount_cents",
+          "type": "integer"
+        },
+        {
+          "name": "created_at",
+          "type": "timestamptz"
+        }
+      ]
+    },
+    {
+      "name": "refunds",
+      "domain": "billing",
+      "columns": [
+        {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true
+        },
+        {
+          "name": "payment_id",
+          "type": "uuid"
+        },
+        {
+          "name": "amount_cents",
+          "type": "integer"
+        },
+        {
+          "name": "created_at",
+          "type": "timestamptz"
+        }
+      ]
+    },
+    {
+      "name": "products",
+      "domain": "catalog",
+      "columns": [
+        {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true
+        },
+        {
+          "name": "title",
+          "type": "text"
+        },
+        {
+          "name": "sku",
+          "type": "text",
+          "unique": true
+        },
+        {
+          "name": "created_at",
+          "type": "timestamptz"
+        },
+        {
+          "name": "updated_at",
+          "type": "timestamptz"
+        }
+      ]
+    },
+    {
+      "name": "product_prices",
+      "domain": "catalog",
+      "columns": [
+        {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true
+        },
+        {
+          "name": "product_id",
+          "type": "uuid"
+        },
+        {
+          "name": "price_cents",
+          "type": "integer"
+        },
+        {
+          "name": "created_at",
+          "type": "timestamptz"
+        }
+      ]
+    },
+    {
+      "name": "categories",
+      "domain": "catalog",
+      "columns": [
+        {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true
+        },
+        {
+          "name": "name",
+          "type": "text",
+          "unique": true
+        },
+        {
+          "name": "created_at",
+          "type": "timestamptz"
+        }
+      ]
+    },
+    {
+      "name": "product_categories",
+      "domain": "catalog",
+      "columns": [
+        {
+          "name": "product_id",
+          "type": "uuid",
+          "primaryKey": true
+        },
+        {
+          "name": "category_id",
+          "type": "uuid",
+          "primaryKey": true
+        }
+      ]
+    },
+    {
+      "name": "stage_01",
+      "columns": [
+        {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true
+        },
+        {
+          "name": "name",
+          "type": "text"
+        },
+        {
+          "name": "created_at",
+          "type": "timestamptz"
+        },
+        {
+          "name": "updated_at",
+          "type": "timestamptz"
+        }
+      ]
+    },
+    {
+      "name": "stage_02",
+      "columns": [
+        {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true
+        },
+        {
+          "name": "name",
+          "type": "text"
+        },
+        {
+          "name": "previous_id",
+          "type": "uuid"
+        },
+        {
+          "name": "created_at",
+          "type": "timestamptz"
+        },
+        {
+          "name": "updated_at",
+          "type": "timestamptz"
+        }
+      ]
+    },
+    {
+      "name": "stage_03",
+      "columns": [
+        {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true
+        },
+        {
+          "name": "name",
+          "type": "text"
+        },
+        {
+          "name": "previous_id",
+          "type": "uuid"
+        },
+        {
+          "name": "created_at",
+          "type": "timestamptz"
+        },
+        {
+          "name": "updated_at",
+          "type": "timestamptz"
+        }
+      ]
+    },
+    {
+      "name": "stage_04",
+      "columns": [
+        {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true
+        },
+        {
+          "name": "name",
+          "type": "text"
+        },
+        {
+          "name": "previous_id",
+          "type": "uuid"
+        },
+        {
+          "name": "created_at",
+          "type": "timestamptz"
+        },
+        {
+          "name": "updated_at",
+          "type": "timestamptz"
+        }
+      ]
+    },
+    {
+      "name": "stage_05",
+      "columns": [
+        {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true
+        },
+        {
+          "name": "name",
+          "type": "text"
+        },
+        {
+          "name": "previous_id",
+          "type": "uuid"
+        },
+        {
+          "name": "created_at",
+          "type": "timestamptz"
+        },
+        {
+          "name": "updated_at",
+          "type": "timestamptz"
+        }
+      ]
+    },
+    {
+      "name": "stage_06",
+      "columns": [
+        {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true
+        },
+        {
+          "name": "name",
+          "type": "text"
+        },
+        {
+          "name": "previous_id",
+          "type": "uuid"
+        },
+        {
+          "name": "created_at",
+          "type": "timestamptz"
+        },
+        {
+          "name": "updated_at",
+          "type": "timestamptz"
+        }
+      ]
+    },
+    {
+      "name": "stage_07",
+      "columns": [
+        {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true
+        },
+        {
+          "name": "name",
+          "type": "text"
+        },
+        {
+          "name": "previous_id",
+          "type": "uuid"
+        },
+        {
+          "name": "created_at",
+          "type": "timestamptz"
+        },
+        {
+          "name": "updated_at",
+          "type": "timestamptz"
+        }
+      ]
+    },
+    {
+      "name": "stage_08",
+      "columns": [
+        {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true
+        },
+        {
+          "name": "name",
+          "type": "text"
+        },
+        {
+          "name": "previous_id",
+          "type": "uuid"
+        },
+        {
+          "name": "created_at",
+          "type": "timestamptz"
+        },
+        {
+          "name": "updated_at",
+          "type": "timestamptz"
+        }
+      ]
+    },
+    {
+      "name": "stage_09",
+      "columns": [
+        {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true
+        },
+        {
+          "name": "name",
+          "type": "text"
+        },
+        {
+          "name": "previous_id",
+          "type": "uuid"
+        },
+        {
+          "name": "created_at",
+          "type": "timestamptz"
+        },
+        {
+          "name": "updated_at",
+          "type": "timestamptz"
+        }
+      ]
+    },
+    {
+      "name": "stage_10",
+      "columns": [
+        {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true
+        },
+        {
+          "name": "name",
+          "type": "text"
+        },
+        {
+          "name": "previous_id",
+          "type": "uuid"
+        },
+        {
+          "name": "created_at",
+          "type": "timestamptz"
+        },
+        {
+          "name": "updated_at",
+          "type": "timestamptz"
+        }
+      ]
+    },
+    {
+      "name": "stage_11",
+      "columns": [
+        {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true
+        },
+        {
+          "name": "name",
+          "type": "text"
+        },
+        {
+          "name": "previous_id",
+          "type": "uuid"
+        },
+        {
+          "name": "created_at",
+          "type": "timestamptz"
+        },
+        {
+          "name": "updated_at",
+          "type": "timestamptz"
+        }
+      ]
+    },
+    {
+      "name": "stage_12",
+      "columns": [
+        {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true
+        },
+        {
+          "name": "name",
+          "type": "text"
+        },
+        {
+          "name": "previous_id",
+          "type": "uuid"
+        },
+        {
+          "name": "created_at",
+          "type": "timestamptz"
+        },
+        {
+          "name": "updated_at",
+          "type": "timestamptz"
+        }
+      ]
+    },
+    {
+      "name": "stage_13",
+      "columns": [
+        {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true
+        },
+        {
+          "name": "name",
+          "type": "text"
+        },
+        {
+          "name": "previous_id",
+          "type": "uuid"
+        },
+        {
+          "name": "created_at",
+          "type": "timestamptz"
+        },
+        {
+          "name": "updated_at",
+          "type": "timestamptz"
+        }
+      ]
+    },
+    {
+      "name": "audit_logs",
+      "columns": [
+        {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true
+        },
+        {
+          "name": "actor_id",
+          "type": "uuid"
+        },
+        {
+          "name": "target_id",
+          "type": "uuid"
+        },
+        {
+          "name": "reason_id",
+          "type": "uuid"
+        },
+        {
+          "name": "created_at",
+          "type": "timestamptz"
+        }
+      ]
+    },
+    {
+      "name": "audit_actors",
+      "columns": [
+        {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true
+        },
+        {
+          "name": "name",
+          "type": "text"
+        }
+      ]
+    },
+    {
+      "name": "audit_targets",
+      "columns": [
+        {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true
+        },
+        {
+          "name": "name",
+          "type": "text"
+        }
+      ]
+    },
+    {
+      "name": "audit_reasons",
+      "columns": [
+        {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true
+        },
+        {
+          "name": "name",
+          "type": "text"
+        }
+      ]
+    }
+  ],
+  "relations": [
+    {
+      "from": {
+        "table": "account_roles",
+        "column": "account_id"
+      },
+      "to": {
+        "table": "accounts",
+        "column": "id"
+      },
+      "cardinality": "many-to-one"
+    },
+    {
+      "from": {
+        "table": "account_roles",
+        "column": "role_id"
+      },
+      "to": {
+        "table": "roles",
+        "column": "id"
+      },
+      "cardinality": "many-to-one"
+    },
+    {
+      "from": {
+        "table": "sessions",
+        "column": "account_id"
+      },
+      "to": {
+        "table": "accounts",
+        "column": "id"
+      },
+      "cardinality": "many-to-one"
+    },
+    {
+      "from": {
+        "table": "credentials",
+        "column": "account_id"
+      },
+      "to": {
+        "table": "accounts",
+        "column": "id"
+      },
+      "cardinality": "one-to-one"
+    },
+    {
+      "from": {
+        "table": "invoices",
+        "column": "account_id"
+      },
+      "to": {
+        "table": "accounts",
+        "column": "id"
+      },
+      "cardinality": "many-to-one"
+    },
+    {
+      "from": {
+        "table": "invoice_lines",
+        "column": "invoice_id"
+      },
+      "to": {
+        "table": "invoices",
+        "column": "id"
+      },
+      "cardinality": "many-to-one"
+    },
+    {
+      "from": {
+        "table": "invoice_lines",
+        "column": "product_id"
+      },
+      "to": {
+        "table": "products",
+        "column": "id"
+      },
+      "cardinality": "many-to-one"
+    },
+    {
+      "from": {
+        "table": "payments",
+        "column": "invoice_id"
+      },
+      "to": {
+        "table": "invoices",
+        "column": "id"
+      },
+      "cardinality": "many-to-one"
+    },
+    {
+      "from": {
+        "table": "refunds",
+        "column": "payment_id"
+      },
+      "to": {
+        "table": "payments",
+        "column": "id"
+      },
+      "cardinality": "many-to-one"
+    },
+    {
+      "from": {
+        "table": "product_prices",
+        "column": "product_id"
+      },
+      "to": {
+        "table": "products",
+        "column": "id"
+      },
+      "cardinality": "many-to-one"
+    },
+    {
+      "from": {
+        "table": "product_categories",
+        "column": "product_id"
+      },
+      "to": {
+        "table": "products",
+        "column": "id"
+      },
+      "cardinality": "many-to-one"
+    },
+    {
+      "from": {
+        "table": "product_categories",
+        "column": "category_id"
+      },
+      "to": {
+        "table": "categories",
+        "column": "id"
+      },
+      "cardinality": "many-to-one"
+    },
+    {
+      "from": {
+        "table": "stage_02",
+        "column": "previous_id"
+      },
+      "to": {
+        "table": "stage_01",
+        "column": "id"
+      },
+      "cardinality": "many-to-one"
+    },
+    {
+      "from": {
+        "table": "stage_03",
+        "column": "previous_id"
+      },
+      "to": {
+        "table": "stage_02",
+        "column": "id"
+      },
+      "cardinality": "many-to-one"
+    },
+    {
+      "from": {
+        "table": "stage_04",
+        "column": "previous_id"
+      },
+      "to": {
+        "table": "stage_03",
+        "column": "id"
+      },
+      "cardinality": "many-to-one"
+    },
+    {
+      "from": {
+        "table": "stage_05",
+        "column": "previous_id"
+      },
+      "to": {
+        "table": "stage_04",
+        "column": "id"
+      },
+      "cardinality": "many-to-one"
+    },
+    {
+      "from": {
+        "table": "stage_06",
+        "column": "previous_id"
+      },
+      "to": {
+        "table": "stage_05",
+        "column": "id"
+      },
+      "cardinality": "many-to-one"
+    },
+    {
+      "from": {
+        "table": "stage_07",
+        "column": "previous_id"
+      },
+      "to": {
+        "table": "stage_06",
+        "column": "id"
+      },
+      "cardinality": "many-to-one"
+    },
+    {
+      "from": {
+        "table": "stage_08",
+        "column": "previous_id"
+      },
+      "to": {
+        "table": "stage_07",
+        "column": "id"
+      },
+      "cardinality": "many-to-one"
+    },
+    {
+      "from": {
+        "table": "stage_09",
+        "column": "previous_id"
+      },
+      "to": {
+        "table": "stage_08",
+        "column": "id"
+      },
+      "cardinality": "many-to-one"
+    },
+    {
+      "from": {
+        "table": "stage_10",
+        "column": "previous_id"
+      },
+      "to": {
+        "table": "stage_09",
+        "column": "id"
+      },
+      "cardinality": "many-to-one"
+    },
+    {
+      "from": {
+        "table": "stage_11",
+        "column": "previous_id"
+      },
+      "to": {
+        "table": "stage_10",
+        "column": "id"
+      },
+      "cardinality": "many-to-one"
+    },
+    {
+      "from": {
+        "table": "stage_12",
+        "column": "previous_id"
+      },
+      "to": {
+        "table": "stage_11",
+        "column": "id"
+      },
+      "cardinality": "many-to-one"
+    },
+    {
+      "from": {
+        "table": "stage_13",
+        "column": "previous_id"
+      },
+      "to": {
+        "table": "stage_12",
+        "column": "id"
+      },
+      "cardinality": "many-to-one"
+    },
+    {
+      "from": {
+        "table": "audit_logs",
+        "column": "actor_id"
+      },
+      "to": {
+        "table": "audit_actors",
+        "column": "id"
+      },
+      "cardinality": "many-to-one"
+    },
+    {
+      "from": {
+        "table": "audit_logs",
+        "column": "target_id"
+      },
+      "to": {
+        "table": "audit_targets",
+        "column": "id"
+      },
+      "cardinality": "many-to-one"
+    },
+    {
+      "from": {
+        "table": "audit_logs",
+        "column": "reason_id"
+      },
+      "to": {
+        "table": "audit_reasons",
+        "column": "id"
+      },
+      "cardinality": "many-to-one"
+    }
+  ]
+}

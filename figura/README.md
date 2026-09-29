@@ -11,10 +11,15 @@ figura/
 ├── bin/figura                   # entry: checks for Node.js 22 or newer, then runs the CLI
 ├── bin/launch.sh                # d2 launcher: dev binary, cache, or the pinned release
 ├── bin/release.json             # pin of the d2 release the launcher downloads
+├── reference/erd-manual.json    # the format of a hand-written schema for figura erd
 ├── fonts/                       # Inter and JetBrains Mono, each beside its SIL OFL license
 ├── scripts/browser-locate.mjs   # finds Chromium 131 or newer
 ├── scripts/build-report.mjs     # the failure report and the build success line
 ├── scripts/cdp-session.mjs      # CDP client over --remote-debugging-pipe
+├── scripts/erd-d2.mjs           # D2 sql_table source of a part of a schema
+├── scripts/erd-model.mjs        # schema model with named errors, domains and subsets
+├── scripts/erd-source-manual.mjs # reads a hand-written schema JSON
+├── scripts/erd-split.mjs        # splits a schema into parts that fit an A4 page
 ├── scripts/extract-diagrams.mjs # finds every pre.d2 with its layout and figure caption
 ├── scripts/figura-error.mjs     # the coded error every figura failure line comes from
 ├── scripts/figura.mjs           # CLI dispatcher
@@ -56,6 +61,16 @@ page of the block that follows it, and renders one preview per page with
 a `.gitignore` holding `*` there, so the project's git never sees the previews. Every build starts by
 removing the previous PDF and previews of the document. Success is one line with the page, diagram
 and warning counts and the preview paths.
+
+`bin/figura erd --source manual <schema.json> --out <directory>` turns a schema into D2 `sql_table`
+diagrams: primary, foreign and unique keys as constraints, crow's foot ends for many-to-one and
+one-to-one relations, and domains as containers. `reference/erd-manual.json` shows the schema format.
+Each connected group of tables that does not fit an A4 page is split by domain, then breadth-first into
+parts of at most twelve tables, halved until every part passes the width and height checks; a relation
+cut by the split ends in a stub that names the other diagram. The parts land in `erd-NN.d2` files that go
+into `pre.d2` blocks of the document. `--hide-service-columns` hides created, updated and deleted
+timestamps, `--tables a,b` keeps a subset, and `--domains '{"domain": ["table", "prefix*"]}'` assigns
+domains.
 
 ## Theme
 

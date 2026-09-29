@@ -1,0 +1,59 @@
+{
+  "tables": [
+    {
+      "name": "accounts",
+      "domain": "identity",
+      "columns": [
+        { "name": "id", "type": "uuid", "primaryKey": true },
+        { "name": "email", "type": "text", "unique": true },
+        { "name": "display_name", "type": "text", "nullable": true },
+        { "name": "created_at", "type": "timestamptz" },
+        { "name": "updated_at", "type": "timestamptz" }
+      ]
+    },
+    {
+      "name": "credentials",
+      "domain": "identity",
+      "columns": [
+        { "name": "id", "type": "uuid", "primaryKey": true },
+        { "name": "account_id", "type": "uuid", "unique": true },
+        { "name": "password_hash", "type": "text" },
+        { "name": "created_at", "type": "timestamptz" }
+      ]
+    },
+    {
+      "name": "orders",
+      "domain": "sales",
+      "columns": [
+        { "name": "id", "type": "uuid", "primaryKey": true },
+        { "name": "account_id", "type": "uuid" },
+        { "name": "placed_at", "type": "timestamptz" },
+        { "name": "created_at", "type": "timestamptz" }
+      ]
+    },
+    {
+      "name": "products",
+      "domain": "sales",
+      "columns": [
+        { "name": "id", "type": "uuid", "primaryKey": true },
+        { "name": "title", "type": "text" },
+        { "name": "price_cents", "type": "integer" }
+      ]
+    },
+    {
+      "name": "order_products",
+      "domain": "sales",
+      "columns": [
+        { "name": "order_id", "type": "uuid", "primaryKey": true },
+        { "name": "product_id", "type": "uuid", "primaryKey": true },
+        { "name": "quantity", "type": "integer" }
+      ]
+    }
+  ],
+  "relations": [
+    { "from": { "table": "credentials", "column": "account_id" }, "to": { "table": "accounts", "column": "id" }, "cardinality": "one-to-one" },
+    { "from": { "table": "orders", "column": "account_id" }, "to": { "table": "accounts", "column": "id" }, "cardinality": "many-to-one" },
+    { "from": { "table": "order_products", "column": "order_id" }, "to": { "table": "orders", "column": "id" }, "cardinality": "many-to-one" },
+    { "from": { "table": "order_products", "column": "product_id" }, "to": { "table": "products", "column": "id" }, "cardinality": "many-to-one" }
+  ]
+}

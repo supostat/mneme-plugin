@@ -3,7 +3,7 @@
 // Smoke gate of figura against the real tools, outside npm test: each stage needs what its tool
 // needs — the d2 stage the network, curl and tar, the browser stage Chromium 131 or newer, the
 // render stage a d2 the launcher can serve, the checks stage both d2 and Chromium, the pdf stage d2,
-// Chromium and poppler (pdftoppm, pdftotext).
+// Chromium and poppler (pdftoppm, pdftotext), the erd stage a d2 the launcher can serve.
 
 import { spawnSync } from 'node:child_process';
 import { copyFileSync, existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs';
@@ -13,8 +13,10 @@ import { fileURLToPath } from 'node:url';
 import { inflateSync } from 'node:zlib';
 import { locateChromium } from '../figura/scripts/browser-locate.mjs';
 import { openCdpSession } from '../figura/scripts/cdp-session.mjs';
+import { schemaModel } from '../figura/scripts/erd-model.mjs';
+import { planErdDiagrams, svgSizeMeasurement } from '../figura/scripts/erd-split.mjs';
 import { FiguraError } from '../figura/scripts/figura-error.mjs';
-import { layoutLimits, layoutProblems } from '../figura/scripts/layout-checks.mjs';
+import { diagramSizeProblems, layoutLimits, layoutProblems } from '../figura/scripts/layout-checks.mjs';
 import { startLoopbackServer } from '../figura/scripts/loopback-server.mjs';
 import { measureDiagrams } from '../figura/scripts/measure-diagram.mjs';
 import { renderDiagram } from '../figura/scripts/render-diagram.mjs';
@@ -24,6 +26,7 @@ const FIGURA_BIN = resolve(dirname(fileURLToPath(import.meta.url)), '..', 'figur
 const FIXTURE_DIAGRAMS = resolve(dirname(fileURLToPath(import.meta.url)), 'fixtures', 'figura', 'diagrams');
 const TEMPLATE_DOCUMENT = resolve(dirname(fileURLToPath(import.meta.url)), '..', 'figura', 'template', 'document.html');
 const TEMPLATE_TITLE_WORDS = ['Document', 'title'];
+const THIRTY_TABLES_FIXTURE = resolve(dirname(fileURLToPath(import.meta.url)), 'fixtures', 'figura', 'erd-thirty-tables.json');
 const FOOTER_BAND_POINTS = 50;
 const POPPLER_RECIPE = 'install poppler: brew install poppler (macOS) or apt install poppler-utils (Debian/Ubuntu)';
 const EXPECTED_FIXTURE_CODES = new Map([
@@ -256,6 +259,26 @@ async function checkFixturesWithRealTools(workDirectory) {
   });
 }
 
+function splitThirtyTablesWithRealD2(workDirectory) {
+  const theme = loadTheme();
+  const { model } = schemaModel(JSON.parse(readFileSync(THIRTY_TABLES_FIXTURE, 'utf8')));
+  try {
+    const plan = planErdDiagrams(model, { theme, workDirectory });
+    const problems = plan.problems.map((problem) => problem.message);
+    const placed = new Set(plan.diagrams.flatMap((diagram) => diagram.tables));
+    if (placed.size !== model.tables.length) problems.push(`the parts place ${placed.size} of ${model.tables.length} tables`);
+    const limits = layoutLimits(theme);
+    for (const diagram of plan.diagrams) {
+      const { svg } = renderDiagram({ ordinal: diagram.number, layout: 'elk', source: diagram.source }, theme, { workDirectory });
+      problems.push(...diagramSizeProblems({ ordinal: diagram.number }, svgSizeMeasurement(svg), limits).map((problem) => problem.message));
+    }
+    return problems;
+  } catch (error) {
+    if (error instanceof FiguraError) return [error.message];
+    throw error;
+  }
+}
+
 const STAGES = new Map([
   [
     'd2',
@@ -290,6 +313,13 @@ const STAGES = new Map([
     {
       check: buildTemplateWithRealTools,
       passed: 'figura build printed the template as A4 with the title and page number in the footer and one preview per page',
+    },
+  ],
+  [
+    'erd',
+    {
+      check: splitThirtyTablesWithRealD2,
+      passed: 'the real d2 rendered every part of the 30-table fixture within the width and height of an A4 page',
     },
   ],
 ]);
