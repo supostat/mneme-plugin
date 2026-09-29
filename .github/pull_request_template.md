@@ -12,6 +12,11 @@
       гарде = успех теста.
 - [ ] **Сквозная установка через лаунчер**: `rm -rf ~/.mneme/bin && npm run reinstall`
       → `/reload-plugins` → `/mcp` видит инструменты mneme (dev-режим лаунчера).
+- [ ] **Переустановка обоих плагинов**: `npm run reinstall` → `/reload-plugins` →
+      `/plugin` показывает и mneme, и figura, а `/figura:document` доступен.
+- [ ] **ERD реального проекта** (если PR трогает `figura erd`): части, которые
+      `figura erd` пишет по схеме настоящего проекта (Prisma или живой Postgres),
+      читаются на A4 без ручной правки.
 - [ ] **Публикация лендинга**: Settings → Pages → Source: «GitHub Actions» включён
       (разовый шаг); прогон workflow `pages` зелёный;
       https://supostat.github.io/mneme-plugin/ открывается; OG-карточка валидна

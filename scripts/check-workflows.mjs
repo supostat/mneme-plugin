@@ -97,6 +97,9 @@ requireMarker(
   'the auto-bump actor guard breaks the bump-on-bump loop',
 );
 requireMarker(ciPath, ci, 'scripts/auto-bump.mjs', 'every bundle is bumped from its version base by the script, not by inline shell');
+requireMarker(ciPath, ci, 'node scripts/figura-e2e.mjs', 'figura must run end to end on the real d2, Chromium and poppler in CI');
+requireMarker(ciPath, ci, 'poppler-utils', 'the figura end-to-end job needs pdftoppm for the page previews');
+requireMarker(ciPath, ci, 'needs: [test, figura-e2e]', 'a red figura end-to-end run must hold the auto-bump back until the next green one');
 
 const pagesPath = '.github/workflows/pages.yml';
 const pages = load(pagesPath);

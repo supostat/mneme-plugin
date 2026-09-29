@@ -40,11 +40,26 @@ jobs:
       - name: figura d2 pin integrity
         run: node scripts/check-release-integrity.mjs figura/bin/release.json
 
+  figura-e2e:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Install poppler for the page previews
+        run: sudo apt-get update && sudo apt-get install -y poppler-utils
+
+      - name: figura on the real d2, Chromium and poppler
+        run: node scripts/figura-e2e.mjs
+
   auto-bump:
     # The actor guard breaks the loop: a bump commit pushed by the bot must
     # never trigger another bump of itself.
     if: github.event_name == 'push' && github.ref == 'refs/heads/main' && github.actor != 'github-actions[bot]'
-    needs: test
+    needs: [test, figura-e2e]
     permissions:
       contents: write
     runs-on: ubuntu-latest
