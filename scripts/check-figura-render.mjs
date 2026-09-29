@@ -126,6 +126,22 @@ function checkInlining(renderedDiagrams) {
   }
 }
 
+const MASKED_LABEL_SVG = [
+  '<svg viewBox="0 0 400 200"><rect x="0" y="0" width="400" height="200" fill="#FFFFFF" class=" fill-N7"></rect>',
+  '<g><path d="M 10 50 L 390 50" stroke="#0D32B2" mask="url(#d2-1)" /><text x="200" y="56" class="text-italic" style="text-anchor:middle;font-size:16px">3. Create user</text></g>',
+  '<g><path d="M 10 150 L 390 150" stroke="#0D32B2" mask="url(#d2-1)" /><text x="30" y="120" style="text-anchor:middle;font-size:16px">a label away from its line</text></g>',
+  '<mask id="d2-1" maskUnits="userSpaceOnUse" x="0" y="0" width="400" height="200"><rect x="0" y="0" width="400" height="200" fill="white"></rect><rect x="143" y="40" width="114" height="20" fill="black"></rect></mask></svg>',
+].join('');
+
+function checkLabelBackgrounds() {
+  const document = '<figure><pre class="d2">\na -> b: 3. Create user\n</pre></figure>';
+  const span = { start: document.indexOf('<pre'), end: document.indexOf('</figure>') };
+  const inlined = inlineDiagrams(document, [{ span, svg: MASKED_LABEL_SVG }]);
+  const background = '<rect x="143" y="40" width="114" height="20" fill="#FFFFFF" /><text x="200" y="56"';
+  if (!inlined.includes(background)) failures.push('inlining did not put an opaque background from the d2 label mask under an edge label, so viewers that ignore SVG masks strike the label through');
+  if ((inlined.match(/fill="#FFFFFF" \/>/g) ?? []).length !== 1) failures.push('inlining put a label background where the mask cuts nothing out');
+}
+
 try {
   const theme = loadTheme();
   const diagrams = extractDiagrams(FIXTURE_DOCUMENT);
@@ -137,6 +153,7 @@ try {
   checkD2Invocation(theme, diagrams[0], 'elk');
   checkD2Invocation(theme, diagrams[1], 'dagre');
   checkInlining(renderedDiagrams);
+  checkLabelBackgrounds();
   expectFailure(
     'd2 rejects a diagram',
     failureOf(() =>
@@ -160,5 +177,5 @@ if (failures.length > 0) {
   process.exit(1);
 }
 console.log(
-  'figura render check passed: diagrams are extracted with their layout and caption, d2 gets the layout, padding and the four Inter files with the theme classes in front, SVGs replace the pre blocks at natural size with captions untouched, and a d2 error comes back as D2-FAILED on the author\'s line.',
+  'figura render check passed: diagrams are extracted with their layout and caption, d2 gets the layout, padding and the four Inter files with the theme classes in front, SVGs replace the pre blocks at natural size with captions untouched and an opaque background under every masked edge label, and a d2 error comes back as D2-FAILED on the author\'s line.',
 );
