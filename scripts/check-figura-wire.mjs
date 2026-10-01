@@ -3,11 +3,12 @@
 // Gate for figura's main path on the real modules: the real entry figura/bin/figura builds the
 // reference demo through the dispatcher, preflight, extraction, theme, render, measure, checks,
 // inline, print, previews and report; a broken document stops before any PDF with every problem
-// named; and the ERD parts figura erd writes from the Prisma fixture build into a PDF as well. Only
-// the process boundary is faked: a launcher stub answers for d2 with a recorded SVG, a fake browser
-// answers the CDP pipe with recorded boxes and a two-page PDF, and a pdftoppm stub writes the
-// previews. That the modules reach the real d2, Chromium and pdftoppm is what the smoke stages and
-// scripts/figura-e2e.mjs prove; this gate proves the modules are wired to one another.
+// named; and the ERD parts figura erd writes from the Prisma fixture build into a PDF with dagre,
+// the layout erd measured them with. Only the process boundary is faked: a launcher stub answers for
+// d2 with a recorded SVG, a fake browser answers the CDP pipe with recorded boxes and a two-page
+// PDF, and a pdftoppm stub writes the previews. That the modules reach the real d2, Chromium and
+// pdftoppm is what the smoke stages and scripts/figura-e2e.mjs prove; this gate proves the modules
+// are wired to one another.
 
 import { spawnSync } from 'node:child_process';
 import { chmodSync, copyFileSync, cpSync, existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
@@ -40,10 +41,11 @@ function escapedHtml(text) {
   return text.replaceAll('&', '&amp;').replaceAll('<', '&lt;');
 }
 
-function documentOfDiagrams(title, sources) {
+function documentOfDiagrams(title, sources, layout) {
+  const layoutAttribute = layout === undefined ? '' : ` data-layout="${layout}"`;
   const figures = sources.map(
     (source, index) =>
-      `    <figure>\n      <pre class="d2">\n${escapedHtml(source)}</pre>\n      <figcaption class="caption"><strong>Figure ${index + 1}.</strong> A diagram of the wiring check.</figcaption>\n    </figure>`,
+      `    <figure>\n      <pre class="d2"${layoutAttribute}>\n${escapedHtml(source)}</pre>\n      <figcaption class="caption"><strong>Figure ${index + 1}.</strong> A diagram of the wiring check.</figcaption>\n    </figure>`,
   );
   return `<!doctype html>\n<html lang="en">\n  <head>\n    <meta charset="utf-8" />\n    <title>${title}</title>\n  </head>\n  <body>\n    <h1>${title}</h1>\n${figures.join('\n')}\n  </body>\n</html>\n`;
 }
@@ -158,9 +160,14 @@ function checkErdIntoDocument(toolchain) {
   if (parts.length === 0 || !parts.every((part) => part.includes('shape: sql_table') && part.includes('class: table'))) {
     failures.push(`figura erd wrote ${parts.length} parts, not all of them sql_table diagrams in the theme's table class`);
   }
-  writeFileSync(join(project, 'erd.html'), documentOfDiagrams('Storefront schema', parts));
+  writeFileSync(join(project, 'erd.html'), documentOfDiagrams('Storefront schema', parts, 'dagre'));
   const build = runFigura(toolchain, project, ['build', 'erd.html'], measurementsOf(parts.map(() => 'clean')));
   expectBuilt('the build of the ERD parts', build, project, 'erd', parts.length);
+  const renders = readIfPresent(launcherLog).split('\n').filter((line) => line !== '');
+  const dagreRenders = renders.filter((line) => line.includes('--layout dagre')).length;
+  if (renders.length !== parts.length || dagreRenders !== parts.length) {
+    failures.push(`the ERD parts reached d2 ${renders.length} times with ${dagreRenders} dagre layouts, expected ${parts.length} with dagre each`);
+  }
 }
 
 try {
@@ -180,5 +187,5 @@ if (failures.length > 0) {
   process.exit(1);
 }
 console.log(
-  'figura wire check passed: the real entry built the reference demo through every module, with every diagram rendered in its layout, inlined and printed with the theme and footer, a broken document stopped before the printer with each problem named, and the ERD parts of the Prisma fixture built into a PDF.',
+  'figura wire check passed: the real entry built the reference demo through every module, with every diagram rendered in its layout, inlined and printed with the theme and footer, a broken document stopped before the printer with each problem named, and the ERD parts of the Prisma fixture built into a PDF with every part drawn by dagre.',
 );

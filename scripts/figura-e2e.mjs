@@ -3,9 +3,10 @@
 // End-to-end run of figura on the real tools, outside npm test and in the figura-e2e CI job: the
 // real CLI builds a copy of the reference demo into an A4 PDF with a preview per page and no
 // problem, stops a document of broken diagrams with LABEL-OVERLAP, DIAGRAM-TOO-WIDE and
-// DIAGRAM-TOO-TALL before any PDF, and turns the Prisma fixture into ERD parts that the real d2
-// renders and the check passes. It needs d2 (the launcher downloads the pinned release), Chromium
-// 131 or newer and poppler at once; a missing one stops it with preflight's named line and recipe.
+// DIAGRAM-TOO-TALL before any PDF, and turns the Prisma fixture and the hubs-and-spokes schema into
+// ERD parts that the real d2 renders with dagre and the check passes, every table in exactly one
+// part. It needs d2 (the launcher downloads the pinned release), Chromium 131 or newer and poppler
+// at once; a missing one stops it with preflight's named line and recipe.
 
 import { spawnSync } from 'node:child_process';
 import { copyFileSync, existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
@@ -13,6 +14,7 @@ import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { preflight } from '../figura/scripts/preflight.mjs';
+import { hubsAndSpokesSchema } from './fixtures/figura/erd-hubs.mjs';
 
 const REPO_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const FIGURA_ENTRY = join(REPO_ROOT, 'figura', 'bin', 'figura');
@@ -25,6 +27,7 @@ const BROKEN_DIAGRAM_CODES = new Map([
   ['too-wide', 'DIAGRAM-TOO-WIDE'],
   ['too-tall', 'DIAGRAM-TOO-TALL'],
 ]);
+const ERD_TABLE = /"([^"]+)": \{\n\s+shape: sql_table/g;
 const DEMO_SUCCESS = /^figura: built demo\.pdf — (\d+) pages?, (\d+) diagrams?, 0 warnings; previews: /;
 const failures = [];
 
@@ -34,8 +37,8 @@ function escapedHtml(text) {
 
 function documentOfDiagrams(title, diagrams) {
   const figures = diagrams.map(
-    ({ caption, source }) =>
-      `    <figure>\n      <pre class="d2">\n${escapedHtml(source)}</pre>\n      <figcaption class="caption"><strong>${caption}.</strong> A diagram of the end-to-end run.</figcaption>\n    </figure>`,
+    ({ caption, source, layout }) =>
+      `    <figure>\n      <pre class="d2"${layout === undefined ? '' : ` data-layout="${layout}"`}>\n${escapedHtml(source)}</pre>\n      <figcaption class="caption"><strong>${caption}.</strong> A diagram of the end-to-end run.</figcaption>\n    </figure>`,
   );
   return `<!doctype html>\n<html lang="en">\n  <head>\n    <meta charset="utf-8" />\n    <title>${title}</title>\n  </head>\n  <body>\n    <h1>${title}</h1>\n${figures.join('\n')}\n  </body>\n</html>\n`;
 }
@@ -87,23 +90,40 @@ function stopBrokenDocument(workDirectory) {
   if (existsSync(join(brokenDirectory, '.figura', 'broken'))) failures.push('the broken document got previews');
 }
 
-function checkPrismaErd(workDirectory) {
-  const erdDirectory = join(workDirectory, 'erd');
+function erdPartsInDocument(workDirectory, name, erdArguments) {
+  const erdDirectory = join(workDirectory, name);
   mkdirSync(erdDirectory);
-  const erd = figura(erdDirectory, ['erd', '--source', 'prisma', PRISMA_SCHEMA, '--out', 'parts']);
+  const erd = figura(erdDirectory, ['erd', ...erdArguments, '--out', 'parts']);
   if (erd.status !== 0 || !erd.stdout.startsWith('figura: wrote ') || !erd.stdout.trim().endsWith('; 0 warnings')) {
-    failures.push(`figura erd --source prisma exited ${erd.status}: ${output(erd)}`);
-    return;
+    failures.push(`figura erd of the ${name} schema exited ${erd.status}: ${output(erd)}`);
+    return undefined;
   }
   const partFiles = readdirSync(join(erdDirectory, 'parts')).filter((fileName) => /^erd-\d+\.d2$/.test(fileName)).sort();
-  const parts = partFiles.map((fileName) => ({ caption: fileName, source: readFileSync(join(erdDirectory, 'parts', fileName), 'utf8') }));
-  const tableCount = parts.reduce((count, part) => count + (part.source.match(/shape: sql_table/g) ?? []).length, 0);
-  if (tableCount !== PRISMA_TABLE_COUNT) failures.push(`the ERD parts hold ${tableCount} tables, the Prisma fixture has ${PRISMA_TABLE_COUNT}`);
-  writeFileSync(join(erdDirectory, 'erd.html'), documentOfDiagrams('ERD parts', parts));
+  const parts = partFiles.map((fileName) => ({ caption: fileName, layout: 'dagre', source: readFileSync(join(erdDirectory, 'parts', fileName), 'utf8') }));
+  writeFileSync(join(erdDirectory, 'erd.html'), documentOfDiagrams(`ERD parts of the ${name} schema`, parts));
   const check = figura(erdDirectory, ['check', 'erd.html']);
   if (check.status !== 0 || !check.stdout.includes(`passed the check — ${parts.length} ${parts.length === 1 ? 'diagram fits' : 'diagrams fit'}`)) {
-    failures.push(`figura check of the ${parts.length} ERD parts exited ${check.status}: ${output(check)}`);
+    failures.push(`figura check of the ${parts.length} ERD parts of the ${name} schema exited ${check.status}: ${output(check)}`);
   }
+  return parts.flatMap((part) => [...part.source.matchAll(ERD_TABLE)].map(([, tableName]) => tableName));
+}
+
+function expectEveryTableOnce(name, drawnTables, expectedCount) {
+  if (drawnTables === undefined) return;
+  if (drawnTables.length !== expectedCount || new Set(drawnTables).size !== expectedCount) {
+    failures.push(`the ERD parts of the ${name} schema draw ${drawnTables.length} tables, ${new Set(drawnTables).size} of them distinct, expected ${expectedCount}`);
+  }
+}
+
+function checkPrismaErd(workDirectory) {
+  expectEveryTableOnce('prisma', erdPartsInDocument(workDirectory, 'prisma', ['--source', 'prisma', PRISMA_SCHEMA]), PRISMA_TABLE_COUNT);
+}
+
+function checkHubsAndSpokesErd(workDirectory) {
+  const schema = hubsAndSpokesSchema();
+  const schemaPath = join(workDirectory, 'hubs.json');
+  writeFileSync(schemaPath, JSON.stringify(schema));
+  expectEveryTableOnce('hubs-and-spokes', erdPartsInDocument(workDirectory, 'hubs-and-spokes', ['--source', 'manual', schemaPath]), schema.tables.length);
 }
 
 const missing = missingTools();
@@ -118,6 +138,7 @@ try {
   buildDemo(workDirectory);
   stopBrokenDocument(workDirectory);
   checkPrismaErd(workDirectory);
+  checkHubsAndSpokesErd(workDirectory);
 } finally {
   rmSync(workDirectory, { recursive: true, force: true });
 }
@@ -128,5 +149,5 @@ if (failures.length > 0) {
   process.exit(1);
 }
 console.log(
-  'figura-e2e passed: the real d2, Chromium and poppler built the demo with a preview per page, stopped the broken document with LABEL-OVERLAP, DIAGRAM-TOO-WIDE and DIAGRAM-TOO-TALL before any PDF, and checked every ERD part of the Prisma fixture on the page.',
+  'figura-e2e passed: the real d2, Chromium and poppler built the demo with a preview per page, stopped the broken document with LABEL-OVERLAP, DIAGRAM-TOO-WIDE and DIAGRAM-TOO-TALL before any PDF, and checked every dagre ERD part of the Prisma fixture and the hubs-and-spokes schema on the page, each table drawn once.',
 );

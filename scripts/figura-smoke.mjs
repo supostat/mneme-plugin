@@ -3,7 +3,8 @@
 // Smoke gate of figura against the real tools, outside npm test: each stage needs what its tool
 // needs — the d2 stage the network, curl and tar, the browser stage Chromium 131 or newer, the
 // render stage a d2 the launcher can serve, the checks stage both d2 and Chromium, the pdf stage d2,
-// Chromium and poppler (pdftoppm, pdftotext), the erd stage a d2 the launcher can serve.
+// Chromium and poppler (pdftoppm, pdftotext), the erd stage a d2 the launcher can serve for the
+// 30-table and hubs-and-spokes fixtures.
 
 import { spawnSync } from 'node:child_process';
 import { copyFileSync, existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs';
@@ -21,6 +22,7 @@ import { startLoopbackServer } from '../figura/scripts/loopback-server.mjs';
 import { measureDiagrams } from '../figura/scripts/measure-diagram.mjs';
 import { renderDiagram } from '../figura/scripts/render-diagram.mjs';
 import { loadTheme } from '../figura/scripts/theme.mjs';
+import { hubsAndSpokesSchema } from './fixtures/figura/erd-hubs.mjs';
 
 const FIGURA_BIN = resolve(dirname(fileURLToPath(import.meta.url)), '..', 'figura', 'bin');
 const FIXTURE_DIAGRAMS = resolve(dirname(fileURLToPath(import.meta.url)), 'fixtures', 'figura', 'diagrams');
@@ -259,20 +261,29 @@ async function checkFixturesWithRealTools(workDirectory) {
   });
 }
 
-function splitThirtyTablesWithRealD2(workDirectory) {
+function realD2SplitProblems(fixtureName, schema, workDirectory, theme) {
+  const { model } = schemaModel(schema);
+  const plan = planErdDiagrams(model, { theme, workDirectory });
+  const problems = plan.problems.map((problem) => `the ${fixtureName}: ${problem.message}`);
+  const placed = plan.diagrams.flatMap((diagram) => diagram.tables);
+  if (placed.length !== model.tables.length || new Set(placed).size !== model.tables.length) {
+    problems.push(`the parts of the ${fixtureName} place ${placed.length} tables, ${new Set(placed).size} of them distinct, of ${model.tables.length}`);
+  }
+  const limits = layoutLimits(theme);
+  for (const diagram of plan.diagrams) {
+    const { svg } = renderDiagram({ ordinal: diagram.number, layout: 'dagre', source: diagram.source }, theme, { workDirectory });
+    problems.push(...diagramSizeProblems({ ordinal: diagram.number }, svgSizeMeasurement(svg), limits).map((problem) => `the ${fixtureName}: ${problem.message}`));
+  }
+  return problems;
+}
+
+function splitErdFixturesWithRealD2(workDirectory) {
   const theme = loadTheme();
-  const { model } = schemaModel(JSON.parse(readFileSync(THIRTY_TABLES_FIXTURE, 'utf8')));
   try {
-    const plan = planErdDiagrams(model, { theme, workDirectory });
-    const problems = plan.problems.map((problem) => problem.message);
-    const placed = new Set(plan.diagrams.flatMap((diagram) => diagram.tables));
-    if (placed.size !== model.tables.length) problems.push(`the parts place ${placed.size} of ${model.tables.length} tables`);
-    const limits = layoutLimits(theme);
-    for (const diagram of plan.diagrams) {
-      const { svg } = renderDiagram({ ordinal: diagram.number, layout: 'elk', source: diagram.source }, theme, { workDirectory });
-      problems.push(...diagramSizeProblems({ ordinal: diagram.number }, svgSizeMeasurement(svg), limits).map((problem) => problem.message));
-    }
-    return problems;
+    return [
+      ...realD2SplitProblems('30-table fixture', JSON.parse(readFileSync(THIRTY_TABLES_FIXTURE, 'utf8')), workDirectory, theme),
+      ...realD2SplitProblems('hubs-and-spokes fixture', hubsAndSpokesSchema(), workDirectory, theme),
+    ];
   } catch (error) {
     if (error instanceof FiguraError) return [error.message];
     throw error;
@@ -318,8 +329,8 @@ const STAGES = new Map([
   [
     'erd',
     {
-      check: splitThirtyTablesWithRealD2,
-      passed: 'the real d2 rendered every part of the 30-table fixture within the width and height of an A4 page',
+      check: splitErdFixturesWithRealD2,
+      passed: 'the real d2 rendered every part of the 30-table and hubs-and-spokes fixtures with dagre within the width and height of an A4 page, each table in one part',
     },
   ],
 ]);
