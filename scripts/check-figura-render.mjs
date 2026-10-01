@@ -142,6 +142,16 @@ function checkLabelBackgrounds() {
   if ((inlined.match(/fill="#FFFFFF" \/>/g) ?? []).length !== 1) failures.push('inlining put a label background where the mask cuts nothing out');
 }
 
+function checkVectorLabelClips() {
+  const document = '<figure><pre class="d2">\na -> b: 3. Create user\n</pre></figure>';
+  const span = { start: document.indexOf('<pre'), end: document.indexOf('</figure>') };
+  const inlined = inlineDiagrams(document, [{ span, svg: MASKED_LABEL_SVG }]);
+  const clip = '<clipPath id="d2-1" clipPathUnits="userSpaceOnUse"><path clip-rule="evenodd" d="M 0 0 h 400 v 200 h -400 Z M 143 40 h 114 v 20 h -114 Z"></path></clipPath>';
+  if (/<mask\b|\bmask="/.test(inlined)) failures.push('inlining left an SVG mask in the diagram, which Chrome prints as a raster soft mask that viewers drop at some zoom levels, so edges vanish');
+  if (!inlined.includes(clip)) failures.push('inlining did not turn the d2 label mask into an even-odd vector clip with the label cutout');
+  if ((inlined.match(/clip-path="url\(#d2-1\)"/g) ?? []).length !== 2) failures.push('inlining did not move every masked edge onto the vector clip');
+}
+
 try {
   const theme = loadTheme();
   const diagrams = extractDiagrams(FIXTURE_DOCUMENT);
@@ -154,6 +164,7 @@ try {
   checkD2Invocation(theme, diagrams[1], 'dagre');
   checkInlining(renderedDiagrams);
   checkLabelBackgrounds();
+  checkVectorLabelClips();
   expectFailure(
     'd2 rejects a diagram',
     failureOf(() =>
@@ -177,5 +188,5 @@ if (failures.length > 0) {
   process.exit(1);
 }
 console.log(
-  'figura render check passed: diagrams are extracted with their layout and caption, d2 gets the layout, padding and the four Inter files with the theme classes in front, SVGs replace the pre blocks at natural size with captions untouched and an opaque background under every masked edge label, and a d2 error comes back as D2-FAILED on the author\'s line.',
+  'figura render check passed: diagrams are extracted with their layout and caption, d2 gets the layout, padding and the four Inter files with the theme classes in front, SVGs replace the pre blocks at natural size with captions untouched and an opaque background under every masked edge label, label masks turned into vector clips, and a d2 error comes back as D2-FAILED on the author\'s line.',
 );
