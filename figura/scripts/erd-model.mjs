@@ -8,6 +8,10 @@ export function isServiceColumn(columnName) {
   return SERVICE_COLUMNS.has(columnName);
 }
 
+export function isKeyColumn(column) {
+  return column.primaryKey || column.unique || column.references.length > 0;
+}
+
 export function foreignKeyCardinality(tableColumns, columnName) {
   const column = tableColumns.find((candidate) => candidate.name === columnName);
   const isSolePrimaryKey = column?.primaryKey === true && tableColumns.filter((candidate) => candidate.primaryKey === true).length === 1;
@@ -80,7 +84,19 @@ export function schemaModel(schema) {
       });
     }
   }
-  return { model: { tables: [...tables.values()], relations }, problems };
+  return { model: { tables: withReferences([...tables.values()], relations), relations }, problems };
+}
+
+function withReferences(tables, relations) {
+  const targetsOfColumn = new Map();
+  for (const relation of relations) {
+    const columnKey = `${relation.from.table}.${relation.from.column}`;
+    targetsOfColumn.set(columnKey, new Set([...(targetsOfColumn.get(columnKey) ?? []), relation.to.table]));
+  }
+  return tables.map((table) => ({
+    ...table,
+    columns: table.columns.map((column) => ({ ...column, references: [...(targetsOfColumn.get(`${table.name}.${column.name}`) ?? [])].sort() })),
+  }));
 }
 
 function matchesPattern(tableName, pattern) {

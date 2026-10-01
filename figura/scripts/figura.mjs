@@ -30,8 +30,8 @@ const USAGE = [
   '  version',
   '  check <document.html>',
   '  build <document.html>',
-  '  erd --source manual|prisma|typeorm|rails <path> --out <directory> [--hide-service-columns] [--tables a,b] [--domains <json>]',
-  '  erd --source psql [--url <postgres-url>] --out <directory> [--hide-service-columns] [--tables a,b] [--domains <json>]',
+  '  erd --source manual|prisma|typeorm|rails <path> --out <directory> [--hide-service-columns] [--key-columns] [--tables a,b] [--domains <json>]',
+  '  erd --source psql [--url <postgres-url>] --out <directory> [--hide-service-columns] [--key-columns] [--tables a,b] [--domains <json>]',
 ].join('\n');
 const FILE_ERD_SOURCES = new Map([
   ['manual', readManualSchema],
@@ -150,7 +150,7 @@ async function buildCommand([documentArgument]) {
 }
 
 function erdOptions(commandArguments) {
-  const options = { hideServiceColumns: false };
+  const options = { hideServiceColumns: false, keyColumns: false };
   const valued = new Map([
     ['--source', 'source'],
     ['--out', 'outDirectory'],
@@ -162,6 +162,8 @@ function erdOptions(commandArguments) {
     const argument = commandArguments[index];
     if (argument === '--hide-service-columns') {
       options.hideServiceColumns = true;
+    } else if (argument === '--key-columns') {
+      options.keyColumns = true;
     } else if (valued.has(argument) && index + 1 < commandArguments.length) {
       options[valued.get(argument)] = commandArguments[index + 1];
       index += 1;
@@ -248,6 +250,7 @@ async function erdCommand(commandArguments) {
     const plan = planErdDiagrams(withDomains(subset.model, patterns), {
       theme: loadTheme(),
       hideServiceColumns: options.hideServiceColumns,
+      keyColumns: options.keyColumns,
       workDirectory,
     });
     if (plan.problems.length > 0) {
@@ -258,7 +261,9 @@ async function erdCommand(commandArguments) {
     const written = writeErdDiagrams(outDirectory, plan.diagrams);
     const count = plan.diagrams.length;
     const warningCount = `${warnings.length} ${warnings.length === 1 ? 'warning' : 'warnings'}`;
-    console.log(`figura: wrote ${count} ERD ${count === 1 ? 'diagram' : 'diagrams'} to ${pathFromWorkingDirectory(outDirectory) || '.'} — ${written.join(', ')}; ${warningCount}`);
+    console.log(
+      `figura: wrote ${count} ERD ${count === 1 ? 'diagram' : 'diagrams'} to ${pathFromWorkingDirectory(outDirectory) || '.'} for pre.d2 blocks with data-layout="dagre" — ${written.join(', ')}; ${warningCount}`,
+    );
     return 0;
   } catch (error) {
     if (!(error instanceof FiguraError)) throw error;

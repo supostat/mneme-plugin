@@ -1,8 +1,8 @@
-import { isServiceColumn } from './erd-model.mjs';
+import { isKeyColumn, isServiceColumn } from './erd-model.mjs';
 import { SQL_TABLE_CLASS } from './theme.mjs';
 
-const STUB_CLASS = 'neutral';
 const DOMAIN_LABEL_POSITION = 'top-left';
+const FOREIGN_KEY_ARROW = ' → ';
 const ARROWHEADS = new Map([
   ['many-to-one', ['cf-many', 'cf-one']],
   ['one-to-one', ['cf-one', 'cf-one']],
@@ -24,71 +24,64 @@ function tableKey(table) {
   return table.domain === undefined ? quoted(table.name) : `${quoted(table.domain)}.${quoted(table.name)}`;
 }
 
-function columnConstraints(table, column, foreignKeyColumns) {
+export function columnType(column) {
+  return column.references.length === 0 ? column.type : `${column.type}${FOREIGN_KEY_ARROW}${column.references.join(', ')}`;
+}
+
+function columnConstraints(column) {
   const constraints = [];
   if (column.primaryKey) constraints.push('primary_key');
-  if (foreignKeyColumns.has(`${table.name}.${column.name}`)) constraints.push('foreign_key');
+  if (column.references.length > 0) constraints.push('foreign_key');
   if (column.unique) constraints.push('unique');
   if (constraints.length === 0) return '';
   return constraints.length === 1 ? ` {constraint: ${constraints[0]}}` : ` {constraint: [${constraints.join('; ')}]}`;
 }
 
-function tableLines(table, indent, { foreignKeyColumns, referencedColumns, hideServiceColumns }) {
-  const columns = table.columns.filter(
-    (column) => !(hideServiceColumns && isServiceColumn(column.name) && !referencedColumns.has(`${table.name}.${column.name}`)),
-  );
+export function relationEndColumns(model) {
+  return new Set(model.relations.flatMap((relation) => [`${relation.from.table}.${relation.from.column}`, `${relation.to.table}.${relation.to.column}`]));
+}
+
+export function visibleColumns(table, relationEnds, { hideServiceColumns = false, keyColumns = false } = {}) {
+  return table.columns.filter((column) => {
+    if (relationEnds.has(`${table.name}.${column.name}`)) return true;
+    if (keyColumns && !isKeyColumn(column)) return false;
+    return !(hideServiceColumns && isServiceColumn(column.name));
+  });
+}
+
+function tableLines(table, indent, relationEnds, columnOptions) {
   return [
     `${indent}${quoted(table.name)}: {`,
     `${indent}  shape: sql_table`,
     `${indent}  class: ${SQL_TABLE_CLASS}`,
-    ...columns.map((column) => `${indent}  ${quoted(column.name)}: ${quoted(column.type)}${columnConstraints(table, column, foreignKeyColumns)}`),
+    ...visibleColumns(table, relationEnds, columnOptions).map(
+      (column) => `${indent}  ${quoted(column.name)}: ${quoted(columnType(column))}${columnConstraints(column)}`,
+    ),
     `${indent}}`,
   ];
 }
 
-function stubKey(tableName, diagramNumber) {
-  return quoted(`${tableName} → diagram ${diagramNumber}`);
-}
-
-export function erdD2(model, partTableNames, { hideServiceColumns = false, diagramNumberOfTable = new Map() } = {}) {
+export function erdD2(model, partTableNames, columnOptions = {}) {
   const inPart = new Set(partTableNames);
   const tableByName = new Map(model.tables.map((table) => [table.name, table]));
   const tables = model.tables.filter((table) => inPart.has(table.name)).sort(byName);
-  const foreignKeyColumns = new Set(model.relations.map((relation) => `${relation.from.table}.${relation.from.column}`));
-  const referencedColumns = new Set(model.relations.flatMap((relation) => [`${relation.from.table}.${relation.from.column}`, `${relation.to.table}.${relation.to.column}`]));
-  const lineOptions = { foreignKeyColumns, referencedColumns, hideServiceColumns };
+  const relationEnds = relationEndColumns(model);
   const lines = [];
   const domains = [...new Set(tables.map((table) => table.domain).filter((domain) => domain !== undefined))].sort();
   for (const domain of domains) {
     lines.push(`${quoted(domain)}: {`, `  label.near: ${DOMAIN_LABEL_POSITION}`);
-    for (const table of tables.filter((candidate) => candidate.domain === domain)) lines.push(...tableLines(table, '  ', lineOptions));
+    for (const table of tables.filter((candidate) => candidate.domain === domain)) lines.push(...tableLines(table, '  ', relationEnds, columnOptions));
     lines.push('}');
   }
-  for (const table of tables.filter((candidate) => candidate.domain === undefined)) lines.push(...tableLines(table, '', lineOptions));
-  const stubs = new Set();
-  const relations = [...model.relations].sort((first, second) => (relationSortKey(first) < relationSortKey(second) ? -1 : 1));
-  for (const relation of relations) {
+  for (const table of tables.filter((candidate) => candidate.domain === undefined)) lines.push(...tableLines(table, '', relationEnds, columnOptions));
+  const relationsInPart = model.relations
+    .filter((relation) => inPart.has(relation.from.table) && inPart.has(relation.to.table))
+    .sort((first, second) => (relationSortKey(first) < relationSortKey(second) ? -1 : 1));
+  for (const relation of relationsInPart) {
     const [sourceArrowhead, targetArrowhead] = ARROWHEADS.get(relation.cardinality);
-    const style = `{source-arrowhead.shape: ${sourceArrowhead}; target-arrowhead.shape: ${targetArrowhead}}`;
-    const fromInside = inPart.has(relation.from.table);
-    const toInside = inPart.has(relation.to.table);
-    if (fromInside && toInside) {
-      lines.push(`${tableKey(tableByName.get(relation.from.table))}.${quoted(relation.from.column)} -> ${tableKey(tableByName.get(relation.to.table))}.${quoted(relation.to.column)}: ${style}`);
-      continue;
-    }
-    if (fromInside === toInside) continue;
-    const foreignTable = fromInside ? relation.to.table : relation.from.table;
-    const foreignNumber = diagramNumberOfTable.get(foreignTable);
-    if (foreignNumber === undefined) continue;
-    const stub = stubKey(foreignTable, foreignNumber);
-    if (!stubs.has(stub)) {
-      stubs.add(stub);
-      lines.push(`${stub}: {class: ${STUB_CLASS}}`);
-    }
-    const inside = fromInside
-      ? `${tableKey(tableByName.get(relation.from.table))}.${quoted(relation.from.column)}`
-      : `${tableKey(tableByName.get(relation.to.table))}.${quoted(relation.to.column)}`;
-    lines.push(fromInside ? `${inside} -> ${stub}: ${style}` : `${stub} -> ${inside}: ${style}`);
+    lines.push(
+      `${tableKey(tableByName.get(relation.from.table))}.${quoted(relation.from.column)} -> ${tableKey(tableByName.get(relation.to.table))}.${quoted(relation.to.column)}: {source-arrowhead.shape: ${sourceArrowhead}; target-arrowhead.shape: ${targetArrowhead}}`,
+    );
   }
   return `${lines.join('\n')}\n`;
 }
