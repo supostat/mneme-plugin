@@ -62,8 +62,9 @@ One reference example per diagram type, each building clean on A4:
 - `${CLAUDE_PLUGIN_ROOT}/reference/sequence.d2` — `shape: sequence_diagram`, numbered messages,
   dashed replies, notes on lifelines.
 - `${CLAUDE_PLUGIN_ROOT}/reference/mapping.d2` — column containers with connections between them.
-- `${CLAUDE_PLUGIN_ROOT}/reference/erd.d2` — `sql_table` shapes with keys, domains as containers,
-  crow's foot ends; the format `figura erd` writes.
+- `${CLAUDE_PLUGIN_ROOT}/reference/erd.d2` — `sql_table` shapes with keys, foreign keys that name
+  their table, domains as containers, crow's foot ends; the format `figura erd` writes
+  (`data-layout="dagre"`).
 - `${CLAUDE_PLUGIN_ROOT}/reference/flowchart.d2` — who, mechanism and scope in three columns:
   `direction: right`, no containers.
 - `${CLAUDE_PLUGIN_ROOT}/reference/state.d2` — states and labelled transitions
@@ -72,8 +73,10 @@ One reference example per diagram type, each building clean on A4:
 ## ERD from a real schema
 
 `figura erd` reads a schema and writes `erd-NN.d2` files, splitting a schema that does not fit one
-page into parts; paste each part into its own `figure`. A relation cut by the split ends in a stub
-that names the other diagram.
+page into parts. Paste each part into its own `figure` as `<pre class="d2" data-layout="dagre">`:
+figura measured the part with dagre, and ELK draws the same part wider. A foreign key names its
+table in the column type (`bigint → venues`), relations are drawn inside a part only, and a table
+never shows the tables that reference it.
 
 - Prisma: `${CLAUDE_PLUGIN_ROOT}/bin/figura erd --source prisma prisma/schema.prisma --out docs/erd`
   (a directory of `.prisma` files works too).
@@ -85,9 +88,12 @@ that names the other diagram.
 - A hand-written schema: `--source manual <schema.json>` in the format of
   `${CLAUDE_PLUGIN_ROOT}/reference/erd-manual.json`.
 
-Flags: `--hide-service-columns` hides the created, updated and deleted timestamps, `--tables a,b`
-keeps a subset, and `--domains '{"domain": ["table", "prefix*"]}'` groups tables into domains. A
-`TYPEORM-UNSUPPORTED` warning lists the entity declarations the parser left out of the diagrams.
+Flags: `--hide-service-columns` hides the created, updated and deleted timestamps, `--key-columns`
+keeps only the primary, foreign and unique key columns, `--tables a,b` keeps a subset whose foreign
+keys still name the tables left out, and `--domains '{"domain": ["table", "prefix*"]}'` groups
+tables into domains. A table too large even alone fails with a remedy that names the flag that would
+help or, when none would, its longest row or its column count. A `TYPEORM-UNSUPPORTED` warning lists
+the entity declarations the parser left out of the diagrams.
 
 ## Failure codes
 

@@ -11,7 +11,7 @@
     shape: sql_table
     class: table
     "id": "uuid" {constraint: primary_key}
-    "account_id": "uuid" {constraint: [foreign_key; unique]}
+    "account_id": "uuid → accounts" {constraint: [foreign_key; unique]}
     "password_hash": "text"
   }
 }
@@ -21,7 +21,7 @@
     shape: sql_table
     class: table
     "id": "uuid" {constraint: primary_key}
-    "account_id": "uuid" {constraint: foreign_key}
+    "account_id": "uuid → accounts" {constraint: foreign_key}
     "placed_at": "timestamptz"
   }
 }

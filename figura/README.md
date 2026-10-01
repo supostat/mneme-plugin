@@ -96,8 +96,9 @@ removing the previous PDF and previews of the document. Success is one line with
 and warning counts and the preview paths.
 
 `bin/figura erd --source <source> --out <directory>` turns a schema into D2 `sql_table` diagrams:
-primary, foreign and unique keys as constraints, crow's foot ends for many-to-one and one-to-one
-relations, and domains as containers. The source is one of five:
+primary, foreign and unique keys as constraints, a foreign key column that names its table in its type
+(`bigint → venues`), crow's foot ends for many-to-one and one-to-one relations, and domains as
+containers. The source is one of five:
 
 - `manual <schema.json>` — a hand-written schema in the format of `reference/erd-manual.json`;
 - `prisma <schema.prisma or a directory of .prisma files>` — models, `@id`, `@@id`, `@unique`,
@@ -120,12 +121,18 @@ the type name of an enum), so one schema reads the same from any source. A colum
 unique constraint or index covers it alone, and a relation is one-to-one when its foreign key column is
 unique on its own. Warnings print to stderr, and the success line counts them.
 
-Each connected group of tables that does not fit an A4 page is split by domain, then breadth-first into
-parts of at most twelve tables, halved until every part passes the width and height checks; a relation
-cut by the split ends in a stub that names the other diagram. The parts land in `erd-NN.d2` files that go
-into `pre.d2` blocks of the document. `--hide-service-columns` hides created, updated and deleted
-timestamps, `--tables a,b` keeps a subset, and `--domains '{"domain": ["table", "prefix*"]}'` assigns
-domains.
+Each connected group of tables that does not fit an A4 page is split by domain. A domain that does not
+fit either grows parts from its most connected table: the table with the most relations into the part
+comes next, then the other tables of the domain by name, until the next one would not fit. Every part
+is measured with dagre, so its `erd-NN.d2` file goes into a `<pre class="d2" data-layout="dagre">` block
+of the document. Relations are drawn inside a part only, and a table never shows the tables that
+reference it. `--hide-service-columns` hides created, updated and deleted timestamps, `--key-columns`
+keeps only the primary, foreign and unique key columns and the columns a relation points at,
+`--tables a,b` keeps a subset whose foreign keys still name the tables left out, and
+`--domains '{"domain": ["table", "prefix*"]}'` assigns domains. A table that does not fit even alone
+fails with a remedy built from the flags passed and the measured cause: the flag that would hide its
+longest row or its extra columns, or, when no flag would, that row or the column count and the advice
+to describe the table in a document table.
 
 ## Theme
 

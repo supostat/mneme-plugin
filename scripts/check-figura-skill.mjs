@@ -3,9 +3,9 @@
 // Gate for the figura skill and its references: SKILL.md keeps model invocation on, names its
 // triggers, reaches the bundle only through ${CLAUDE_PLUGIN_ROOT} and calls only entries the bundle
 // holds; every reference file it names exists; figura/reference/ holds an example of each of the
-// six diagram types; demo.html uses every block and fixed class of the source format, carries each
-// example as it is in a pre.d2 and has a section in Russian. Every rule also runs on a broken copy
-// and must name what is wrong.
+// six diagram types, the ERD with foreign keys that name their table; demo.html uses every block
+// and fixed class of the source format, carries each example as it is in a pre.d2 and has a
+// section in Russian. Every rule also runs on a broken copy and must name what is wrong.
 
 import { existsSync, readFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
@@ -37,7 +37,13 @@ const DIAGRAM_TYPES = new Map([
   ['architecture.d2', { what: 'a container with solid and dashed connections', isOfType: (source) => source.match(CONTAINER_OPENING)?.length >= 1 && source.includes('style.stroke-dash') }],
   ['sequence.d2', { what: 'a sequence diagram with numbered messages', isOfType: (source) => source.includes('shape: sequence_diagram') && /: "1\. /.test(source) }],
   ['mapping.d2', { what: 'columns as containers', isOfType: (source) => source.match(CONTAINER_OPENING)?.length >= 2 }],
-  ['erd.d2', { what: 'sql_table shapes with crow\'s foot ends', isOfType: (source) => source.includes('shape: sql_table') && source.includes('cf-many') }],
+  [
+    'erd.d2',
+    {
+      what: 'sql_table shapes with crow\'s foot ends and foreign keys that name their table',
+      isOfType: (source) => source.includes('shape: sql_table') && source.includes('cf-many') && source.includes(' → '),
+    },
+  ],
   ['flowchart.d2', { what: 'a left-to-right flow without containers', isOfType: (source) => source.includes('direction: right') && source.match(CONTAINER_OPENING) === null }],
   [
     'state.d2',
@@ -136,6 +142,8 @@ function checkReference(examples) {
   expectNamed('a reference without a state example', referenceProblems(withoutState), 'reference/state.d2 is missing');
   const flatSequence = new Map(examples).set('sequence.d2', examples.get('sequence.d2').replace('shape: sequence_diagram', 'direction: right'));
   expectNamed('a sequence example that is not a sequence diagram', referenceProblems(flatSequence), 'reference/sequence.d2 is not a sequence diagram');
+  const anonymousForeignKeys = new Map(examples).set('erd.d2', examples.get('erd.d2').replaceAll(' → accounts', ''));
+  expectNamed('an ERD example whose foreign keys do not name their table', referenceProblems(anonymousForeignKeys), 'foreign keys that name their table');
 }
 
 function checkDemo(demoHtml, examples) {
@@ -163,5 +171,5 @@ if (failures.length > 0) {
   process.exit(1);
 }
 console.log(
-  'figura skill check passed: SKILL.md triggers on its own, reaches the bundle through ${CLAUDE_PLUGIN_ROOT} and names only existing entries and references, figura/reference/ holds all six diagram types, and demo.html uses every block and fixed class, carries each example as it is and has a section in Russian.',
+  'figura skill check passed: SKILL.md triggers on its own, reaches the bundle through ${CLAUDE_PLUGIN_ROOT} and names only existing entries and references, figura/reference/ holds all six diagram types with an ERD whose foreign keys name their table, and demo.html uses every block and fixed class, carries each example as it is and has a section in Russian.',
 );

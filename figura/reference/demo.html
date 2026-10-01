@@ -211,7 +211,7 @@ departed -> deleted: retention ends
     <pre><code>figura erd --source prisma prisma/schema.prisma --out docs/erd --hide-service-columns</code></pre>
 
     <figure>
-      <pre class="d2">
+      <pre class="d2" data-layout="dagre">
 "identity": {
   label.near: top-left
   "accounts": {
@@ -225,7 +225,7 @@ departed -> deleted: retention ends
     shape: sql_table
     class: table
     "id": "uuid" {constraint: primary_key}
-    "account_id": "uuid" {constraint: [foreign_key; unique]}
+    "account_id": "uuid → accounts" {constraint: [foreign_key; unique]}
     "password_hash": "text"
   }
 }
@@ -235,7 +235,7 @@ departed -> deleted: retention ends
     shape: sql_table
     class: table
     "id": "uuid" {constraint: primary_key}
-    "account_id": "uuid" {constraint: foreign_key}
+    "account_id": "uuid → accounts" {constraint: foreign_key}
     "placed_at": "timestamptz"
   }
 }
