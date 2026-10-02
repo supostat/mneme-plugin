@@ -3,11 +3,13 @@
 // Gate for figura's main path on the real modules: the real entry figura/bin/figura builds the
 // reference demo through the dispatcher, preflight, extraction, theme, render, measure, checks,
 // inline, print, previews and report; a broken document stops before any PDF with every problem
-// named and a picture of each failed diagram with its conflicts framed in the theme colour; and the
+// named and a picture of each failed diagram with its conflicts framed in the theme colour; the
 // ERD parts figura erd writes from the Prisma fixture build into a PDF with dagre, the layout erd
-// measured them with. Only the process boundary is faked: a launcher stub answers for d2 with a
-// recorded SVG, a fake browser answers the CDP pipe with recorded boxes, a two-page PDF and
-// screenshots, and a pdftoppm stub writes the previews. That the modules reach the real d2, Chromium and
+// measured them with; two ERD diagrams of different width print at the scale the wider one needs
+// while a graph between them keeps its own; and a table wider than the column stops the build
+// before the printer with TABLE-TOO-WIDE. Only the process boundary is faked: a launcher stub
+// answers for d2 with a recorded SVG, a fake browser answers the CDP pipe with recorded boxes and
+// table widths, a two-page PDF and screenshots, and a pdftoppm stub writes the previews. That the modules reach the real d2, Chromium and
 // pdftoppm is what the smoke stages and scripts/figura-e2e.mjs prove; this gate proves the modules
 // are wired to one another.
 
@@ -67,12 +69,14 @@ function prepareToolchain() {
   return { entry: join(bundle, 'bin', 'figura'), stubBin, home };
 }
 
-function runFigura(toolchain, projectDirectory, commandArguments, measurements) {
+function runFigura(toolchain, projectDirectory, commandArguments, measurements, tableOverflows = []) {
   rmSync(launcherLog, { force: true });
   rmSync(printedPage, { force: true });
   rmSync(highlightLog, { force: true });
   const measurementsPath = join(projectDirectory, 'measurements.json');
   writeFileSync(measurementsPath, JSON.stringify(measurements));
+  const tableOverflowsPath = join(projectDirectory, 'table-overflows.json');
+  writeFileSync(tableOverflowsPath, JSON.stringify(tableOverflows));
   return spawnSync('/bin/sh', [toolchain.entry, ...commandArguments], {
     cwd: projectDirectory,
     env: {
@@ -84,6 +88,7 @@ function runFigura(toolchain, projectDirectory, commandArguments, measurements) 
       FIGURA_FAKE_LAUNCHER_LOG: launcherLog,
       FIGURA_FAKE_PRINTED_PAGE: printedPage,
       FIGURA_FAKE_OVERLAY_LOG: highlightLog,
+      FIGURA_FAKE_TABLE_OVERFLOWS: tableOverflowsPath,
     },
     encoding: 'utf8',
   });
@@ -189,11 +194,50 @@ function checkErdIntoDocument(toolchain) {
   }
 }
 
+function labelledMeasurement(widthPixels) {
+  return {
+    widthPixels,
+    heightPixels: 200,
+    objects: [{ id: 'node', kind: 'shape', box: { x: 0, y: 0, width: 80, height: 40 }, pathBox: null, labels: [{ text: 'Node', box: { x: 20, y: 10, width: 40, height: 20 }, fontPixels: 16 }] }],
+  };
+}
+
+function checkSharedErdScale(toolchain) {
+  const project = projectDirectory('shared-scale');
+  const erd = (table) => `"${table}": {\n  shape: sql_table\n  class: table\n  "id": "bigint" {constraint: primary_key}\n}\n`;
+  writeFileSync(join(project, 'shared.html'), documentOfDiagrams('Shared ERD scale', [erd('venues'), 'a -> b\n', erd('users')], 'dagre'));
+  const measurements = { 'diagram-01.svg': labelledMeasurement(300), 'diagram-02.svg': labelledMeasurement(800), 'diagram-03.svg': labelledMeasurement(1000) };
+  const run = runFigura(toolchain, project, ['build', 'shared.html'], measurements);
+  const printed = expectBuilt('the build of two ERD diagrams around a graph', run, project, 'shared', 3);
+  const rootWidths = [...printed.matchAll(/<svg width="([\d.]+)" height="[\d.]+" xmlns=/g)].map(([, width]) => width);
+  if (JSON.stringify(rootWidths) !== JSON.stringify(['211.32', '99.06', '211.32'])) {
+    failures.push(
+      `the printed diagrams are ${JSON.stringify(rootWidths)} px wide, expected both 320 px ERD diagrams at the 66% scale the 1000 px one needs (211.32) and the 120 px graph at its own 82.5% (99.06)`,
+    );
+  }
+}
+
+function checkTableTooWide(toolchain) {
+  const project = projectDirectory('wide-table');
+  writeFileSync(
+    join(project, 'tables.html'),
+    '<!doctype html>\n<html lang="en">\n  <head><meta charset="utf-8" /><title>Tables</title></head>\n  <body>\n    <h1>Tables</h1>\n    <table><thead><tr><th>Job</th></tr></thead><tbody><tr><td><code>ProcessFinanceReportUpdatesJob</code></td></tr></tbody></table>\n  </body>\n</html>\n',
+  );
+  const run = runFigura(toolchain, project, ['build', 'tables.html'], {}, [{ ordinal: 1, header: 'Job', widthPixels: 949.87, availablePixels: 660.37 }]);
+  if (run.status !== 1 || !run.stderr.includes('  - TABLE-TOO-WIDE: table 1 («Job») is 712.4 pt wide against a 495.3 pt column — use fewer columns')) {
+    failures.push(`the build of a table wider than the column did not stop with TABLE-TOO-WIDE (exit ${run.status}): ${run.stderr.trim()}`);
+  }
+  if (existsSync(join(project, 'tables.pdf'))) failures.push('a table wider than the column still got a PDF');
+  if (existsSync(printedPage)) failures.push('a table wider than the column reached the printer');
+}
+
 try {
   const toolchain = prepareToolchain();
   checkDemo(toolchain);
   checkBrokenDocument(toolchain);
   checkErdIntoDocument(toolchain);
+  checkSharedErdScale(toolchain);
+  checkTableTooWide(toolchain);
 } catch (error) {
   failures.push(`the main path threw: ${error.stack ?? error.message}`);
 } finally {
@@ -206,5 +250,5 @@ if (failures.length > 0) {
   process.exit(1);
 }
 console.log(
-  'figura wire check passed: the real entry built the reference demo through every module, with every diagram rendered in its layout, inlined and printed with the theme and footer, a broken document stopped before the printer with each problem named and a picture of each failed diagram with its conflicts framed, and the ERD parts of the Prisma fixture built into a PDF with every part drawn by dagre.',
+  'figura wire check passed: the real entry built the reference demo through every module, with every diagram rendered in its layout, inlined and printed with the theme and footer, a broken document stopped before the printer with each problem named and a picture of each failed diagram with its conflicts framed, the ERD parts of the Prisma fixture built into a PDF with every part drawn by dagre, two ERD diagrams printed at one scale beside a graph at its own, and a table wider than the column stopped before the printer with TABLE-TOO-WIDE.',
 );

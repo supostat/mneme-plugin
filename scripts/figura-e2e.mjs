@@ -7,15 +7,23 @@
 // inside a sequence group and edges between containers, fails a labelled edge into a container in
 // dagre and ELK with its own remedy, and turns the Prisma fixture and the hubs-and-spokes schema into
 // ERD parts that the real d2 renders with dagre and the check passes, every table in exactly one
-// part. It needs d2 (the launcher downloads the pinned release), Chromium 131 or newer and poppler
-// at once; a missing one stops it with preflight's named line and recipe.
+// part. In the printed PDF, read back with pdftotext, a tight table keeps every plain word whole and
+// breaks identifiers only after _ / :: ., a table wider than the column stops the build with
+// TABLE-TOO-WIDE, and the largest hubs part and a single-table part print their rows at one height
+// although their own scales differ. It needs d2 (the launcher downloads the pinned release),
+// Chromium 131 or newer and poppler at once; a missing one stops it with preflight's named line and
+// recipe.
 
 import { spawnSync } from 'node:child_process';
 import { copyFileSync, existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { svgSizeMeasurement } from '../figura/scripts/erd-split.mjs';
+import { layoutLimits, printScales } from '../figura/scripts/layout-checks.mjs';
 import { preflight } from '../figura/scripts/preflight.mjs';
+import { renderDiagram } from '../figura/scripts/render-diagram.mjs';
+import { loadTheme } from '../figura/scripts/theme.mjs';
 import { hubsAndSpokesSchema } from './fixtures/figura/erd-hubs.mjs';
 
 const REPO_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
@@ -34,6 +42,16 @@ const FAILED_PICTURES = ['failed-01.png', 'failed-02.png', 'failed-03.png'];
 const INTO_CONTAINER = 'reads as a link within it';
 const ERD_TABLE = /"([^"]+)": \{\n\s+shape: sql_table/g;
 const DEMO_SUCCESS = /^figura: built demo\.pdf — (\d+) pages?, (\d+) diagrams?, 0 warnings; previews: /;
+const PDF_WORD = /<word xMin="[\d.]+" yMin="([\d.]+)" xMax="[\d.]+" yMax="([\d.]+)">([^<]*)<\/word>/g;
+const PLAIN_WORDS = ['Validators', 'State', 'machines', 'Development', 'Production', 'nightly'];
+const IDENTIFIERS = ['config/environments/production.yml', 'app/models/tax_year.rb', 'holiday_transitions', 'Finance::ReportUpdates', 'ProcessFinanceReportUpdatesJob'];
+const SEPARATOR_RUN = /(?:::|[_/.])+/g;
+const TIGHT_TABLE = [
+  ['Validators', 'app/models/tax_year.rb', 'Development', 'Runs the <code>ProcessFinanceReportUpdatesJob</code> nightly'],
+  ['State machines', 'config/environments/production.yml', 'Production', '<code>Finance::ReportUpdates</code> and <code>holiday_transitions</code>'],
+];
+const WIDE_IDENTIFIER = 'ProcessFinanceReportUpdatesForVenuesJob';
+const ROW_HEIGHT_TOLERANCE_POINTS = 0.1;
 const failures = [];
 
 function escapedHtml(text) {
@@ -46,6 +64,30 @@ function documentOfDiagrams(title, diagrams) {
       `    <figure>\n      <pre class="d2"${layout === undefined ? '' : ` data-layout="${layout}"`}>\n${escapedHtml(source)}</pre>\n      <figcaption class="caption"><strong>${caption}.</strong> A diagram of the end-to-end run.</figcaption>\n    </figure>`,
   );
   return `<!doctype html>\n<html lang="en">\n  <head>\n    <meta charset="utf-8" />\n    <title>${title}</title>\n  </head>\n  <body>\n    <h1>${title}</h1>\n${figures.join('\n')}\n  </body>\n</html>\n`;
+}
+
+function documentOfBody(title, body) {
+  return `<!doctype html>\n<html lang="en">\n  <head>\n    <meta charset="utf-8" />\n    <title>${title}</title>\n  </head>\n  <body>\n    <h1>${title}</h1>\n${body}\n  </body>\n</html>\n`;
+}
+
+function tableHtml(header, rows) {
+  const cells = (tag, values) => values.map((value) => `<${tag}>${value}</${tag}>`).join('');
+  return `    <table><thead><tr>${cells('th', header)}</tr></thead><tbody>${rows.map((row) => `<tr>${cells('td', row)}</tr>`).join('')}</tbody></table>`;
+}
+
+function pdfWords(pdfPath) {
+  const layout = spawnSync('pdftotext', ['-bbox', pdfPath, '-'], { encoding: 'utf8' });
+  return [...layout.stdout.matchAll(PDF_WORD)].map(([, yMin, yMax, text]) => ({ text, heightPoints: Number(yMax) - Number(yMin) }));
+}
+
+function breakPositions(identifier) {
+  return new Set([...identifier.matchAll(SEPARATOR_RUN)].map((run) => run.index + run[0].length).filter((position) => position < identifier.length));
+}
+
+function printedWhole(identifier, texts) {
+  const allowedCuts = breakPositions(identifier);
+  const reaches = (start) => start === identifier.length || texts.some((text) => identifier.startsWith(text, start) && (start + text.length === identifier.length || allowedCuts.has(start + text.length)) && reaches(start + text.length));
+  return reaches(0);
 }
 
 function figura(workDirectory, commandArguments) {
@@ -163,6 +205,79 @@ function checkHubsAndSpokesErd(workDirectory) {
   const schemaPath = join(workDirectory, 'hubs.json');
   writeFileSync(schemaPath, JSON.stringify(schema));
   expectEveryTableOnce('hubs-and-spokes', erdPartsInDocument(workDirectory, 'hubs-and-spokes', ['--source', 'manual', schemaPath]), schema.tables.length);
+  checkErdRowsAtOneScale(workDirectory, schemaPath);
+}
+
+function checkTableBreaks(workDirectory) {
+  const tablesDirectory = join(workDirectory, 'tables');
+  mkdirSync(tablesDirectory);
+  const rows = TIGHT_TABLE.map(([component, path, environment, notes]) => [component, `<code>${path}</code>`, environment, notes]);
+  writeFileSync(join(tablesDirectory, 'tables.html'), documentOfBody('Tables', tableHtml(['Component', 'Path', 'Environment', 'Notes'], rows)));
+  const build = figura(tablesDirectory, ['build', 'tables.html']);
+  if (build.status !== 0) {
+    failures.push(`figura build of a tight table exited ${build.status}: ${output(build)}`);
+    return;
+  }
+  const texts = pdfWords(join(tablesDirectory, 'tables.pdf')).map((word) => word.text);
+  for (const word of PLAIN_WORDS.filter((plain) => !texts.includes(plain))) failures.push(`the printed table broke the plain word "${word}": ${JSON.stringify(texts)}`);
+  for (const identifier of IDENTIFIERS.filter((candidate) => !printedWhole(candidate, texts))) {
+    failures.push(`the printed table broke ${identifier} away from _ / :: . : ${JSON.stringify(texts)}`);
+  }
+  if (!texts.includes('ProcessFinanceReportUpdatesJob')) failures.push(`the printed table broke ProcessFinanceReportUpdatesJob, which has no separator: ${JSON.stringify(texts)}`);
+  if (IDENTIFIERS.every((identifier) => texts.includes(identifier))) failures.push('no identifier of the tight table wrapped, so the table proves nothing about where code breaks');
+}
+
+function checkTableTooWide(workDirectory) {
+  const wideDirectory = join(workDirectory, 'wide-table');
+  mkdirSync(wideDirectory);
+  const columns = ['A', 'B', 'C', 'D', 'E'];
+  writeFileSync(join(wideDirectory, 'wide.html'), documentOfBody('Wide table', tableHtml(columns, [columns.map((suffix) => `<code>${WIDE_IDENTIFIER}${suffix}</code>`)])));
+  const build = figura(wideDirectory, ['build', 'wide.html']);
+  if (build.status !== 1 || !build.stderr.includes('  - TABLE-TOO-WIDE: table 1 («A») is ')) {
+    failures.push(`figura build of a table wider than the column did not stop with TABLE-TOO-WIDE (exit ${build.status}): ${output(build)}`);
+  }
+  if (existsSync(join(wideDirectory, 'wide.pdf'))) failures.push('a table wider than the column still got a PDF');
+}
+
+function ownScale(source, workDirectory, theme) {
+  const diagram = { ordinal: 1, layout: 'dagre', source };
+  const measurement = svgSizeMeasurement(renderDiagram(diagram, theme, { workDirectory }).svg);
+  return printScales([diagram], [measurement], layoutLimits(theme))[0].factor;
+}
+
+function checkErdRowsAtOneScale(workDirectory, schemaPath) {
+  const erdDirectory = join(workDirectory, 'erd-scale');
+  mkdirSync(erdDirectory);
+  const whole = figura(erdDirectory, ['erd', '--source', 'manual', schemaPath, '--out', 'parts']);
+  const single = figura(erdDirectory, ['erd', '--source', 'manual', schemaPath, '--tables', 'venues', '--out', 'single']);
+  if (whole.status !== 0 || single.status !== 0) {
+    failures.push(`figura erd of the hubs-and-spokes schema exited ${whole.status} and ${single.status}: ${output(whole)} ${output(single)}`);
+    return;
+  }
+  const parts = readdirSync(join(erdDirectory, 'parts')).filter((fileName) => /^erd-\d+\.d2$/.test(fileName)).map((fileName) => readFileSync(join(erdDirectory, 'parts', fileName), 'utf8'));
+  const largest = parts.reduce((most, part) => (part.split('shape: sql_table').length > most.split('shape: sql_table').length ? part : most));
+  const singleTable = readFileSync(join(erdDirectory, 'single', 'erd-01.d2'), 'utf8');
+  const theme = loadTheme();
+  const renderDirectory = join(erdDirectory, 'render');
+  mkdirSync(renderDirectory);
+  const largestScale = ownScale(largest, renderDirectory, theme);
+  const singleScale = ownScale(singleTable, renderDirectory, theme);
+  if (!(largestScale < 1 && largestScale < singleScale)) {
+    failures.push(`the largest hubs part scales to ${largestScale} and the single table to ${singleScale} on their own, so one print scale proves nothing`);
+    return;
+  }
+  const figures = [largest, singleTable].map((source, index) => `    <figure>\n      <pre class="d2" data-layout="dagre">\n${escapedHtml(source)}</pre>\n      <figcaption class="caption"><strong>Part ${index + 1}.</strong> A part of the hubs schema.</figcaption>\n    </figure>`);
+  writeFileSync(join(erdDirectory, 'erd.html'), documentOfBody('ERD at one scale', figures.join('\n')));
+  const build = figura(erdDirectory, ['build', 'erd.html']);
+  if (build.status !== 0) {
+    failures.push(`figura build of the largest hubs part and a single table exited ${build.status}: ${output(build)}`);
+    return;
+  }
+  const rowHeights = pdfWords(join(erdDirectory, 'erd.pdf')).filter((word) => word.text === 'bigint').map((word) => word.heightPoints);
+  const spread = Math.max(...rowHeights) - Math.min(...rowHeights);
+  if (rowHeights.length < 2 || spread > ROW_HEIGHT_TOLERANCE_POINTS) {
+    failures.push(`the bigint rows of the two ERD parts print at heights ${JSON.stringify(rowHeights)}, not at one scale (own scales ${largestScale.toFixed(3)} and ${singleScale.toFixed(3)})`);
+  }
 }
 
 const missing = missingTools();
@@ -179,6 +294,8 @@ try {
   checkGroupsAndContainers(workDirectory);
   checkPrismaErd(workDirectory);
   checkHubsAndSpokesErd(workDirectory);
+  checkTableBreaks(workDirectory);
+  checkTableTooWide(workDirectory);
 } finally {
   rmSync(workDirectory, { recursive: true, force: true });
 }
@@ -189,5 +306,5 @@ if (failures.length > 0) {
   process.exit(1);
 }
 console.log(
-  'figura-e2e passed: the real d2, Chromium and poppler built the demo with a preview per page, stopped the broken document with LABEL-OVERLAP, DIAGRAM-TOO-WIDE and DIAGRAM-TOO-TALL before any PDF with a PNG picture of each failed diagram, passed a sequence group and edges between containers, failed a labelled edge into a container in dagre and ELK with its own remedy, and checked every dagre ERD part of the Prisma fixture and the hubs-and-spokes schema on the page, each table drawn once.',
+  'figura-e2e passed: the real d2, Chromium and poppler built the demo with a preview per page, stopped the broken document with LABEL-OVERLAP, DIAGRAM-TOO-WIDE and DIAGRAM-TOO-TALL before any PDF with a PNG picture of each failed diagram, passed a sequence group and edges between containers, failed a labelled edge into a container in dagre and ELK with its own remedy, checked every dagre ERD part of the Prisma fixture and the hubs-and-spokes schema on the page, each table drawn once, printed the largest hubs part and a single table with rows of one height, kept the plain words of a tight table whole while its identifiers broke only after _ / :: ., and stopped a table wider than the column with TABLE-TOO-WIDE.',
 );
