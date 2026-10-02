@@ -76,21 +76,36 @@ export function diagramScale(measurement, limits) {
   return Math.min(1, limits.columnWidthPoints / (measurement.widthPixels * POINTS_PER_PIXEL));
 }
 
-export function diagramSizeProblems(diagram, measurement, limits) {
+export function printScales(diagrams, measurements, limits) {
+  const ownScales = measurements.map((measurement) => diagramScale(measurement, limits));
+  const erdIndexes = diagrams.flatMap((diagram, index) => (diagramTraits(diagram).kind === 'erd' ? [index] : []));
+  const sharedIndex = erdIndexes.reduce((smallest, index) => (smallest === undefined || ownScales[index] < ownScales[smallest] ? index : smallest), undefined);
+  return diagrams.map((diagram, index) =>
+    erdIndexes.includes(index) ? { factor: ownScales[sharedIndex], setBy: diagrams[sharedIndex].ordinal } : { factor: ownScales[index], setBy: diagram.ordinal },
+  );
+}
+
+function scaleNote(diagram, printScale) {
+  const percent = `${Math.round(printScale.factor * 100)}%`;
+  return printScale.setBy === diagram.ordinal ? percent : `${percent}, the scale the ERD diagrams of this document share (set by diagram ${printScale.setBy}),`;
+}
+
+export function diagramSizeProblems(diagram, measurement, limits, printScale) {
   const traits = diagramTraits(diagram);
   const problems = [];
-  const scale = diagramScale(measurement, limits);
+  const scale = printScale.factor;
   const widthPoints = measurement.widthPixels * POINTS_PER_PIXEL;
   const fontSizes = measurement.objects.flatMap((object) => object.labels.map((label) => label.fontPixels));
   if (fontSizes.length > 0) {
     const effectiveLabelPoints = Math.min(...fontSizes) * POINTS_PER_PIXEL * scale;
     if (effectiveLabelPoints < limits.minimumLabelPoints) {
+      const sharedScaleCause = printScale.setBy === diagram.ordinal ? {} : { scaleSetBy: printScale.setBy };
       problems.push(
         diagramProblem(
           diagram,
           'DIAGRAM-TOO-WIDE',
-          `${subject(diagram)} is ${rounded(widthPoints)} pt wide against a ${rounded(limits.columnWidthPoints)} pt column; scaled to ${Math.round(scale * 100)}% its smallest label prints at ${rounded(effectiveLabelPoints)} pt, under the ${limits.minimumLabelPoints} pt floor`,
-          layoutRemedy('DIAGRAM-TOO-WIDE', traits),
+          `${subject(diagram)} is ${rounded(widthPoints)} pt wide against a ${rounded(limits.columnWidthPoints)} pt column; scaled to ${scaleNote(diagram, printScale)} its smallest label prints at ${rounded(effectiveLabelPoints)} pt, under the ${limits.minimumLabelPoints} pt floor`,
+          layoutRemedy('DIAGRAM-TOO-WIDE', traits, sharedScaleCause),
           [],
         ),
       );
@@ -157,6 +172,6 @@ function geometryProblems(diagram, measurement) {
   return problems;
 }
 
-export function layoutProblems(diagram, measurement, limits) {
-  return [...diagramSizeProblems(diagram, measurement, limits), ...geometryProblems(diagram, measurement)];
+export function layoutProblems(diagram, measurement, limits, printScale) {
+  return [...diagramSizeProblems(diagram, measurement, limits, printScale), ...geometryProblems(diagram, measurement)];
 }

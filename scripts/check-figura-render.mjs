@@ -2,7 +2,8 @@
 //
 // Gate for figura's diagram pipeline with the real theme and a launcher stub at the process boundary:
 // extraction with the default and an overridden layout, the d2 arguments and the theme classes in
-// front of every source, SVG insertion that keeps the caption, and D2-FAILED naming the diagram.
+// front of every source, SVG insertion at the print scale of each diagram that keeps the caption and
+// replaces any size on the root, and D2-FAILED naming the diagram.
 
 import { mkdtempSync, readFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
@@ -120,9 +121,19 @@ function checkInlining(renderedDiagrams) {
   if (/<pre\b[^>]*class="d2/.test(inlined)) failures.push('inlining left a pre.d2 in the document');
   if (inlined.includes('<?xml')) failures.push('inlining kept the XML declaration of an SVG');
   if (!inlined.includes(CODE_BLOCK)) failures.push('inlining touched a code block that is not a diagram');
-  for (const [ordinal, caption] of [[1, FIRST_CAPTION], [2, SECOND_CAPTION]]) {
-    const figureWithSvg = new RegExp(`<figure>\\s*<svg width="120" height="40"[\\s\\S]*?</svg>\\s*${caption.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\s*</figure>`);
-    if (!figureWithSvg.test(inlined)) failures.push(`diagram ${ordinal}: its figure does not hold the sized SVG followed by the untouched caption`);
+  for (const [ordinal, caption, printedSize] of [
+    [1, FIRST_CAPTION, 'width="120" height="40"'],
+    [2, SECOND_CAPTION, 'width="69" height="23"'],
+  ]) {
+    const figureWithSvg = new RegExp(`<figure>\\s*<svg ${printedSize}[\\s\\S]*?</svg>\\s*${caption.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\s*</figure>`);
+    if (!figureWithSvg.test(inlined)) failures.push(`diagram ${ordinal}: its figure does not hold the SVG at ${printedSize} followed by the untouched caption`);
+  }
+  const document = '<figure><pre class="d2">\na -> b\n</pre></figure>';
+  const span = { start: document.indexOf('<pre'), end: document.indexOf('</figure>') };
+  const sizedRoot = '<svg width="999" viewBox="0 0 100 50" height="999"><svg class="d2-svg" width="100" height="50"></svg></svg>';
+  const resized = inlineDiagrams(document, [{ span, svg: sizedRoot, printScale: 0.333 }]);
+  if (!resized.includes('<svg width="33.3" height="16.65" viewBox="0 0 100 50"><svg class="d2-svg" width="100" height="50">')) {
+    failures.push(`inlining did not replace the size of a root SVG with its viewBox at the print scale, leaving the inner SVG alone: ${resized}`);
   }
 }
 
@@ -136,7 +147,7 @@ const MASKED_LABEL_SVG = [
 function checkLabelBackgrounds() {
   const document = '<figure><pre class="d2">\na -> b: 3. Create user\n</pre></figure>';
   const span = { start: document.indexOf('<pre'), end: document.indexOf('</figure>') };
-  const inlined = inlineDiagrams(document, [{ span, svg: MASKED_LABEL_SVG }]);
+  const inlined = inlineDiagrams(document, [{ span, svg: MASKED_LABEL_SVG, printScale: 1 }]);
   const background = '<rect x="143" y="40" width="114" height="20" fill="#FFFFFF" /><text x="200" y="56"';
   if (!inlined.includes(background)) failures.push('inlining did not put an opaque background from the d2 label mask under an edge label, so viewers that ignore SVG masks strike the label through');
   if ((inlined.match(/fill="#FFFFFF" \/>/g) ?? []).length !== 1) failures.push('inlining put a label background where the mask cuts nothing out');
@@ -145,7 +156,7 @@ function checkLabelBackgrounds() {
 function checkVectorLabelClips() {
   const document = '<figure><pre class="d2">\na -> b: 3. Create user\n</pre></figure>';
   const span = { start: document.indexOf('<pre'), end: document.indexOf('</figure>') };
-  const inlined = inlineDiagrams(document, [{ span, svg: MASKED_LABEL_SVG }]);
+  const inlined = inlineDiagrams(document, [{ span, svg: MASKED_LABEL_SVG, printScale: 1 }]);
   const clip = '<clipPath id="d2-1" clipPathUnits="userSpaceOnUse"><path clip-rule="evenodd" d="M 0 0 h 400 v 200 h -400 Z M 143 40 h 114 v 20 h -114 Z"></path></clipPath>';
   if (/<mask\b|\bmask="/.test(inlined)) failures.push('inlining left an SVG mask in the diagram, which Chrome prints as a raster soft mask that viewers drop at some zoom levels, so edges vanish');
   if (!inlined.includes(clip)) failures.push('inlining did not turn the d2 label mask into an even-odd vector clip with the label cutout');
@@ -156,9 +167,10 @@ try {
   const theme = loadTheme();
   const diagrams = extractDiagrams(FIXTURE_DOCUMENT);
   checkExtraction(diagrams);
-  const renderedDiagrams = diagrams.map((diagram) => ({
+  const renderedDiagrams = diagrams.map((diagram, index) => ({
     ...diagram,
     svg: renderDiagram(diagram, theme, { workDirectory, launcherPath: FAKE_LAUNCHER }).svg,
+    printScale: [1, 0.575][index],
   }));
   checkD2Invocation(theme, diagrams[0], 'elk');
   checkD2Invocation(theme, diagrams[1], 'dagre');
@@ -188,5 +200,5 @@ if (failures.length > 0) {
   process.exit(1);
 }
 console.log(
-  'figura render check passed: diagrams are extracted with their layout and caption, d2 gets the layout, padding and the four Inter files with the theme classes in front, SVGs replace the pre blocks at natural size with captions untouched and an opaque background under every masked edge label, label masks turned into vector clips, and a d2 error comes back as D2-FAILED on the author\'s line.',
+  'figura render check passed: diagrams are extracted with their layout and caption, d2 gets the layout, padding and the four Inter files with the theme classes in front, SVGs replace the pre blocks at their print scale with captions untouched and any size on the root replaced and an opaque background under every masked edge label, label masks turned into vector clips, and a d2 error comes back as D2-FAILED on the author\'s line.',
 );

@@ -1,8 +1,9 @@
 #!/usr/bin/env node
 //
 // Gate for figura's ERD sources: one storefront schema written as Prisma, TypeORM entities,
-// schema.rb and a recorded psql catalog gives one model and, through the real erd-d2, one D2; the
-// erd command writes the same parts from every source; a psql stub on PATH proves the password
+// schema.rb and a recorded psql catalog gives one model and, through the real erd-d2, one D2 where
+// the self reference of categories is a foreign key without an edge; the erd command writes the
+// same parts from every source; a psql stub on PATH proves the password
 // stays out of psql's arguments and figura's stdout and stderr, a missing psql stops with
 // PSQL-NOT-FOUND, and TypeORM declarations the parser does not model are named in a warning.
 
@@ -46,9 +47,10 @@ const EXPECTED_D2_LINES = [
   '"order_id": "uuid → orders" {constraint: [primary_key; foreign_key]}',
   '"A": "bigint → products" {constraint: [primary_key; foreign_key]}',
   '"credentials"."account_id" -> "accounts"."id": {source-arrowhead.shape: cf-one; target-arrowhead.shape: cf-one}',
-  '"categories"."parent_id" -> "categories"."id": {source-arrowhead.shape: cf-many; target-arrowhead.shape: cf-one}',
+  '"parent_id": "bigint → categories" {constraint: foreign_key}',
   '"_ProductToTag"."B" -> "tags"."id": {source-arrowhead.shape: cf-many; target-arrowhead.shape: cf-one}',
 ];
+const SELF_REFERENCE_EDGE = '"categories"."parent_id" -> "categories"."id"';
 const failures = [];
 const workDirectory = mkdtempSync(join(tmpdir(), 'figura-erd-sources-check-'));
 const psqlCall = join(workDirectory, 'psql-call');
@@ -99,6 +101,7 @@ function checkSourcesAgree() {
     failures.push(`the storefront schema gave ${database.model.tables.length} tables and ${database.model.relations.length} relations, expected 8 and 8`);
   }
   for (const line of EXPECTED_D2_LINES) if (!database.d2.includes(line)) failures.push(`the storefront D2 lacks ${JSON.stringify(line)}`);
+  if (database.d2.includes(SELF_REFERENCE_EDGE)) failures.push(`the storefront D2 draws the self reference of categories as an edge: ${SELF_REFERENCE_EDGE}`);
   const nullability = (table, column) => database.model.tables.find((candidate) => candidate.name === table)?.columns.find((candidate) => candidate.name === column)?.nullable;
   if (nullability('accounts', 'display_name') !== true || nullability('orders', 'account_id') !== false) failures.push('the psql catalog lost the nullability of its columns');
 }
@@ -250,5 +253,5 @@ if (failures.length > 0) {
   process.exit(1);
 }
 console.log(
-  'figura erd sources check passed: Prisma, TypeORM, schema.rb and the psql catalog give one model and one D2, the erd command writes the same parts from each, the password stays out of psql arguments and every output, a missing psql stops with PSQL-NOT-FOUND, and unsupported TypeORM declarations are named in a warning.',
+  'figura erd sources check passed: Prisma, TypeORM, schema.rb and the psql catalog give one model and one D2 with the self reference of categories as a foreign key without an edge, the erd command writes the same parts from each, the password stays out of psql arguments and every output, a missing psql stops with PSQL-NOT-FOUND, and unsupported TypeORM declarations are named in a warning.',
 );

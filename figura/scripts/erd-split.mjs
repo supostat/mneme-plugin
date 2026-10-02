@@ -1,6 +1,6 @@
 import { columnType, erdD2, relationEndColumns, visibleColumns } from './erd-d2.mjs';
 import { FiguraError } from './figura-error.mjs';
-import { diagramSizeProblems, layoutLimits } from './layout-checks.mjs';
+import { diagramSizeProblems, layoutLimits, printScales } from './layout-checks.mjs';
 import { renderDiagram } from './render-diagram.mjs';
 
 const MEASURED_LAYOUT = 'dagre';
@@ -155,9 +155,9 @@ export function planErdDiagrams(model, { theme, hideServiceColumns = false, keyC
   const columnOptions = { hideServiceColumns, keyColumns };
   const sizeProblemsOfPart = (tableNames) => {
     const caption = tableNames.length === 1 ? `table ${tableNames[0]}` : `${tableNames.length} tables`;
-    const source = erdD2(model, tableNames, columnOptions);
-    const { svg } = renderDiagram({ ordinal: 1, caption, layout: MEASURED_LAYOUT, source }, theme, { workDirectory, launcherPath });
-    return diagramSizeProblems({ ordinal: 1, caption, layout: MEASURED_LAYOUT, source }, svgSizeMeasurement(svg), limits);
+    const diagram = { ordinal: 1, caption, layout: MEASURED_LAYOUT, source: erdD2(model, tableNames, columnOptions) };
+    const measurement = svgSizeMeasurement(renderDiagram(diagram, theme, { workDirectory, launcherPath }).svg);
+    return diagramSizeProblems(diagram, measurement, limits, printScales([diagram], [measurement], limits)[0]);
   };
   const { parts, tablesTooLargeAlone } = splitIntoParts(model, sizeProblemsOfPart);
   const relationEnds = relationEndColumns(model);

@@ -1,6 +1,7 @@
 const XML_DECLARATION = /^\s*<\?xml[^>]*\?>\s*/;
 const ROOT_SVG_TAG = /<svg\b[^>]*>/;
 const VIEW_BOX_SIZE = /\bviewBox="\s*[-\d.]+\s+[-\d.]+\s+([\d.]+)\s+([\d.]+)\s*"/;
+const ROOT_SIZE_ATTRIBUTE = /\s(?:width|height)="[^"]*"/g;
 
 const D2_BACKGROUND = /<rect\b[^>]*\bfill="(#[0-9A-Fa-f]{6})"[^>]*\bclass=" fill-N7"/;
 const LABEL_MASK = /<mask id="([^"]+)"[^>]*>([\s\S]*?)<\/mask>/g;
@@ -53,12 +54,18 @@ function withOpaqueLabelBackgrounds(svg) {
   });
 }
 
-function svgAtNaturalSize(svgDocument) {
+function printedPixels(viewBoxPixels, printScale) {
+  return Math.round(Number(viewBoxPixels) * printScale * 100) / 100;
+}
+
+function svgAtPrintSize(svgDocument, printScale) {
   const svg = svgDocument.replace(XML_DECLARATION, '');
   const rootTag = ROOT_SVG_TAG.exec(svg)[0];
-  if (/\swidth=/.test(rootTag)) return svg;
   const [, width, height] = VIEW_BOX_SIZE.exec(rootTag);
-  return svg.replace(rootTag, rootTag.replace('<svg', `<svg width="${width}" height="${height}"`));
+  const sizedRootTag = rootTag
+    .replace(ROOT_SIZE_ATTRIBUTE, '')
+    .replace('<svg', `<svg width="${printedPixels(width, printScale)}" height="${printedPixels(height, printScale)}"`);
+  return svg.replace(rootTag, sizedRootTag);
 }
 
 export function inlineDiagrams(html, renderedDiagrams) {
@@ -66,7 +73,7 @@ export function inlineDiagrams(html, renderedDiagrams) {
     .sort((first, second) => second.span.start - first.span.start)
     .reduce(
       (document, diagram) =>
-        `${document.slice(0, diagram.span.start)}${svgAtNaturalSize(withVectorLabelClips(withOpaqueLabelBackgrounds(diagram.svg)))}${document.slice(diagram.span.end)}`,
+        `${document.slice(0, diagram.span.start)}${svgAtPrintSize(withVectorLabelClips(withOpaqueLabelBackgrounds(diagram.svg)), diagram.printScale)}${document.slice(diagram.span.end)}`,
       html,
     );
 }

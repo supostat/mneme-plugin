@@ -25,7 +25,8 @@ function directionOffer(traits, direction) {
   return traits.direction === direction ? [] : [`change direction to ${direction} (direction: ${direction})`];
 }
 
-function tooWideRemedy(traits) {
+function tooWideRemedy(traits, { scaleSetBy }) {
+  if (scaleSetBy !== undefined) return `the ERD diagrams of a document print at one scale, set by the widest; split diagram ${scaleSetBy} into narrower parts`;
   if (traits.kind === 'sequence') return 'keep it to five participants or fewer and shorten the participant and message labels, or split it';
   if (traits.kind === 'erd' && traits.layout === 'elk') return 'draw it with dagre (data-layout="dagre"), the layout figura erd measures ERD parts with, or split it';
   const layoutOffer = traits.kind === 'graph' ? [otherLayout(traits.layout)] : [];
@@ -47,7 +48,7 @@ function labelOverlapRemedy(traits, { intoContainer }) {
 export function layoutRemedy(problemCode, traits, cause = {}) {
   switch (problemCode) {
     case 'DIAGRAM-TOO-WIDE':
-      return tooWideRemedy(traits);
+      return tooWideRemedy(traits, cause);
     case 'DIAGRAM-TOO-TALL':
       return tooTallRemedy(traits);
     case 'LABEL-OVERLAP':

@@ -2,20 +2,22 @@
 //
 // Gate for figura's ERD pipeline with the real theme, render and layout checks and a launcher stub
 // whose SVG grows with the tables and columns: model errors by name, keys, unique columns,
-// cardinality, domains and foreign keys that name their table in D2, key columns only, a subset that
-// keeps the target of its foreign keys, parts that grow inside their domain and are measured with
-// dagre on the 30-table and the hubs-and-spokes fixtures, no stub boxes, single-table remedies built
-// from the flags passed and the measured cause, deterministic output and the erd command.
+// cardinality, domains and foreign keys that name their table in D2, a self reference drawn as its
+// foreign key without an edge, a type equal to its column name kept visible by a zero width space,
+// key columns only, a subset that keeps the target of its foreign keys, parts that grow inside their
+// domain and are measured with dagre on the 30-table and the hubs-and-spokes fixtures, no stub boxes
+// and no self edges, single-table remedies built from the flags passed and the measured cause,
+// deterministic output and the erd command.
 
 import { spawnSync } from 'node:child_process';
 import { chmodSync, copyFileSync, cpSync, existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { erdD2, relationEndColumns } from '../figura/scripts/erd-d2.mjs';
+import { columnType, erdD2, relationEndColumns } from '../figura/scripts/erd-d2.mjs';
 import { modelSubset, schemaModel, withDomains } from '../figura/scripts/erd-model.mjs';
 import { planErdDiagrams, singleTableRemedy, svgSizeMeasurement } from '../figura/scripts/erd-split.mjs';
-import { diagramSizeProblems, layoutLimits } from '../figura/scripts/layout-checks.mjs';
+import { diagramSizeProblems, layoutLimits, printScales } from '../figura/scripts/layout-checks.mjs';
 import { renderDiagram } from '../figura/scripts/render-diagram.mjs';
 import { loadTheme } from '../figura/scripts/theme.mjs';
 import { HOLIDAY_TABLES, HUB_INCOMING_FOREIGN_KEYS, hubsAndSpokesSchema } from './fixtures/figura/erd-hubs.mjs';
@@ -27,6 +29,8 @@ const THIRTY_TABLES = join(FIXTURES, 'erd-thirty-tables.json');
 const REFERENCE_SCHEMA = join(REPO_ROOT, 'figura', 'reference', 'erd-manual.json');
 const EXPECTED_PART_SIZES = [4, 4, 5, 4, 7, 6];
 const STUB_MARKERS = ['{class: neutral}', '→ diagram'];
+const ZERO_WIDTH_SPACE = '​';
+const EDGE_LINE = /^(.+)\."[^"]*" -> (.+)\."[^"]*": \{/gm;
 const failures = [];
 const workDirectory = mkdtempSync(join(tmpdir(), 'figura-erd-check-'));
 const launcherLog = join(workDirectory, 'launcher.log');
@@ -96,6 +100,40 @@ function checkD2(referenceModel) {
   expectIncludes('an ERD with a domain mapping', erdD2(withDomains(referenceModel, { storefront: ['order*'] }), allTables), '"storefront": {');
 }
 
+function selfEdges(source) {
+  return [...source.matchAll(EDGE_LINE)].filter(([, fromTable, toTable]) => fromTable === toTable).map(([edge]) => edge);
+}
+
+function checkSelfReferenceAndNamedTypes() {
+  const holidays = {
+    name: 'holidays',
+    columns: [
+      { name: 'id', type: 'bigint', primaryKey: true },
+      { name: 'parent_holiday_id', type: 'bigint' },
+      { name: 'venue_id', type: 'bigint' },
+      { name: 'date', type: 'date' },
+      { name: 'end_date', type: 'date' },
+      { name: 'text', type: 'text' },
+    ],
+  };
+  const venues = { name: 'venues', columns: [{ name: 'id', type: 'bigint', primaryKey: true }] };
+  const manyToOne = (column, table) => ({ from: { table: 'holidays', column }, to: { table, column: 'id' }, cardinality: 'many-to-one' });
+  const { model } = schemaModel({ tables: [holidays, venues], relations: [manyToOne('parent_holiday_id', 'holidays'), manyToOne('venue_id', 'venues')] });
+  const source = erdD2(model, ['holidays', 'venues']);
+  if (selfEdges('"rotas"."rota_questions"."parent_rota_question_id" -> "rotas"."rota_questions"."id": {source-arrowhead.shape: cf-many}\n').length !== 1) {
+    failures.push('the self edge finder misses an edge from a table into itself, so the checks below prove nothing');
+  }
+  expectIncludes('an ERD with a self reference', source, '"parent_holiday_id": "bigint → holidays" {constraint: foreign_key}');
+  if (selfEdges(source).length > 0) failures.push(`a self reference was drawn as an edge inside its own table: ${selfEdges(source).join('; ')}`);
+  expectIncludes('an ERD with a self reference and another foreign key', source, '"holidays"."venue_id" -> "venues"."id"');
+  for (const named of ['"date": "date', '"text": "text']) expectIncludes('an ERD with types equal to their column names', source, `${named}${ZERO_WIDTH_SPACE}"`);
+  expectIncludes('an ERD with a type that differs from its column name', source, '"end_date": "date"');
+  const zeroWidthSpaces = source.split(ZERO_WIDTH_SPACE).length - 1;
+  if (zeroWidthSpaces !== 2) failures.push(`the ERD carries ${zeroWidthSpaces} zero width spaces, expected one after each of the 2 types equal to their column names`);
+  const dateColumn = model.tables.find((table) => table.name === 'holidays').columns.find((column) => column.name === 'date');
+  if (columnType(dateColumn) !== 'date') failures.push(`columnType of the date column is ${JSON.stringify(columnType(dateColumn))}, the remedies need the plain type`);
+}
+
 function stubPlan(model, label, columnOptions = {}) {
   const planDirectory = join(workDirectory, label);
   mkdirSync(planDirectory);
@@ -128,8 +166,9 @@ function checkThirtyTables() {
   expectPartsWithoutStubs('30-table fixture', plan);
   const limits = layoutLimits(theme);
   for (const diagram of plan.diagrams) {
-    const { svg } = renderDiagram({ ordinal: diagram.number, layout: 'dagre', source: diagram.source }, theme, { workDirectory, launcherPath: FAKE_LAUNCHER });
-    const problems = diagramSizeProblems({ ordinal: diagram.number, layout: 'dagre', source: diagram.source }, svgSizeMeasurement(svg), limits);
+    const part = { ordinal: diagram.number, layout: 'dagre', source: diagram.source };
+    const measurement = svgSizeMeasurement(renderDiagram(part, theme, { workDirectory, launcherPath: FAKE_LAUNCHER }).svg);
+    const problems = diagramSizeProblems(part, measurement, limits, printScales([part], [measurement], limits)[0]);
     if (problems.length > 0) failures.push(`part ${diagram.number} fails the checks: ${problems.map((problem) => problem.message).join('; ')}`);
   }
   const domainOf = new Map(model.tables.map((table) => [table.name, table.domain]));
@@ -152,6 +191,9 @@ function checkHubsAndSpokes() {
   if (plan.problems.length > 0) failures.push(`the hubs-and-spokes split reported ${plan.problems.map((problem) => problem.message).join('; ')}`);
   expectEveryTableOnce('hubs-and-spokes', plan, model);
   expectPartsWithoutStubs('hubs-and-spokes fixture', plan);
+  const partSources = plan.diagrams.map((diagram) => diagram.source).join('\n');
+  expectIncludes('the hubs-and-spokes parts', partSources, '"parent_quiz_category_question_id": "bigint → quiz_category_questions" {constraint: foreign_key}');
+  if (selfEdges(partSources).length > 0) failures.push(`the hubs-and-spokes parts draw self references as edges: ${selfEdges(partSources)[0]}`);
   if (!plan.diagrams.some((diagram) => JSON.stringify(diagram.tables) === JSON.stringify(HOLIDAY_TABLES))) {
     failures.push(`the holidays domain is not one part: ${JSON.stringify(plan.diagrams.filter((diagram) => diagram.tables.some((table) => HOLIDAY_TABLES.includes(table))).map((diagram) => diagram.tables))}`);
   }
@@ -253,6 +295,7 @@ try {
   process.env.FIGURA_FAKE_LAUNCHER_LOG = launcherLog;
   checkModelErrors();
   checkD2(schemaModel(readJson(REFERENCE_SCHEMA)).model);
+  checkSelfReferenceAndNamedTypes();
   checkThirtyTables();
   checkHubsAndSpokes();
   checkMeasuredWithDagre();
@@ -271,5 +314,5 @@ if (failures.length > 0) {
   process.exit(1);
 }
 console.log(
-  'figura erd check passed: model errors are named; keys, unique columns, cardinality, domains and foreign keys that name their table reach D2; key columns only and a subset keep the foreign key targets; the 30-table and hubs-and-spokes fixtures split into dagre-measured parts that grow inside their domain without stub boxes; single-table remedies follow the flags and the measured cause; output is deterministic, and figura erd writes the parts.',
+  'figura erd check passed: model errors are named; keys, unique columns, cardinality, domains and foreign keys that name their table reach D2; a self reference stays a foreign key without an edge and a type equal to its column name stays visible; key columns only and a subset keep the foreign key targets; the 30-table and hubs-and-spokes fixtures split into dagre-measured parts that grow inside their domain without stub boxes; single-table remedies follow the flags and the measured cause; output is deterministic, and figura erd writes the parts.',
 );

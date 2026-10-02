@@ -16,7 +16,7 @@ import { planErdDiagrams } from './erd-split.mjs';
 import { extractDiagrams } from './extract-diagrams.mjs';
 import { FiguraError } from './figura-error.mjs';
 import { inlineDiagrams } from './inline-diagrams.mjs';
-import { layoutLimits, layoutProblems } from './layout-checks.mjs';
+import { layoutLimits, layoutProblems, printScales } from './layout-checks.mjs';
 import { measureDiagrams } from './measure-diagram.mjs';
 import { preflight } from './preflight.mjs';
 import { printableDocument, printPdf } from './print-pdf.mjs';
@@ -67,15 +67,16 @@ async function checkDocument(documentPath, workDirectory) {
   const theme = loadTheme();
   const html = readFileSync(documentPath, 'utf8');
   const { rendered, problems } = renderEachDiagram(extractDiagrams(html), theme, workDirectory);
-  if (rendered.length > 0) {
-    const measurements = await measureDiagrams(
-      rendered.map((diagram) => diagram.svgPath),
-      { executablePath: locateChromium().executablePath },
-    );
-    const limits = layoutLimits(theme);
-    rendered.forEach((diagram, index) => problems.push(...layoutProblems(diagram, measurements[index], limits)));
-  }
-  return { html, theme, diagrams: rendered, problems };
+  if (rendered.length === 0) return { html, theme, diagrams: [], problems };
+  const measurements = await measureDiagrams(
+    rendered.map((diagram) => diagram.svgPath),
+    { executablePath: locateChromium().executablePath },
+  );
+  const limits = layoutLimits(theme);
+  const scales = printScales(rendered, measurements, limits);
+  rendered.forEach((diagram, index) => problems.push(...layoutProblems(diagram, measurements[index], limits, scales[index])));
+  const diagrams = rendered.map((diagram, index) => ({ ...diagram, printScale: scales[index].factor }));
+  return { html, theme, diagrams, problems };
 }
 
 function isLayoutProblem(problem) {

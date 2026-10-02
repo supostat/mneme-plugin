@@ -3,6 +3,7 @@ import { SQL_TABLE_CLASS } from './theme.mjs';
 
 const DOMAIN_LABEL_POSITION = 'top-left';
 const FOREIGN_KEY_ARROW = ' → ';
+const ZERO_WIDTH_SPACE = '​';
 const ARROWHEADS = new Map([
   ['many-to-one', ['cf-many', 'cf-one']],
   ['one-to-one', ['cf-one', 'cf-one']],
@@ -26,6 +27,15 @@ function tableKey(table) {
 
 export function columnType(column) {
   return column.references.length === 0 ? column.type : `${column.type}${FOREIGN_KEY_ARROW}${column.references.join(', ')}`;
+}
+
+function typeLabel(column) {
+  const type = columnType(column);
+  return type === column.name ? `${type}${ZERO_WIDTH_SPACE}` : type;
+}
+
+function isSelfReference(relation) {
+  return relation.from.table === relation.to.table;
 }
 
 function columnConstraints(column) {
@@ -55,7 +65,7 @@ function tableLines(table, indent, relationEnds, columnOptions) {
     `${indent}  shape: sql_table`,
     `${indent}  class: ${SQL_TABLE_CLASS}`,
     ...visibleColumns(table, relationEnds, columnOptions).map(
-      (column) => `${indent}  ${quoted(column.name)}: ${quoted(columnType(column))}${columnConstraints(column)}`,
+      (column) => `${indent}  ${quoted(column.name)}: ${quoted(typeLabel(column))}${columnConstraints(column)}`,
     ),
     `${indent}}`,
   ];
@@ -75,7 +85,7 @@ export function erdD2(model, partTableNames, columnOptions = {}) {
   }
   for (const table of tables.filter((candidate) => candidate.domain === undefined)) lines.push(...tableLines(table, '', relationEnds, columnOptions));
   const relationsInPart = model.relations
-    .filter((relation) => inPart.has(relation.from.table) && inPart.has(relation.to.table))
+    .filter((relation) => inPart.has(relation.from.table) && inPart.has(relation.to.table) && !isSelfReference(relation))
     .sort((first, second) => (relationSortKey(first) < relationSortKey(second) ? -1 : 1));
   for (const relation of relationsInPart) {
     const [sourceArrowhead, targetArrowhead] = ARROWHEADS.get(relation.cardinality);

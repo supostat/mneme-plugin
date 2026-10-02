@@ -4,7 +4,10 @@
 // Chromium, where a clean diagram passes, each broken one fails with its own code, a message inside a
 // sequence group passes, and a label inside the container its edge leads into fails in dagre and ELK
 // alike; synthetic rules for edge frames, edges into containers, remedies that follow the layout,
-// kind and direction of a diagram, and the ordinal and highlights every problem carries; and
+// kind and direction of a diagram, the ordinal and highlights every problem carries, and print
+// scales where the ERD diagrams of a document share the smallest of their own scales, a label
+// floor broken by that shared scale names the diagram that set it, and the height is checked at
+// the scale passed; and
 // `figura check` on fixture documents through the real render and check modules, with a fake
 // browser and a launcher stub at the process boundary.
 
@@ -13,7 +16,7 @@ import { chmodSync, copyFileSync, cpSync, mkdirSync, mkdtempSync, readFileSync, 
 import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { layoutLimits, layoutProblems } from '../figura/scripts/layout-checks.mjs';
+import { layoutLimits, layoutProblems, printScales } from '../figura/scripts/layout-checks.mjs';
 import { loadTheme } from '../figura/scripts/theme.mjs';
 
 const REPO_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
@@ -44,6 +47,10 @@ function recorded(name) {
 
 function diagramSource(name) {
   return readFileSync(join(FIXTURES, 'diagrams', `${name}.d2`), 'utf8');
+}
+
+function problemsAlone(diagram, measurement, limits) {
+  return layoutProblems(diagram, measurement, limits, printScales([diagram], [measurement], limits)[0]);
 }
 
 function codesOf(problems) {
@@ -77,12 +84,12 @@ function recordedCase(name) {
   return { diagram: { ordinal: 2, caption: name, layout: recordedCase.layout, source: diagramSource(recordedCase.diagram) }, measurement: recorded(name) };
 }
 
-function labelledMeasurement(widthPixels, heightPixels) {
+function labelledMeasurement(widthPixels, heightPixels, fontPixels = 16) {
   return {
     widthPixels,
     heightPixels,
     objects: [
-      { id: 'node', kind: 'shape', box: { x: 0, y: 0, width: 80, height: 40 }, pathBox: null, labels: [{ text: 'Node', box: { x: 20, y: 10, width: 40, height: 20 }, fontPixels: 16 }] },
+      { id: 'node', kind: 'shape', box: { x: 0, y: 0, width: 80, height: 40 }, pathBox: null, labels: [{ text: 'Node', box: { x: 20, y: 10, width: 40, height: 20 }, fontPixels }] },
     ],
   };
 }
@@ -90,11 +97,11 @@ function labelledMeasurement(widthPixels, heightPixels) {
 function checkRecordedCases(limits) {
   for (const { recording, layout, codes } of RECORDED_CASES) {
     const { diagram, measurement } = recordedCase(recording);
-    expectCodes(`recorded ${recording} (${layout})`, layoutProblems(diagram, measurement, limits), codes);
+    expectCodes(`recorded ${recording} (${layout})`, problemsAlone(diagram, measurement, limits), codes);
   }
   const problemsOf = (name) => {
     const { diagram, measurement } = recordedCase(name);
-    return layoutProblems(diagram, measurement, limits);
+    return problemsAlone(diagram, measurement, limits);
   };
   expectProblemText('recorded too-wide', problemsOf('too-wide'), 'DIAGRAM-TOO-WIDE', 'under the 7 pt floor — change direction to down (direction: down)');
   expectProblemText('recorded too-tall', problemsOf('too-tall'), 'DIAGRAM-TOO-TALL', 'a page leaves above its caption — change direction to right (direction: right)');
@@ -144,18 +151,18 @@ function edgeIntoContainer(containerId, holidaysId) {
 
 function checkFramesAndContainers(limits) {
   const sequenceDiagram = { ordinal: 1, layout: 'elk', source: diagramSource('sequence-group') };
-  const grouped = layoutProblems(sequenceDiagram, groupedMessages(), limits);
+  const grouped = problemsAlone(sequenceDiagram, groupedMessages(), limits);
   const messagesCrossingTheGroup = grouped.filter((problem) => problem.what.endsWith('crosses the shape each'));
   if (messagesCrossingTheGroup.length > 0) failures.push(`a message inside its group frame crossed the group: ${messagesCrossingTheGroup[0].message}`);
   expectProblemText('two message labels inside a group', grouped, 'LABEL-OVERLAP', 'label "2. paid holiday" of (job -> factory)[0] crosses label "3. insert"');
   expectProblemText('a message label over a note inside a group', grouped, 'LABEL-OVERLAP', 'label "4. done" of (store -> job)[0] crosses the shape each.note');
   expectRemedy('a sequence overlap', grouped, 'LABEL-OVERLAP', { includes: ['shorten the message or note label'], excludes: ['data-layout', 'direction'] });
 
-  const intoDagre = layoutProblems({ ordinal: 1, layout: 'dagre', source: GRAPH }, edgeIntoContainer('domain', 'domain.holidays'), limits);
+  const intoDagre = problemsAlone({ ordinal: 1, layout: 'dagre', source: GRAPH }, edgeIntoContainer('domain', 'domain.holidays'), limits);
   expectRemedy('an edge into its container in dagre', intoDagre, 'LABEL-OVERLAP', { includes: [INTO_CONTAINER], excludes: ['data-layout', 'ELK'] });
-  const intoElk = layoutProblems({ ordinal: 1, layout: 'elk', source: GRAPH }, edgeIntoContainer('domain', 'domain.holidays'), limits);
+  const intoElk = problemsAlone({ ordinal: 1, layout: 'elk', source: GRAPH }, edgeIntoContainer('domain', 'domain.holidays'), limits);
   expectRemedy('an edge into its container in ELK', intoElk, 'LABEL-OVERLAP', { includes: [INTO_CONTAINER], excludes: ['data-layout', 'ELK'] });
-  const foreign = layoutProblems({ ordinal: 1, layout: 'elk', source: GRAPH }, edgeIntoContainer('zone', 'domain.holidays'), limits);
+  const foreign = problemsAlone({ ordinal: 1, layout: 'elk', source: GRAPH }, edgeIntoContainer('zone', 'domain.holidays'), limits);
   expectRemedy('a label over a container of neither end', foreign, 'LABEL-OVERLAP', { includes: ['shorten or move the label', 'try data-layout="dagre"'], excludes: [INTO_CONTAINER] });
 }
 
@@ -163,31 +170,31 @@ function checkRemediesByTraits(limits) {
   const wide = labelledMeasurement(1320, 100);
   const tall = labelledMeasurement(600, 947);
   const sequence = { ordinal: 1, layout: 'elk', source: 'shape: sequence_diagram\na -> b: hello\n' };
-  expectRemedy('a sequence too wide', layoutProblems(sequence, wide, limits), 'DIAGRAM-TOO-WIDE', { includes: ['five participants'], excludes: ['direction', 'data-layout'] });
-  expectRemedy('a sequence too tall', layoutProblems(sequence, tall, limits), 'DIAGRAM-TOO-TALL', { includes: ['split the sequence'], excludes: ['direction', 'data-layout'] });
+  expectRemedy('a sequence too wide', problemsAlone(sequence, wide, limits), 'DIAGRAM-TOO-WIDE', { includes: ['five participants'], excludes: ['direction', 'data-layout'] });
+  expectRemedy('a sequence too tall', problemsAlone(sequence, tall, limits), 'DIAGRAM-TOO-TALL', { includes: ['split the sequence'], excludes: ['direction', 'data-layout'] });
   const erdInElk = { ordinal: 1, layout: 'elk', source: 'accounts: {\n  shape: sql_table\n  id: uuid\n}\n' };
-  expectRemedy('an ERD too wide in ELK', layoutProblems(erdInElk, wide, limits), 'DIAGRAM-TOO-WIDE', { includes: ['data-layout="dagre"', 'figura erd'] });
+  expectRemedy('an ERD too wide in ELK', problemsAlone(erdInElk, wide, limits), 'DIAGRAM-TOO-WIDE', { includes: ['data-layout="dagre"', 'figura erd'] });
   const erdInDagre = { ...erdInElk, layout: 'dagre' };
-  expectRemedy('an ERD too wide in dagre', layoutProblems(erdInDagre, wide, limits), 'DIAGRAM-TOO-WIDE', { includes: ['split the diagram'], excludes: ['data-layout'] });
+  expectRemedy('an ERD too wide in dagre', problemsAlone(erdInDagre, wide, limits), 'DIAGRAM-TOO-WIDE', { includes: ['split the diagram'], excludes: ['data-layout'] });
   const dagreGraph = { ordinal: 1, layout: 'dagre', source: GRAPH };
-  expectRemedy('a dagre graph too wide', layoutProblems(dagreGraph, wide, limits), 'DIAGRAM-TOO-WIDE', { includes: ['try ELK'], excludes: ['try data-layout="dagre"', 'direction: down'] });
+  expectRemedy('a dagre graph too wide', problemsAlone(dagreGraph, wide, limits), 'DIAGRAM-TOO-WIDE', { includes: ['try ELK'], excludes: ['try data-layout="dagre"', 'direction: down'] });
   const downGraph = { ordinal: 1, layout: 'elk', source: `direction: down\n${GRAPH}` };
-  expectRemedy('a graph already down too wide', layoutProblems(downGraph, wide, limits), 'DIAGRAM-TOO-WIDE', { includes: ['try data-layout="dagre"'], excludes: ['direction: down'] });
-  expectRemedy('a graph going down too tall', layoutProblems(downGraph, tall, limits), 'DIAGRAM-TOO-TALL', { includes: ['direction: right', 'regroup a long chain into layers'] });
+  expectRemedy('a graph already down too wide', problemsAlone(downGraph, wide, limits), 'DIAGRAM-TOO-WIDE', { includes: ['try data-layout="dagre"'], excludes: ['direction: down'] });
+  expectRemedy('a graph going down too tall', problemsAlone(downGraph, tall, limits), 'DIAGRAM-TOO-TALL', { includes: ['direction: right', 'regroup a long chain into layers'] });
   const rightGraph = { ordinal: 1, layout: 'elk', source: `direction: right\n${GRAPH}` };
-  expectRemedy('a graph already right too tall', layoutProblems(rightGraph, tall, limits), 'DIAGRAM-TOO-TALL', { excludes: ['direction: right'] });
-  expectRemedy('a graph going right too wide', layoutProblems(rightGraph, wide, limits), 'DIAGRAM-TOO-WIDE', { includes: ['direction: down'] });
+  expectRemedy('a graph already right too tall', problemsAlone(rightGraph, tall, limits), 'DIAGRAM-TOO-TALL', { excludes: ['direction: right'] });
+  expectRemedy('a graph going right too wide', problemsAlone(rightGraph, wide, limits), 'DIAGRAM-TOO-WIDE', { includes: ['direction: down'] });
 }
 
 function checkHighlights(limits) {
   const measurement = edgeIntoContainer('domain', 'domain.holidays');
-  const [overlap] = layoutProblems({ ordinal: 4, layout: 'dagre', source: GRAPH }, measurement, limits);
+  const [overlap] = problemsAlone({ ordinal: 4, layout: 'dagre', source: GRAPH }, measurement, limits);
   const label = measurement.objects[3].labels[0].box;
   const container = measurement.objects[1].box;
   if (overlap?.diagramOrdinal !== 4 || JSON.stringify(overlap?.highlights) !== JSON.stringify([label, container])) {
     failures.push(`a label overlap did not carry its diagram and the boxes in conflict: ${JSON.stringify({ ordinal: overlap?.diagramOrdinal, highlights: overlap?.highlights })}`);
   }
-  const [tooWide] = layoutProblems({ ordinal: 5, layout: 'elk', source: GRAPH }, labelledMeasurement(1320, 100), limits);
+  const [tooWide] = problemsAlone({ ordinal: 5, layout: 'elk', source: GRAPH }, labelledMeasurement(1320, 100), limits);
   if (tooWide?.diagramOrdinal !== 5 || JSON.stringify(tooWide?.highlights) !== '[]') {
     failures.push(`a size problem did not carry its diagram and an empty highlight list: ${JSON.stringify({ ordinal: tooWide?.diagramOrdinal, highlights: tooWide?.highlights })}`);
   }
@@ -210,11 +217,43 @@ function checkSyntheticRules(limits) {
     ],
   };
   const diagram = { ordinal: 1, layout: 'elk', source: GRAPH };
-  expectCodes('labels inside an ancestor container and a container label above its box', layoutProblems(diagram, nested, limits), []);
-  expectCodes('a 1000 px wide diagram keeps its labels at 7.9 pt', layoutProblems(diagram, labelledMeasurement(1000, 100), limits), []);
-  expectCodes('a 1320 px wide diagram drops its labels to 6 pt', layoutProblems(diagram, labelledMeasurement(1320, 100), limits), ['DIAGRAM-TOO-WIDE']);
-  expectCodes('a 946 px tall diagram fits above its caption', layoutProblems(diagram, labelledMeasurement(600, 946), limits), []);
-  expectCodes('a 947 px tall diagram does not', layoutProblems(diagram, labelledMeasurement(600, 947), limits), ['DIAGRAM-TOO-TALL']);
+  expectCodes('labels inside an ancestor container and a container label above its box', problemsAlone(diagram, nested, limits), []);
+  expectCodes('a 1000 px wide diagram keeps its labels at 7.9 pt', problemsAlone(diagram, labelledMeasurement(1000, 100), limits), []);
+  expectCodes('a 1320 px wide diagram drops its labels to 6 pt', problemsAlone(diagram, labelledMeasurement(1320, 100), limits), ['DIAGRAM-TOO-WIDE']);
+  expectCodes('a 946 px tall diagram fits above its caption', problemsAlone(diagram, labelledMeasurement(600, 946), limits), []);
+  expectCodes('a 947 px tall diagram does not', problemsAlone(diagram, labelledMeasurement(600, 947), limits), ['DIAGRAM-TOO-TALL']);
+}
+
+function checkPrintScales(limits) {
+  const erd = (ordinal) => ({ ordinal, layout: 'dagre', source: 'accounts: {\n  shape: sql_table\n  id: uuid\n}\n' });
+  const narrowErd = erd(1);
+  const graph = { ordinal: 2, layout: 'elk', source: GRAPH };
+  const wideErd = erd(3);
+  const narrow = labelledMeasurement(300, 100);
+  const scales = printScales([narrowErd, graph, wideErd], [narrow, labelledMeasurement(800, 100), labelledMeasurement(1000, 100)], limits);
+  const rounded = scales.map(({ factor, setBy }) => ({ factor: Math.round(factor * 1000) / 1000, setBy }));
+  const expected = [
+    { factor: 0.66, setBy: 3 },
+    { factor: 0.825, setBy: 2 },
+    { factor: 0.66, setBy: 3 },
+  ];
+  if (JSON.stringify(rounded) !== JSON.stringify(expected)) {
+    failures.push(`two ERD diagrams and a graph got print scales ${JSON.stringify(rounded)}, expected both ERD diagrams at the smaller ERD scale and the graph at its own: ${JSON.stringify(expected)}`);
+  }
+  const [alone] = printScales([narrowErd], [narrow], limits);
+  if (alone.factor !== 1 || alone.setBy !== 1) failures.push(`an ERD alone in its document got the print scale ${JSON.stringify(alone)}, expected its own 1`);
+
+  const smallLabels = labelledMeasurement(300, 100, 12);
+  const [sharedScale, , setterScale] = printScales([narrowErd, graph, wideErd], [smallLabels, labelledMeasurement(800, 100), labelledMeasurement(1000, 100)], limits);
+  const pulledDown = layoutProblems(narrowErd, smallLabels, limits, sharedScale);
+  expectProblemText('an ERD with small labels at the shared scale', pulledDown, 'DIAGRAM-TOO-WIDE', 'scaled to 66%, the scale the ERD diagrams of this document share (set by diagram 3), its smallest label prints at 5.9 pt');
+  expectRemedy('an ERD with small labels at the shared scale', pulledDown, 'DIAGRAM-TOO-WIDE', { includes: ['print at one scale', 'split diagram 3 into narrower parts'], excludes: ['data-layout'] });
+  expectCodes('the same ERD at its own scale', problemsAlone(narrowErd, smallLabels, limits), []);
+  expectCodes('the ERD that sets the shared scale', layoutProblems(wideErd, labelledMeasurement(1000, 100), limits, setterScale), []);
+
+  const tall = labelledMeasurement(600, 947);
+  expectCodes('a 947 px tall diagram at its own scale', problemsAlone(graph, tall, limits), ['DIAGRAM-TOO-TALL']);
+  expectCodes('the same diagram at a 90% print scale', layoutProblems(graph, tall, limits, { factor: 0.9, setBy: 2 }), []);
 }
 
 function prepareBundleWithLauncherStub() {
@@ -290,6 +329,7 @@ try {
   checkFramesAndContainers(limits);
   checkRemediesByTraits(limits);
   checkHighlights(limits);
+  checkPrintScales(limits);
   checkCommandLine();
 } catch (error) {
   failures.push(`the check loop threw: ${error.stack ?? error.message}`);
@@ -303,5 +343,5 @@ if (failures.length > 0) {
   process.exit(1);
 }
 console.log(
-  'figura checks check passed: the recorded clean diagram and a message inside a sequence group pass, the overlap, overflow, too wide and too tall ones fail with their own codes, a label inside the container its edge leads into fails in dagre and ELK with its own remedy, remedies follow the layout, kind and direction of a diagram, every problem carries its diagram and the boxes in conflict, the scale and height limits hold at their edges, and figura check reports through the real modules with a fake browser and a launcher stub.',
+  'figura checks check passed: the recorded clean diagram and a message inside a sequence group pass, the overlap, overflow, too wide and too tall ones fail with their own codes, a label inside the container its edge leads into fails in dagre and ELK with its own remedy, remedies follow the layout, kind and direction of a diagram, every problem carries its diagram and the boxes in conflict, the scale and height limits hold at their edges, the ERD diagrams of a document print at one scale whose floor names the diagram that set it, and figura check reports through the real modules with a fake browser and a launcher stub.',
 );

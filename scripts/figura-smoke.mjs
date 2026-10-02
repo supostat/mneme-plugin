@@ -5,7 +5,8 @@
 // render stage a d2 the launcher can serve, the checks stage both d2 and Chromium for the broken
 // fixtures, a message inside a sequence group and edges into and between containers in both
 // layouts, the pdf stage d2, Chromium and poppler (pdftoppm, pdftotext), the erd stage a d2 the
-// launcher can serve for the 30-table and hubs-and-spokes fixtures.
+// launcher can serve for the 30-table and hubs-and-spokes fixtures, where self references draw no
+// edge and the date column of public_holidays keeps its date type in the SVG.
 
 import { spawnSync } from 'node:child_process';
 import { copyFileSync, existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs';
@@ -18,7 +19,7 @@ import { openCdpSession } from '../figura/scripts/cdp-session.mjs';
 import { schemaModel } from '../figura/scripts/erd-model.mjs';
 import { planErdDiagrams, svgSizeMeasurement } from '../figura/scripts/erd-split.mjs';
 import { FiguraError } from '../figura/scripts/figura-error.mjs';
-import { diagramSizeProblems, layoutLimits, layoutProblems } from '../figura/scripts/layout-checks.mjs';
+import { diagramSizeProblems, layoutLimits, layoutProblems, printScales } from '../figura/scripts/layout-checks.mjs';
 import { startLoopbackServer } from '../figura/scripts/loopback-server.mjs';
 import { measureDiagrams } from '../figura/scripts/measure-diagram.mjs';
 import { renderDiagram } from '../figura/scripts/render-diagram.mjs';
@@ -31,6 +32,8 @@ const TEMPLATE_DOCUMENT = resolve(dirname(fileURLToPath(import.meta.url)), '..',
 const TEMPLATE_TITLE_WORDS = ['Document', 'title'];
 const THIRTY_TABLES_FIXTURE = resolve(dirname(fileURLToPath(import.meta.url)), 'fixtures', 'figura', 'erd-thirty-tables.json');
 const FOOTER_BAND_POINTS = 50;
+const ZERO_WIDTH_SPACE = '​';
+const EDGE_LINE = /^(.+)\."[^"]*" -> (.+)\."[^"]*": \{/gm;
 const POPPLER_RECIPE = 'install poppler: brew install poppler (macOS) or apt install poppler-utils (Debian/Ubuntu)';
 const CHECK_FIXTURES = [
   { name: 'clean', layout: 'elk', code: undefined },
@@ -258,7 +261,7 @@ async function checkFixturesWithRealTools(workDirectory) {
   const measurements = await measureDiagrams(rendered.map((diagram) => diagram.svgPath), { executablePath });
   const limits = layoutLimits(theme);
   return rendered.flatMap((diagram, index) => {
-    const problems = layoutProblems(diagram, measurements[index], limits);
+    const problems = layoutProblems(diagram, measurements[index], limits, printScales([diagram], [measurements[index]], limits)[0]);
     const codes = [...new Set(problems.map((problem) => problem.code))];
     if (diagram.code === undefined) {
       return codes.length === 0 ? [] : [`the ${diagram.caption} fixture failed the checks with ${codes.join(', ')}`];
@@ -280,24 +283,27 @@ function realD2SplitProblems(fixtureName, schema, workDirectory, theme) {
     problems.push(`the parts of the ${fixtureName} place ${placed.length} tables, ${new Set(placed).size} of them distinct, of ${model.tables.length}`);
   }
   const limits = layoutLimits(theme);
+  const svgByTable = new Map();
   for (const diagram of plan.diagrams) {
-    const { svg } = renderDiagram({ ordinal: diagram.number, layout: 'dagre', source: diagram.source }, theme, { workDirectory });
-    problems.push(
-      ...diagramSizeProblems({ ordinal: diagram.number, layout: 'dagre', source: diagram.source }, svgSizeMeasurement(svg), limits).map(
-        (problem) => `the ${fixtureName}: ${problem.message}`,
-      ),
-    );
+    const part = { ordinal: diagram.number, layout: 'dagre', source: diagram.source };
+    const { svg } = renderDiagram(part, theme, { workDirectory });
+    for (const tableName of diagram.tables) svgByTable.set(tableName, svg);
+    const measurement = svgSizeMeasurement(svg);
+    problems.push(...diagramSizeProblems(part, measurement, limits, printScales([part], [measurement], limits)[0]).map((problem) => `the ${fixtureName}: ${problem.message}`));
+    const selfEdge = [...diagram.source.matchAll(EDGE_LINE)].find(([, fromTable, toTable]) => fromTable === toTable);
+    if (selfEdge !== undefined) problems.push(`the ${fixtureName}: part ${diagram.number} draws a self reference as an edge: ${selfEdge[0]}`);
   }
-  return problems;
+  return { problems, svgByTable };
 }
 
 function splitErdFixturesWithRealD2(workDirectory) {
   const theme = loadTheme();
   try {
-    return [
-      ...realD2SplitProblems('30-table fixture', JSON.parse(readFileSync(THIRTY_TABLES_FIXTURE, 'utf8')), workDirectory, theme),
-      ...realD2SplitProblems('hubs-and-spokes fixture', hubsAndSpokesSchema(), workDirectory, theme),
-    ];
+    const thirtyTables = realD2SplitProblems('30-table fixture', JSON.parse(readFileSync(THIRTY_TABLES_FIXTURE, 'utf8')), workDirectory, theme);
+    const hubs = realD2SplitProblems('hubs-and-spokes fixture', hubsAndSpokesSchema(), workDirectory, theme);
+    const typeShown = hubs.svgByTable.get('public_holidays').includes(`>date${ZERO_WIDTH_SPACE}<`);
+    const typeProblems = typeShown ? [] : ['the real d2 dropped the date type of public_holidays.date, a column named after its type'];
+    return [...thirtyTables.problems, ...hubs.problems, ...typeProblems];
   } catch (error) {
     if (error instanceof FiguraError) return [error.message];
     throw error;
@@ -345,7 +351,8 @@ const STAGES = new Map([
     'erd',
     {
       check: splitErdFixturesWithRealD2,
-      passed: 'the real d2 rendered every part of the 30-table and hubs-and-spokes fixtures with dagre within the width and height of an A4 page, each table in one part',
+      passed:
+        'the real d2 rendered every part of the 30-table and hubs-and-spokes fixtures with dagre within the width and height of an A4 page, each table in one part, no self reference drawn as an edge and the date type of public_holidays.date shown',
     },
   ],
 ]);
