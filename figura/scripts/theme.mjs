@@ -129,6 +129,7 @@ export function validateTheme(theme) {
     problems.push(`diagram.padPixels is ${JSON.stringify(theme.diagram?.padPixels)}, not a non-negative whole number of pixels`);
   }
   requirePoints(problems, 'diagram.minimumLabelPoints', theme.diagram?.minimumLabelPoints, { allowZero: false });
+  requireColor(problems, 'diagram.failureHighlight', theme.diagram?.failureHighlight);
   if (problems.length > 0) {
     throw new Error(`theme is invalid:\n${problems.map((problem) => `  - ${problem}`).join('\n')}`);
   }
@@ -211,4 +212,8 @@ export function captionReservePoints(theme) {
 
 export function minimumLabelPoints(theme) {
   return theme.diagram.minimumLabelPoints;
+}
+
+export function failureHighlightColor(theme) {
+  return theme.diagram.failureHighlight;
 }

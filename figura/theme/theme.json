@@ -63,6 +63,7 @@
   "diagram": {
     "captionGapPoints": 12,
     "padPixels": 10,
-    "minimumLabelPoints": 7
+    "minimumLabelPoints": 7,
+    "failureHighlight": "#d0342c"
   }
 }

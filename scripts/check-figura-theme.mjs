@@ -2,8 +2,8 @@
 //
 // Gate for figura/scripts/theme.mjs: the theme yields CSS custom properties, a D2 class for every
 // role and a table class for sql_table shapes, and exports the page geometry, the caption reserve
-// and the label threshold; a broken theme fails with its named error; figura/template/print.css
-// loads only the theme's existing font files.
+// the label threshold and the colour that frames a failed diagram; a broken theme fails with its
+// named error; figura/template/print.css loads only the theme's existing font files.
 
 import { existsSync, readFileSync } from 'node:fs';
 import { dirname, join, relative, resolve } from 'node:path';
@@ -13,6 +13,7 @@ import {
   SQL_TABLE_CLASS,
   captionReservePoints,
   d2Classes,
+  failureHighlightColor,
   loadTheme,
   minimumLabelPoints,
   pageGeometry,
@@ -169,6 +170,15 @@ if (theme !== undefined) {
     },
     'fonts.text has no face with weight 600 and style normal, which d2 needs for --font-semibold',
   );
+  expectRejection(
+    'failure highlight outside #rrggbb',
+    theme,
+    (brokenTheme) => {
+      brokenTheme.diagram.failureHighlight = 'red';
+    },
+    'diagram.failureHighlight is "red", not a #rrggbb color',
+  );
+  if (!/^#[0-9a-f]{6}$/.test(failureHighlightColor(theme))) failures.push(`the failure highlight colour is ${JSON.stringify(failureHighlightColor(theme))}`);
   checkPrintCssFonts(theme);
 }
 
@@ -178,5 +188,5 @@ if (failures.length > 0) {
   process.exit(1);
 }
 console.log(
-  'figura theme check passed: every role has its CSS properties and D2 class, sql_table shapes have their table class, the geometry, caption reserve and label threshold are exported, a missing role, a bad color and a missing font file are each rejected by name, and print.css loads only the theme fonts.',
+  'figura theme check passed: every role has its CSS properties and D2 class, sql_table shapes have their table class, the geometry, caption reserve, label threshold and failure highlight are exported, a missing role, a bad color, a bad failure highlight and a missing font file are each rejected by name, and print.css loads only the theme fonts.',
 );

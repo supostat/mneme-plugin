@@ -1,12 +1,15 @@
 #!/usr/bin/env node
 //
-// Gate for figura build on fakes at the process boundary, a fake browser that prints a two-page PDF
-// and a pdftoppm stub that writes one PNG per page: a clean document builds with previews in
-// .figura/<name>/ behind a .gitignore, a rebuild clears the previews, a broken diagram stops the build
-// without a PDF, and a heading before a diagram lands in a keep group.
+// Gate for figura build and check on fakes at the process boundary, a fake browser that prints a
+// two-page PDF and answers screenshots and a pdftoppm stub that writes one PNG per page: a clean
+// document builds with previews in .figura/<name>/ behind a .gitignore, a rebuild clears the
+// previews, a broken diagram stops the build without a PDF or page previews and leaves a picture of
+// the failed diagram named in the report, a failed check leaves that picture beside the page
+// previews of the last build and the next check takes it away, and a heading before a diagram
+// lands in a keep group.
 
 import { spawnSync } from 'node:child_process';
-import { chmodSync, copyFileSync, cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { chmodSync, copyFileSync, cpSync, existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { delimiter, dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -93,12 +96,12 @@ function writeDocument(projectDirectory, name, diagramName) {
   return documentPath;
 }
 
-function runBuild({ bundle, stubBin }, documentPath, measurementName) {
+function runFigura({ bundle, stubBin }, command, documentPath, measurementName) {
   const measurementsPath = join(workDirectory, `measurements-${measurementName}.json`);
   writeFileSync(measurementsPath, JSON.stringify({ 'diagram-01.svg': recorded(measurementName) }));
   const home = join(workDirectory, 'home');
   mkdirSync(home, { recursive: true });
-  return spawnSync('/bin/sh', [join(bundle, 'bin', 'figura'), 'build', documentPath], {
+  return spawnSync('/bin/sh', [join(bundle, 'bin', 'figura'), command, documentPath], {
     cwd: workDirectory,
     env: {
       ...process.env,
@@ -111,8 +114,16 @@ function runBuild({ bundle, stubBin }, documentPath, measurementName) {
   });
 }
 
-function checkBuilds() {
-  const toolchain = prepareToolchain();
+function runBuild(toolchain, documentPath, measurementName) {
+  return runFigura(toolchain, 'build', documentPath, measurementName);
+}
+
+function previewFiles(project, name) {
+  const previewDirectory = join(project, '.figura', name);
+  return existsSync(previewDirectory) ? readdirSync(previewDirectory).sort() : [];
+}
+
+function checkBuilds(toolchain) {
   const project = join(workDirectory, 'project');
   mkdirSync(project);
 
@@ -144,14 +155,42 @@ function checkBuilds() {
     failures.push(`build of a too wide diagram did not report DIAGRAM-TOO-WIDE in the failure format: ${broken.stderr.trim()}`);
   }
   if (existsSync(join(project, 'wide.pdf'))) failures.push('a failed build left a PDF behind');
-  if (existsSync(join(project, '.figura', 'wide'))) failures.push('a failed build left previews behind');
+  if (JSON.stringify(previewFiles(project, 'wide')) !== JSON.stringify(['failed-01.png'])) {
+    failures.push(`a failed build left ${JSON.stringify(previewFiles(project, 'wide'))} in .figura/wide/, expected only the picture of the failed diagram`);
+  }
+  if (!broken.stderr.includes('figura: failed diagrams drawn in project/.figura/wide/failed-01.png')) {
+    failures.push(`a failed build did not name the picture of the failed diagram: ${broken.stderr.trim()}`);
+  }
+}
+
+function checkFailedCheckPictures(toolchain) {
+  const project = join(workDirectory, 'check-project');
+  mkdirSync(project);
+  const documentPath = writeDocument(project, 'cycle', 'clean');
+  const build = runBuild(toolchain, documentPath, 'clean');
+  if (build.status !== 0) failures.push(`build of the check cycle document exited ${build.status}: ${build.stderr.trim()}`);
+  const failed = runFigura(toolchain, 'check', documentPath, 'label-overlap');
+  if (failed.status !== 1 || !failed.stderr.includes('figura: failed diagrams drawn in check-project/.figura/cycle/failed-01.png')) {
+    failures.push(`a failed check exited ${failed.status} without naming its picture: ${failed.stderr.trim()}`);
+  }
+  const afterFailure = previewFiles(project, 'cycle');
+  if (JSON.stringify(afterFailure) !== JSON.stringify(['failed-01.png', 'page-01.png', 'page-02.png'])) {
+    failures.push(`a failed check left ${JSON.stringify(afterFailure)}, expected its picture beside the page previews of the last build`);
+  }
+  const passed = runFigura(toolchain, 'check', documentPath, 'clean');
+  const afterPass = previewFiles(project, 'cycle');
+  if (passed.status !== 0 || JSON.stringify(afterPass) !== JSON.stringify(['page-01.png', 'page-02.png'])) {
+    failures.push(`a passing check exited ${passed.status} and left ${JSON.stringify(afterPass)}, expected only the page previews`);
+  }
 }
 
 try {
   const theme = loadTheme();
   checkKeepGroups();
   checkPrintableDocument(theme);
-  checkBuilds();
+  const toolchain = prepareToolchain();
+  checkBuilds(toolchain);
+  checkFailedCheckPictures(toolchain);
 } catch (error) {
   failures.push(`the build pipeline threw: ${error.stack ?? error.message}`);
 } finally {
@@ -164,5 +203,5 @@ if (failures.length > 0) {
   process.exit(1);
 }
 console.log(
-  'figura pdf check passed: headings travel with their next block, the printable document carries the theme and the footer title, a clean build reports its pages and previews in .figura/ behind a .gitignore, a rebuild clears old previews, and a broken diagram stops the build without a PDF.',
+  'figura pdf check passed: headings travel with their next block, the printable document carries the theme and the footer title, a clean build reports its pages and previews in .figura/ behind a .gitignore, a rebuild clears old previews, a broken diagram stops the build without a PDF and leaves a named picture of itself, and a failed check leaves its picture beside the page previews until the next check.',
 );

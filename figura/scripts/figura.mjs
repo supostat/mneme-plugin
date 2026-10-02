@@ -4,7 +4,8 @@ import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, 
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { locateChromium } from './browser-locate.mjs';
-import { buildSuccessLine, failureReport, pathFromWorkingDirectory, warningReport } from './build-report.mjs';
+import { buildSuccessLine, failedDiagramsLine, failureReport, pathFromWorkingDirectory, warningReport } from './build-report.mjs';
+import { captureFailedDiagrams } from './capture-failed-diagrams.mjs';
 import { modelSubset, schemaModel, withDomains } from './erd-model.mjs';
 import { readManualSchema } from './erd-source-manual.mjs';
 import { readPrismaSchema } from './erd-source-prisma.mjs';
@@ -19,9 +20,9 @@ import { layoutLimits, layoutProblems } from './layout-checks.mjs';
 import { measureDiagrams } from './measure-diagram.mjs';
 import { preflight } from './preflight.mjs';
 import { printableDocument, printPdf } from './print-pdf.mjs';
-import { clearPreviews, rasterizePages } from './rasterize-pages.mjs';
+import { clearFailedDiagramPreviews, clearPreviews, ensurePreviewDirectory, failedDiagramPreviewPath, rasterizePages } from './rasterize-pages.mjs';
 import { renderDiagram } from './render-diagram.mjs';
-import { loadTheme } from './theme.mjs';
+import { failureHighlightColor, loadTheme } from './theme.mjs';
 
 const MANIFEST_URL = new URL('../.claude-plugin/plugin.json', import.meta.url);
 const USAGE = [
@@ -77,6 +78,37 @@ async function checkDocument(documentPath, workDirectory) {
   return { html, theme, diagrams: rendered, problems };
 }
 
+function isLayoutProblem(problem) {
+  return problem.highlights !== undefined;
+}
+
+async function drawFailedDiagrams(documentPath, diagrams, problems, theme) {
+  const layoutProblemsFound = problems.filter(isLayoutProblem);
+  const failedDiagrams = diagrams
+    .filter((diagram) => layoutProblemsFound.some((problem) => problem.diagramOrdinal === diagram.ordinal))
+    .map((diagram) => ({
+      svgPath: diagram.svgPath,
+      previewPath: failedDiagramPreviewPath(documentPath, diagram.ordinal),
+      highlights: layoutProblemsFound.filter((problem) => problem.diagramOrdinal === diagram.ordinal).flatMap((problem) => problem.highlights),
+    }));
+  if (failedDiagrams.length === 0) return { previewPaths: [], previewProblems: [] };
+  ensurePreviewDirectory(documentPath);
+  try {
+    await captureFailedDiagrams(failedDiagrams, { executablePath: locateChromium().executablePath, highlightColor: failureHighlightColor(theme) });
+    return { previewPaths: failedDiagrams.map((diagram) => diagram.previewPath), previewProblems: [] };
+  } catch (error) {
+    if (!(error instanceof FiguraError)) throw error;
+    const problem = new FiguraError('PREVIEW-FAILED', `the failed diagrams could not be drawn: ${error.message}`, 'the problems above stand; run the command again to get the previews');
+    return { previewPaths: [], previewProblems: [problem] };
+  }
+}
+
+async function reportCheckFailure(documentPath, diagrams, problems, theme) {
+  const { previewPaths, previewProblems } = await drawFailedDiagrams(documentPath, diagrams, problems, theme);
+  console.error(failureReport(documentPath, [...problems, ...previewProblems]));
+  if (previewPaths.length > 0) console.error(failedDiagramsLine(previewPaths));
+}
+
 function existingDocumentPath(documentArgument) {
   if (documentArgument === undefined) {
     console.error(USAGE);
@@ -98,11 +130,12 @@ async function checkCommand([documentArgument]) {
     console.error(failureReport(documentPath, missing));
     return 1;
   }
+  clearFailedDiagramPreviews(documentPath);
   const workDirectory = mkdtempSync(join(tmpdir(), 'figura-check-'));
   try {
-    const { diagrams, problems } = await checkDocument(documentPath, workDirectory);
+    const { theme, diagrams, problems } = await checkDocument(documentPath, workDirectory);
     if (problems.length > 0) {
-      console.error(failureReport(documentPath, problems));
+      await reportCheckFailure(documentPath, diagrams, problems, theme);
       return 1;
     }
     console.log(`figura: ${documentPath} passed the check — ${diagrams.length} ${diagrams.length === 1 ? 'diagram fits' : 'diagrams fit'} the column and the page`);
@@ -131,7 +164,7 @@ async function buildCommand([documentArgument]) {
   try {
     const { html, theme, diagrams, problems } = await checkDocument(documentPath, workDirectory);
     if (problems.length > 0) {
-      console.error(failureReport(documentPath, problems));
+      await reportCheckFailure(documentPath, diagrams, problems, theme);
       return 1;
     }
     const printable = printableDocument(inlineDiagrams(html, diagrams), theme);

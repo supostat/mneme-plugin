@@ -3,10 +3,11 @@
 // Gate for figura's main path on the real modules: the real entry figura/bin/figura builds the
 // reference demo through the dispatcher, preflight, extraction, theme, render, measure, checks,
 // inline, print, previews and report; a broken document stops before any PDF with every problem
-// named; and the ERD parts figura erd writes from the Prisma fixture build into a PDF with dagre,
-// the layout erd measured them with. Only the process boundary is faked: a launcher stub answers for
-// d2 with a recorded SVG, a fake browser answers the CDP pipe with recorded boxes and a two-page
-// PDF, and a pdftoppm stub writes the previews. That the modules reach the real d2, Chromium and
+// named and a picture of each failed diagram with its conflicts framed in the theme colour; and the
+// ERD parts figura erd writes from the Prisma fixture build into a PDF with dagre, the layout erd
+// measured them with. Only the process boundary is faked: a launcher stub answers for d2 with a
+// recorded SVG, a fake browser answers the CDP pipe with recorded boxes, a two-page PDF and
+// screenshots, and a pdftoppm stub writes the previews. That the modules reach the real d2, Chromium and
 // pdftoppm is what the smoke stages and scripts/figura-e2e.mjs prove; this gate proves the modules
 // are wired to one another.
 
@@ -28,6 +29,8 @@ const failures = [];
 const workDirectory = mkdtempSync(join(tmpdir(), 'figura-wire-check-'));
 const launcherLog = join(workDirectory, 'launcher.log');
 const printedPage = join(workDirectory, 'printed.html');
+const highlightLog = join(workDirectory, 'highlights.log');
+const FAILURE_HIGHLIGHT = JSON.parse(readFileSync(join(REPO_ROOT, 'figura', 'theme', 'theme.json'), 'utf8')).diagram.failureHighlight;
 
 function recorded(name) {
   return JSON.parse(readFileSync(join(FIXTURES, 'measurements', `${name}.json`), 'utf8'));
@@ -67,6 +70,7 @@ function prepareToolchain() {
 function runFigura(toolchain, projectDirectory, commandArguments, measurements) {
   rmSync(launcherLog, { force: true });
   rmSync(printedPage, { force: true });
+  rmSync(highlightLog, { force: true });
   const measurementsPath = join(projectDirectory, 'measurements.json');
   writeFileSync(measurementsPath, JSON.stringify(measurements));
   return spawnSync('/bin/sh', [toolchain.entry, ...commandArguments], {
@@ -79,6 +83,7 @@ function runFigura(toolchain, projectDirectory, commandArguments, measurements) 
       FIGURA_FAKE_MEASUREMENTS: measurementsPath,
       FIGURA_FAKE_LAUNCHER_LOG: launcherLog,
       FIGURA_FAKE_PRINTED_PAGE: printedPage,
+      FIGURA_FAKE_OVERLAY_LOG: highlightLog,
     },
     encoding: 'utf8',
   });
@@ -135,14 +140,28 @@ function checkDemo(toolchain) {
 function checkBrokenDocument(toolchain) {
   const project = projectDirectory('broken');
   const tooWide = readFileSync(join(FIXTURES, 'diagrams', 'too-wide.d2'), 'utf8');
-  writeFileSync(join(project, 'broken.html'), documentOfDiagrams('Broken document', ['a -> b\nBROKEN\n', tooWide]));
-  const run = runFigura(toolchain, project, ['build', 'broken.html'], { 'diagram-02.svg': recorded('too-wide') });
+  const labelOverlap = readFileSync(join(FIXTURES, 'diagrams', 'label-overlap.d2'), 'utf8');
+  writeFileSync(join(project, 'broken.html'), documentOfDiagrams('Broken document', ['a -> b\nBROKEN\n', tooWide, labelOverlap]));
+  const run = runFigura(toolchain, project, ['build', 'broken.html'], { 'diagram-02.svg': recorded('too-wide'), 'diagram-03.svg': recorded('label-overlap') });
   if (run.status !== 1 || !run.stderr.includes('broken.html FAILED:')) failures.push(`the build of a broken document exited ${run.status}: ${run.stderr.trim()}`);
-  for (const expected of ['  - D2-FAILED: diagram 1', '  - DIAGRAM-TOO-WIDE: diagram 2']) {
+  for (const expected of [
+    '  - D2-FAILED: diagram 1',
+    '  - DIAGRAM-TOO-WIDE: diagram 2',
+    '  - LABEL-OVERLAP: diagram 3',
+    'figura: failed diagrams drawn in .figura/broken/failed-02.png, .figura/broken/failed-03.png',
+  ]) {
     if (!run.stderr.includes(expected)) failures.push(`the build of a broken document did not report ${JSON.stringify(expected)}: ${run.stderr.trim()}`);
   }
   if (existsSync(join(project, 'broken.pdf'))) failures.push('the broken document got a PDF');
-  if (existsSync(join(project, '.figura', 'broken'))) failures.push('the broken document got previews');
+  const pictures = existsSync(join(project, '.figura', 'broken')) ? readdirSync(join(project, '.figura', 'broken')).sort() : [];
+  if (JSON.stringify(pictures) !== JSON.stringify(['failed-02.png', 'failed-03.png'])) {
+    failures.push(`the broken document left ${JSON.stringify(pictures)} in .figura/broken/, expected a picture of diagrams 2 and 3 only`);
+  }
+  const highlights = readIfPresent(highlightLog);
+  const overlappingLabel = recorded('label-overlap').objects.find((object) => object.id === 'cell').labels[0].box;
+  if (!highlights.includes(JSON.stringify(overlappingLabel)) || !highlights.includes(JSON.stringify(FAILURE_HIGHLIGHT))) {
+    failures.push(`the page of the failed diagram did not get the overlapping label framed in ${FAILURE_HIGHLIGHT}: ${highlights.slice(0, 300)}`);
+  }
   if (existsSync(printedPage)) failures.push('the broken document reached the printer');
 }
 
@@ -187,5 +206,5 @@ if (failures.length > 0) {
   process.exit(1);
 }
 console.log(
-  'figura wire check passed: the real entry built the reference demo through every module, with every diagram rendered in its layout, inlined and printed with the theme and footer, a broken document stopped before the printer with each problem named, and the ERD parts of the Prisma fixture built into a PDF with every part drawn by dagre.',
+  'figura wire check passed: the real entry built the reference demo through every module, with every diagram rendered in its layout, inlined and printed with the theme and footer, a broken document stopped before the printer with each problem named and a picture of each failed diagram with its conflicts framed, and the ERD parts of the Prisma fixture built into a PDF with every part drawn by dagre.',
 );

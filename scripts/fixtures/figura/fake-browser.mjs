@@ -1,11 +1,13 @@
 #!/usr/bin/env node
 
-import { readFileSync, writeFileSync } from 'node:fs';
+import { appendFileSync, readFileSync, writeFileSync } from 'node:fs';
 import { Socket } from 'node:net';
 import { basename } from 'node:path';
 
 const MESSAGE_TERMINATOR = '\0';
 const FAKE_VERSION = 'Chromium 131.0.6778.0';
+const HIGHLIGHT_MARKER = 'data-figura-highlight';
+const ONE_PIXEL_PNG = 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==';
 const TWO_PAGE_PDF = [
   '%PDF-1.4',
   '1 0 obj << /Type /Catalog /Pages 2 0 R >> endobj',
@@ -38,6 +40,11 @@ async function recordPrintedPage(sessionId) {
   if (process.env.FIGURA_FAKE_PRINTED_PAGE === undefined) return;
   const response = await fetch(pageUrlBySession.get(sessionId));
   writeFileSync(process.env.FIGURA_FAKE_PRINTED_PAGE, await response.text());
+}
+
+function recordHighlights(expression) {
+  if (process.env.FIGURA_FAKE_OVERLAY_LOG === undefined || !expression.includes(HIGHLIGHT_MARKER)) return;
+  appendFileSync(process.env.FIGURA_FAKE_OVERLAY_LOG, `${expression}\n`);
 }
 
 function evaluate(id, sessionId) {
@@ -83,7 +90,14 @@ function handle({ id, method, params, sessionId }) {
       reply({ method: 'Page.loadEventFired', sessionId, params: { timestamp: 0 } });
       break;
     case 'Runtime.evaluate':
+      recordHighlights(params.expression);
       evaluate(id, sessionId);
+      break;
+    case 'Emulation.setDeviceMetricsOverride':
+      reply({ id, sessionId, result: {} });
+      break;
+    case 'Page.captureScreenshot':
+      reply({ id, sessionId, result: { data: ONE_PIXEL_PNG } });
       break;
     case 'Page.printToPDF':
       recordPrintedPage(sessionId).then(() => reply({ id, sessionId, result: { data: Buffer.from(TWO_PAGE_PDF, 'latin1').toString('base64') } }));

@@ -9,6 +9,10 @@ export function failureReport(documentPath, problems) {
   return [`figura: ${documentPath} FAILED:`, ...problems.map((problem) => `  - ${problem.message}`)].join('\n');
 }
 
+export function failedDiagramsLine(previewPaths) {
+  return `figura: failed diagrams drawn in ${previewPaths.map(pathFromWorkingDirectory).join(', ')}`;
+}
+
 export function warningReport(subject, warnings) {
   return [`figura: ${subject} WARNING:`, ...warnings.map((warning) => `  - ${warning.message}`)].join('\n');
 }
