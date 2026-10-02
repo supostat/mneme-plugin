@@ -36,7 +36,11 @@ PDF.
 - `<html lang="…">` and a `<title>`; the title goes into the footer of every page.
 - Headings `h1`–`h3`, paragraphs, `ul` and `ol` lists, `strong`, inline `code`.
 - Code blocks: `<pre><code>…</code></pre>` for JSON, SQL and shell.
-- Tables: `table` with a `thead`; the header row repeats on every page the table spans.
+- Tables: `table` with a `thead`; the header row repeats on every page the table spans. A cell
+  never breaks inside a word, and inline code breaks only after `_`, `/`, `::` and `.`; put `<wbr>`
+  inside a long identifier without them (`ProcessFinance<wbr>ReportJob`) where it may break. A table
+  wider than the column stops `build` with `TABLE-TOO-WIDE`; `check` does not lay out tables.
+- Inline `code` takes the size of the text around it, in a caption and a table cell as well.
 - Callouts: `<div class="callout warning">`, `callout note` or `callout decision`, with the label
   in a `strong` first.
 - Diagrams: one per `figure`, as
@@ -83,7 +87,10 @@ One reference example per diagram type, each building clean on A4:
 page into parts. Paste each part into its own `figure` as `<pre class="d2" data-layout="dagre">`:
 figura measured the part with dagre, and ELK draws the same part wider. A foreign key names its
 table in the column type (`bigint → venues`), relations are drawn inside a part only, and a table
-never shows the tables that reference it.
+never shows the tables that reference it. A relation from a table to itself draws no edge: its
+column already names the table (`bigint → holidays`). All ERD diagrams of one document print at
+one scale, the smallest any of them needs, so their tables read alike; a part that fails at that
+scale is named with the part that set it.
 
 - Prisma: `${CLAUDE_PLUGIN_ROOT}/bin/figura erd --source prisma prisma/schema.prisma --out docs/erd`
   (a directory of `.prisma` files works too).
@@ -106,7 +113,8 @@ the entity declarations the parser left out of the diagrams.
 
 | Code | What to do |
 | --- | --- |
-| `DIAGRAM-TOO-WIDE` | Follow the remedy on the line: it knows the diagram's layout, kind and direction and offers only what they have not tried — fewer participants for a sequence, dagre for an ERD part |
+| `DIAGRAM-TOO-WIDE` | Follow the remedy on the line: it knows the diagram's layout, kind and direction and offers only what they have not tried — fewer participants for a sequence, dagre for an ERD part, and for an ERD printed at the scale another part set, a split of that part |
+| `TABLE-TOO-WIDE` | Only `build` finds it: use fewer columns or shorter cell text, or put `<wbr>` inside a long identifier |
 | `DIAGRAM-TOO-TALL` | Follow the remedy on the line: another direction or layout, layers instead of a long chain, or a split |
 | `LABEL-OVERLAP` | Open the picture of the failed diagram, then follow the remedy: shorten, move or drop the label, or name an edge into a container in the caption |
 | `TEXT-OVERFLOW` | Shorten the label or break it into two short lines |

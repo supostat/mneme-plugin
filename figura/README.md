@@ -62,7 +62,9 @@ A document is one HTML file in the shape of `template/document.html`:
 - `<html lang="…">` and a `<title>`, which the footer prints on the left of every page;
 - headings `h1` to `h3`, paragraphs, `ul` and `ol` lists, `strong` and inline `code`, and
   `<pre><code>` blocks for JSON, SQL or shell;
-- a `table` with a `thead`, whose header row repeats on every page the table spans;
+- a `table` with a `thead`, whose header row repeats on every page the table spans; a cell never breaks
+  inside a word, and inline code takes the size of the text around it and breaks only after `_`, `/`,
+  `::` and `.`, so a long identifier without them needs a `<wbr>` from the author where it may break;
 - `div.callout.warning`, `div.callout.note` or `div.callout.decision`, with the label in a leading
   `strong`;
 - one diagram per `figure`: a `pre.d2` holding D2 source and a `figcaption.caption` whose `strong` is
@@ -81,7 +83,10 @@ Otherwise it hands every argument to `scripts/figura.mjs`.
 `bin/figura check <document.html>` runs preflight, renders every diagram with d2, measures it in
 Chromium and applies the layout checks: DIAGRAM-TOO-WIDE when the scale to the column drops the
 smallest label under the theme floor, DIAGRAM-TOO-TALL when the diagram does not fit a page above its
-caption, LABEL-OVERLAP when a label crosses a foreign shape or label, and TEXT-OVERFLOW when a label
+caption at that scale. Every diagram prints at the scale that fits it to the column, except that all
+ERD diagrams of a document (those with a `sql_table`) share one scale, the smallest any of them needs,
+so their tables read alike; a label floor broken by that shared scale names the diagram that set it.
+LABEL-OVERLAP fails a label that crosses a foreign shape or label, and TEXT-OVERFLOW a label that
 spills out of its own shape. A label does not cross the container it sits in, nor the frame that holds
 its whole edge, such as the group around the messages of a sequence diagram; a label on an edge that
 enters a container and lands inside it still fails, because it reads as a link within that container.
@@ -94,9 +99,13 @@ line of the report names those pictures. A check removes its old pictures first 
 previews of the last build alone. An unknown command prints the usage and exits with status 2.
 
 `bin/figura build <document.html>` runs the same check and stops without a PDF on any problem.
-Otherwise it prints the document next to its source (`doc.html` gives `doc.pdf`) with the theme,
-the title on the left of the footer and the page number on the right, keeps every heading on the
-page of the block that follows it, and renders one preview per page with
+Otherwise it puts every diagram in place at its print scale, gives inline code outside code blocks
+and diagrams a `<wbr>` after every inner run of `_`, `/`, `::` and `.`, and lays the document out at
+the column width: a table wider than its column stops the build with TABLE-TOO-WIDE and no PDF,
+because a cell breaks only between words and at those points. Then it prints the document next to its
+source (`doc.html` gives `doc.pdf`) with the theme, the title on the left of the footer and the page
+number on the right, keeps every heading on the page of the block that follows it, and renders one
+preview per page with
 `pdftoppm -png -r 120` into `.figura/<name>/page-NN.png`. When it first creates `.figura/`, it puts
 a `.gitignore` holding `*` there, so the project's git never sees the previews. Every build starts by
 removing the previous PDF and previews of the document, and a failed build leaves only the pictures
@@ -134,7 +143,9 @@ fit either grows parts from its most connected table: the table with the most re
 comes next, then the other tables of the domain by name, until the next one would not fit. Every part
 is measured with dagre, so its `erd-NN.d2` file goes into a `<pre class="d2" data-layout="dagre">` block
 of the document. Relations are drawn inside a part only, and a table never shows the tables that
-reference it. `--hide-service-columns` hides created, updated and deleted timestamps, `--key-columns`
+reference it. A relation from a table to itself draws no edge, because its column already names the
+table; a column whose type equals its name (`date date`) gets a zero width space after the type,
+since d2 drops a type label equal to the column key. `--hide-service-columns` hides created, updated and deleted timestamps, `--key-columns`
 keeps only the primary, foreign and unique key columns and the columns a relation points at,
 `--tables a,b` keeps a subset whose foreign keys still name the tables left out, and
 `--domains '{"domain": ["table", "prefix*"]}'` assigns domains. A table that does not fit even alone
@@ -146,7 +157,9 @@ to describe the table in a document table.
 
 `theme/theme.json` is the only place that holds a color, a size or a page measure. `scripts/theme.mjs`
 validates it with named errors and generates from it the CSS custom properties that
-`template/print.css` reads for the page box, the footer and every element; a D2 `classes` block, which
+`template/print.css` reads for the page box, the footer and every element, among them the size of
+inline code relative to the text around it (the code size over the text size, in `em`); a D2
+`classes` block, which
 the build puts at the start of every diagram source, with one class per node role (source, core,
 tool, app, observability, neutral, note) and the `table` class for `sql_table` shapes, whose header
 takes the tone of document table headers and whose rows stay unfilled, since d2 fills the rows of a
