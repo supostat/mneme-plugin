@@ -17,8 +17,10 @@ stylesheet owns the page. You write the source; you never place anything by coor
    `${CLAUDE_PLUGIN_ROOT}/reference/demo.html` uses every block and every diagram type.
 2. Build it with Bash: `${CLAUDE_PLUGIN_ROOT}/bin/figura build docs/<name>.html`.
 3. Read the report. A failed build prints `figura: <document> FAILED:` and one
-   `CODE: what — remedy` line per problem, and writes no PDF. Fix every line (see
-   `## Failure codes`) and build again.
+   `CODE: what — remedy` line per problem, and writes no PDF. Each diagram that failed a layout
+   check is drawn into `.figura/<name>/failed-NN.png` with the labels and shapes in conflict
+   framed, and the last line of the report names those pictures: open each with Read before you
+   change its diagram. Fix every line (see `## Failure codes`) and build again.
 4. Review the pages. A successful build prints one line with the PDF path and the previews in
    `.figura/<name>/page-NN.png`. Open every preview page that holds a diagram with Read and look for
    what the checks cannot see: an edge crossing a title, a label that says too little, a crowded
@@ -49,7 +51,12 @@ PDF.
 - No more than 15 shapes in one diagram. Split a larger picture into several diagrams.
 - One idea per diagram, and its caption says it: a title in `strong`, then the key thought.
 - Number the messages of a sequence diagram: `1. …`, `2. …`; draw replies and events dashed with
-  `{style.stroke-dash: 3}`.
+  `{style.stroke-dash: 3}`. A sequence diagram fits A4 with five participants or fewer; groups
+  (loops, conditions) are fine.
+- A chain of six or more steps fits neither down nor right: regroup it into layers (clients, the
+  system, storage) instead of one long line.
+- A label on an edge that enters a container lands inside it and reads as a link within it, in
+  ELK and dagre alike: leave such an edge unlabelled or name the link in the caption.
 - Layout: ELK by default. When ELK stretches a diagram too tall or too wide, set
   `data-layout="dagre"` on its `pre`; the architecture and state references are drawn with dagre.
 - Structure is D2's job: `direction`, containers, `label.near` and connections. Never set positions,
@@ -99,9 +106,9 @@ the entity declarations the parser left out of the diagrams.
 
 | Code | What to do |
 | --- | --- |
-| `DIAGRAM-TOO-WIDE` | Change the direction, try `data-layout="dagre"`, shorten labels, or split the diagram |
-| `DIAGRAM-TOO-TALL` | Change the direction, try `data-layout="dagre"`, or split the diagram |
-| `LABEL-OVERLAP` | Shorten or drop the label, or change the layout or the direction |
+| `DIAGRAM-TOO-WIDE` | Follow the remedy on the line: it knows the diagram's layout, kind and direction and offers only what they have not tried — fewer participants for a sequence, dagre for an ERD part |
+| `DIAGRAM-TOO-TALL` | Follow the remedy on the line: another direction or layout, layers instead of a long chain, or a split |
+| `LABEL-OVERLAP` | Open the picture of the failed diagram, then follow the remedy: shorten, move or drop the label, or name an edge into a container in the caption |
 | `TEXT-OVERFLOW` | Shorten the label or break it into two short lines |
 | `D2-FAILED` | Fix the D2 syntax at the line the message names |
 | `DOCUMENT-INVALID` | Fix the HTML the message names |

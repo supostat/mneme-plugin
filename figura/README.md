@@ -82,9 +82,16 @@ Otherwise it hands every argument to `scripts/figura.mjs`.
 Chromium and applies the layout checks: DIAGRAM-TOO-WIDE when the scale to the column drops the
 smallest label under the theme floor, DIAGRAM-TOO-TALL when the diagram does not fit a page above its
 caption, LABEL-OVERLAP when a label crosses a foreign shape or label, and TEXT-OVERFLOW when a label
-spills out of its own shape. It prints one success line, or `figura: <document> FAILED:` with one
-`CODE: what — remedy` line per problem and exit status 1; it builds no PDF. An unknown command prints
-the usage and exits with status 2.
+spills out of its own shape. A label does not cross the container it sits in, nor the frame that holds
+its whole edge, such as the group around the messages of a sequence diagram; a label on an edge that
+enters a container and lands inside it still fails, because it reads as a link within that container.
+Each remedy follows the diagram's layout, kind (sequence, ERD or graph) and top-level direction, and
+never offers what is already set. It prints one success line, or `figura: <document> FAILED:` with
+one `CODE: what — remedy` line per problem and exit status 1; it builds no PDF. Every diagram that
+failed a layout check is opened again in Chromium, the labels and shapes in conflict are framed in the
+theme's `diagram.failureHighlight`, and the picture lands in `.figura/<name>/failed-NN.png`; the last
+line of the report names those pictures. A check removes its old pictures first and leaves the page
+previews of the last build alone. An unknown command prints the usage and exits with status 2.
 
 `bin/figura build <document.html>` runs the same check and stops without a PDF on any problem.
 Otherwise it prints the document next to its source (`doc.html` gives `doc.pdf`) with the theme,
@@ -92,7 +99,8 @@ the title on the left of the footer and the page number on the right, keeps ever
 page of the block that follows it, and renders one preview per page with
 `pdftoppm -png -r 120` into `.figura/<name>/page-NN.png`. When it first creates `.figura/`, it puts
 a `.gitignore` holding `*` there, so the project's git never sees the previews. Every build starts by
-removing the previous PDF and previews of the document. Success is one line with the page, diagram
+removing the previous PDF and previews of the document, and a failed build leaves only the pictures
+of its failed diagrams there. Success is one line with the page, diagram
 and warning counts and the preview paths.
 
 `bin/figura erd --source <source> --out <directory>` turns a schema into D2 `sql_table` diagrams:
