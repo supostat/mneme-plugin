@@ -3,7 +3,9 @@
 // End-to-end run of figura on the real tools, outside npm test and in the figura-e2e CI job: the
 // real CLI builds a copy of the reference demo into an A4 PDF with a preview per page and no
 // problem, stops a document of broken diagrams with LABEL-OVERLAP, DIAGRAM-TOO-WIDE and
-// DIAGRAM-TOO-TALL before any PDF, and turns the Prisma fixture and the hubs-and-spokes schema into
+// DIAGRAM-TOO-TALL before any PDF and leaves a PNG picture of each failed diagram, passes a message
+// inside a sequence group and edges between containers, fails a labelled edge into a container in
+// dagre and ELK with its own remedy, and turns the Prisma fixture and the hubs-and-spokes schema into
 // ERD parts that the real d2 renders with dagre and the check passes, every table in exactly one
 // part. It needs d2 (the launcher downloads the pinned release), Chromium 131 or newer and poppler
 // at once; a missing one stops it with preflight's named line and recipe.
@@ -27,6 +29,9 @@ const BROKEN_DIAGRAM_CODES = new Map([
   ['too-wide', 'DIAGRAM-TOO-WIDE'],
   ['too-tall', 'DIAGRAM-TOO-TALL'],
 ]);
+const PNG_SIGNATURE = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
+const FAILED_PICTURES = ['failed-01.png', 'failed-02.png', 'failed-03.png'];
+const INTO_CONTAINER = 'reads as a link within it';
 const ERD_TABLE = /"([^"]+)": \{\n\s+shape: sql_table/g;
 const DEMO_SUCCESS = /^figura: built demo\.pdf — (\d+) pages?, (\d+) diagrams?, 0 warnings; previews: /;
 const failures = [];
@@ -80,14 +85,48 @@ function stopBrokenDocument(workDirectory) {
   mkdirSync(brokenDirectory);
   const diagrams = [...BROKEN_DIAGRAM_CODES.keys()].map((name) => ({ caption: name, source: readFileSync(join(FIXTURE_DIAGRAMS, `${name}.d2`), 'utf8') }));
   writeFileSync(join(brokenDirectory, 'broken.html'), documentOfDiagrams('Broken diagrams', diagrams));
+  const picturesDirectory = join(brokenDirectory, '.figura', 'broken');
   for (const command of ['check', 'build']) {
     const run = figura(brokenDirectory, [command, 'broken.html']);
     if (run.status !== 1 || !run.stderr.includes('broken.html FAILED:')) failures.push(`figura ${command} of the broken document exited ${run.status}: ${output(run)}`);
     const missingCodes = [...BROKEN_DIAGRAM_CODES.values()].filter((code) => !run.stderr.includes(`  - ${code}: `));
     if (missingCodes.length > 0) failures.push(`figura ${command} of the broken document did not name ${missingCodes.join(', ')}: ${output(run)}`);
+    const namedPictures = `figura: failed diagrams drawn in ${FAILED_PICTURES.map((picture) => `.figura/broken/${picture}`).join(', ')}`;
+    if (!run.stderr.includes(namedPictures)) failures.push(`figura ${command} of the broken document did not name its pictures: ${output(run)}`);
+    const pictures = existsSync(picturesDirectory) ? readdirSync(picturesDirectory).sort() : [];
+    if (JSON.stringify(pictures) !== JSON.stringify(FAILED_PICTURES)) failures.push(`figura ${command} of the broken document left ${JSON.stringify(pictures)}, expected ${JSON.stringify(FAILED_PICTURES)}`);
+    for (const picture of pictures.filter((name) => !readFileSync(join(picturesDirectory, name)).subarray(0, PNG_SIGNATURE.length).equals(PNG_SIGNATURE))) {
+      failures.push(`figura ${command} wrote ${picture}, which is not a PNG`);
+    }
   }
   if (existsSync(join(brokenDirectory, 'broken.pdf'))) failures.push('the broken document got a PDF');
-  if (existsSync(join(brokenDirectory, '.figura', 'broken'))) failures.push('the broken document got previews');
+}
+
+function fixtureDiagram(name, layout) {
+  return { caption: `${name} in ${layout}`, layout, source: readFileSync(join(FIXTURE_DIAGRAMS, `${name}.d2`), 'utf8') };
+}
+
+function checkGroupsAndContainers(workDirectory) {
+  const passingDirectory = join(workDirectory, 'passing-frames');
+  mkdirSync(passingDirectory);
+  writeFileSync(
+    join(passingDirectory, 'frames.html'),
+    documentOfDiagrams('Frames that pass', [fixtureDiagram('sequence-group', 'elk'), fixtureDiagram('edge-between-containers', 'dagre'), fixtureDiagram('edge-between-containers', 'elk')]),
+  );
+  const passing = figura(passingDirectory, ['check', 'frames.html']);
+  if (passing.status !== 0 || !passing.stdout.includes('passed the check — 3 diagrams fit')) {
+    failures.push(`figura check of a sequence group and edges between containers exited ${passing.status}: ${output(passing)}`);
+  }
+  const failingDirectory = join(workDirectory, 'edges-into-containers');
+  mkdirSync(failingDirectory);
+  writeFileSync(join(failingDirectory, 'edges.html'), documentOfDiagrams('Edges into containers', [fixtureDiagram('edge-into-container', 'dagre'), fixtureDiagram('edge-into-container', 'elk')]));
+  const failing = figura(failingDirectory, ['check', 'edges.html']);
+  for (const ordinal of [1, 2]) {
+    const intoContainer = new RegExp(`LABEL-OVERLAP: diagram ${ordinal} [^\\n]*crosses the shape domain — [^\\n]*${INTO_CONTAINER}`);
+    if (failing.status !== 1 || !intoContainer.test(failing.stderr)) {
+      failures.push(`figura check did not fail diagram ${ordinal}, a labelled edge into a container, with its own remedy: ${output(failing)}`);
+    }
+  }
 }
 
 function erdPartsInDocument(workDirectory, name, erdArguments) {
@@ -137,6 +176,7 @@ const workDirectory = mkdtempSync(join(tmpdir(), 'figura-e2e-'));
 try {
   buildDemo(workDirectory);
   stopBrokenDocument(workDirectory);
+  checkGroupsAndContainers(workDirectory);
   checkPrismaErd(workDirectory);
   checkHubsAndSpokesErd(workDirectory);
 } finally {
@@ -149,5 +189,5 @@ if (failures.length > 0) {
   process.exit(1);
 }
 console.log(
-  'figura-e2e passed: the real d2, Chromium and poppler built the demo with a preview per page, stopped the broken document with LABEL-OVERLAP, DIAGRAM-TOO-WIDE and DIAGRAM-TOO-TALL before any PDF, and checked every dagre ERD part of the Prisma fixture and the hubs-and-spokes schema on the page, each table drawn once.',
+  'figura-e2e passed: the real d2, Chromium and poppler built the demo with a preview per page, stopped the broken document with LABEL-OVERLAP, DIAGRAM-TOO-WIDE and DIAGRAM-TOO-TALL before any PDF with a PNG picture of each failed diagram, passed a sequence group and edges between containers, failed a labelled edge into a container in dagre and ELK with its own remedy, and checked every dagre ERD part of the Prisma fixture and the hubs-and-spokes schema on the page, each table drawn once.',
 );

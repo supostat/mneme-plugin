@@ -2,9 +2,10 @@
 //
 // Smoke gate of figura against the real tools, outside npm test: each stage needs what its tool
 // needs — the d2 stage the network, curl and tar, the browser stage Chromium 131 or newer, the
-// render stage a d2 the launcher can serve, the checks stage both d2 and Chromium, the pdf stage d2,
-// Chromium and poppler (pdftoppm, pdftotext), the erd stage a d2 the launcher can serve for the
-// 30-table and hubs-and-spokes fixtures.
+// render stage a d2 the launcher can serve, the checks stage both d2 and Chromium for the broken
+// fixtures, a message inside a sequence group and edges into and between containers in both
+// layouts, the pdf stage d2, Chromium and poppler (pdftoppm, pdftotext), the erd stage a d2 the
+// launcher can serve for the 30-table and hubs-and-spokes fixtures.
 
 import { spawnSync } from 'node:child_process';
 import { copyFileSync, existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs';
@@ -31,13 +32,18 @@ const TEMPLATE_TITLE_WORDS = ['Document', 'title'];
 const THIRTY_TABLES_FIXTURE = resolve(dirname(fileURLToPath(import.meta.url)), 'fixtures', 'figura', 'erd-thirty-tables.json');
 const FOOTER_BAND_POINTS = 50;
 const POPPLER_RECIPE = 'install poppler: brew install poppler (macOS) or apt install poppler-utils (Debian/Ubuntu)';
-const EXPECTED_FIXTURE_CODES = new Map([
-  ['clean', undefined],
-  ['label-overlap', 'LABEL-OVERLAP'],
-  ['text-overflow', 'TEXT-OVERFLOW'],
-  ['too-wide', 'DIAGRAM-TOO-WIDE'],
-  ['too-tall', 'DIAGRAM-TOO-TALL'],
-]);
+const CHECK_FIXTURES = [
+  { name: 'clean', layout: 'elk', code: undefined },
+  { name: 'label-overlap', layout: 'elk', code: 'LABEL-OVERLAP' },
+  { name: 'text-overflow', layout: 'elk', code: 'TEXT-OVERFLOW' },
+  { name: 'too-wide', layout: 'elk', code: 'DIAGRAM-TOO-WIDE' },
+  { name: 'too-tall', layout: 'elk', code: 'DIAGRAM-TOO-TALL' },
+  { name: 'sequence-group', layout: 'elk', code: undefined },
+  { name: 'edge-into-container', layout: 'dagre', code: 'LABEL-OVERLAP', remedy: 'reads as a link within it' },
+  { name: 'edge-into-container', layout: 'elk', code: 'LABEL-OVERLAP', remedy: 'reads as a link within it' },
+  { name: 'edge-between-containers', layout: 'dagre', code: undefined },
+  { name: 'edge-between-containers', layout: 'elk', code: undefined },
+];
 const SMOKE_NODE_LABEL = 'figura smoke node';
 const A4_POINTS = { width: 595.28, height: 841.89 };
 const PAGE_SIZE_TOLERANCE_POINTS = 1;
@@ -236,11 +242,11 @@ async function checkFixturesWithRealTools(workDirectory) {
     throw error;
   }
   const theme = loadTheme();
-  const fixtures = [...EXPECTED_FIXTURE_CODES.keys()].map((name, index) => ({
+  const fixtures = CHECK_FIXTURES.map((fixture, index) => ({
+    ...fixture,
     ordinal: index + 1,
-    caption: name,
-    layout: 'elk',
-    source: readFileSync(join(FIXTURE_DIAGRAMS, `${name}.d2`), 'utf8'),
+    caption: `${fixture.name} (${fixture.layout})`,
+    source: readFileSync(join(FIXTURE_DIAGRAMS, `${fixture.name}.d2`), 'utf8'),
   }));
   let rendered;
   try {
@@ -252,12 +258,16 @@ async function checkFixturesWithRealTools(workDirectory) {
   const measurements = await measureDiagrams(rendered.map((diagram) => diagram.svgPath), { executablePath });
   const limits = layoutLimits(theme);
   return rendered.flatMap((diagram, index) => {
-    const codes = layoutProblems(diagram, measurements[index], limits).map((problem) => problem.code);
-    const expectedCode = EXPECTED_FIXTURE_CODES.get(diagram.caption);
-    if (expectedCode === undefined) {
-      return codes.length === 0 ? [] : [`the clean fixture failed the checks with ${[...new Set(codes)].join(', ')}`];
+    const problems = layoutProblems(diagram, measurements[index], limits);
+    const codes = [...new Set(problems.map((problem) => problem.code))];
+    if (diagram.code === undefined) {
+      return codes.length === 0 ? [] : [`the ${diagram.caption} fixture failed the checks with ${codes.join(', ')}`];
     }
-    return codes.includes(expectedCode) ? [] : [`the ${diagram.caption} fixture did not fail with ${expectedCode} (got ${JSON.stringify([...new Set(codes)])})`];
+    if (!codes.includes(diagram.code)) return [`the ${diagram.caption} fixture did not fail with ${diagram.code} (got ${JSON.stringify(codes)})`];
+    if (diagram.remedy !== undefined && !problems.some((problem) => problem.code === diagram.code && problem.remedy.includes(diagram.remedy))) {
+      return [`the ${diagram.caption} fixture failed without the remedy "${diagram.remedy}"`];
+    }
+    return [];
   });
 }
 
@@ -272,7 +282,11 @@ function realD2SplitProblems(fixtureName, schema, workDirectory, theme) {
   const limits = layoutLimits(theme);
   for (const diagram of plan.diagrams) {
     const { svg } = renderDiagram({ ordinal: diagram.number, layout: 'dagre', source: diagram.source }, theme, { workDirectory });
-    problems.push(...diagramSizeProblems({ ordinal: diagram.number }, svgSizeMeasurement(svg), limits).map((problem) => `the ${fixtureName}: ${problem.message}`));
+    problems.push(
+      ...diagramSizeProblems({ ordinal: diagram.number, layout: 'dagre', source: diagram.source }, svgSizeMeasurement(svg), limits).map(
+        (problem) => `the ${fixtureName}: ${problem.message}`,
+      ),
+    );
   }
   return problems;
 }
@@ -316,7 +330,8 @@ const STAGES = new Map([
     'checks',
     {
       check: checkFixturesWithRealTools,
-      passed: 'the real d2 and Chromium measured the fixtures: the clean one passes, the others fail with LABEL-OVERLAP, TEXT-OVERFLOW, DIAGRAM-TOO-WIDE and DIAGRAM-TOO-TALL',
+      passed:
+        'the real d2 and Chromium measured the fixtures: the clean one, a message inside a sequence group and edges between two containers pass, the broken ones fail with LABEL-OVERLAP, TEXT-OVERFLOW, DIAGRAM-TOO-WIDE and DIAGRAM-TOO-TALL, and a labelled edge into a container fails in dagre and ELK with its own remedy',
     },
   ],
   [
