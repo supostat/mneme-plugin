@@ -11,6 +11,7 @@
         "width": 50,
         "height": 40
       },
+      "pathBox": null,
       "labels": [
         {
           "text": "Label pinned inside a small box",
@@ -33,6 +34,7 @@
         "width": 82,
         "height": 65
       },
+      "pathBox": null,
       "labels": [
         {
           "text": "Next",
@@ -50,6 +52,12 @@
       "id": "(pinned -> next)[0]",
       "kind": "connection",
       "box": null,
+      "pathBox": {
+        "x": 63,
+        "y": 43.5,
+        "width": 256,
+        "height": 0
+      },
       "labels": []
     }
   ]

@@ -1,0 +1,12 @@
+shape: sequence_diagram
+
+job: Weekly job {class: tool}
+factory: Holiday factory {class: core}
+store: Holidays table {class: source}
+
+job -> factory: "1. public holidays of the week"
+each: "for each staff member and date" {
+  job -> factory: "2. paid holiday"
+  factory -> store: "3. insert"
+}
+factory -> job: "4. done" {style.stroke-dash: 3}

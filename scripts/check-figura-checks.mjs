@@ -1,7 +1,10 @@
 #!/usr/bin/env node
 //
 // Gate for figura's check loop: the layout checks on measurements recorded from the real d2 and
-// Chromium, where a clean diagram passes and each broken one fails with its own code, and
+// Chromium, where a clean diagram passes, each broken one fails with its own code, a message inside a
+// sequence group passes, and a label inside the container its edge leads into fails in dagre and ELK
+// alike; synthetic rules for edge frames, edges into containers, remedies that follow the layout,
+// kind and direction of a diagram, and the ordinal and highlights every problem carries; and
 // `figura check` on fixture documents through the real render and check modules, with a fake
 // browser and a launcher stub at the process boundary.
 
@@ -18,13 +21,20 @@ const FIGURA_ROOT = join(REPO_ROOT, 'figura');
 const FIXTURES = join(REPO_ROOT, 'scripts', 'fixtures', 'figura');
 const FAKE_BROWSER = join(FIXTURES, 'fake-browser.mjs');
 const FAKE_LAUNCHER = join(FIXTURES, 'fake-launcher.sh');
-const RECORDED_CODES = new Map([
-  ['clean', []],
-  ['label-overlap', ['LABEL-OVERLAP', 'TEXT-OVERFLOW']],
-  ['text-overflow', ['TEXT-OVERFLOW']],
-  ['too-wide', ['DIAGRAM-TOO-WIDE']],
-  ['too-tall', ['DIAGRAM-TOO-TALL']],
-]);
+const INTO_CONTAINER = 'reads as a link within it';
+const RECORDED_CASES = [
+  { recording: 'clean', diagram: 'clean', layout: 'elk', codes: [] },
+  { recording: 'label-overlap', diagram: 'label-overlap', layout: 'elk', codes: ['LABEL-OVERLAP', 'TEXT-OVERFLOW'] },
+  { recording: 'text-overflow', diagram: 'text-overflow', layout: 'elk', codes: ['TEXT-OVERFLOW'] },
+  { recording: 'too-wide', diagram: 'too-wide', layout: 'elk', codes: ['DIAGRAM-TOO-WIDE'] },
+  { recording: 'too-tall', diagram: 'too-tall', layout: 'elk', codes: ['DIAGRAM-TOO-TALL'] },
+  { recording: 'sequence-group', diagram: 'sequence-group', layout: 'elk', codes: [] },
+  { recording: 'edge-into-container-dagre', diagram: 'edge-into-container', layout: 'dagre', codes: ['LABEL-OVERLAP'] },
+  { recording: 'edge-into-container-elk', diagram: 'edge-into-container', layout: 'elk', codes: ['LABEL-OVERLAP'] },
+  { recording: 'edge-between-containers-dagre', diagram: 'edge-between-containers', layout: 'dagre', codes: [] },
+  { recording: 'edge-between-containers-elk', diagram: 'edge-between-containers', layout: 'elk', codes: [] },
+];
+const GRAPH = 'a -> b\n';
 const failures = [];
 const workDirectory = mkdtempSync(join(tmpdir(), 'figura-checks-check-'));
 
@@ -52,33 +62,135 @@ function expectProblemText(caseName, problems, code, expectedText) {
   }
 }
 
+function expectRemedy(caseName, problems, code, { includes = [], excludes = [] }) {
+  const problem = problems.find((candidate) => candidate.code === code);
+  if (problem === undefined) {
+    failures.push(`${caseName}: no ${code} among ${JSON.stringify(problems.map((candidate) => candidate.message))}`);
+    return;
+  }
+  for (const expected of includes) if (!problem.remedy.includes(expected)) failures.push(`${caseName}: the remedy lacks ${JSON.stringify(expected)}: ${problem.remedy}`);
+  for (const unexpected of excludes) if (problem.remedy.includes(unexpected)) failures.push(`${caseName}: the remedy offers ${JSON.stringify(unexpected)}: ${problem.remedy}`);
+}
+
+function recordedCase(name) {
+  const recordedCase = RECORDED_CASES.find((candidate) => candidate.recording === name);
+  return { diagram: { ordinal: 2, caption: name, layout: recordedCase.layout, source: diagramSource(recordedCase.diagram) }, measurement: recorded(name) };
+}
+
 function labelledMeasurement(widthPixels, heightPixels) {
   return {
     widthPixels,
     heightPixels,
-    objects: [{ id: 'node', kind: 'shape', box: { x: 0, y: 0, width: 80, height: 40 }, labels: [{ text: 'Node', box: { x: 20, y: 10, width: 40, height: 20 }, fontPixels: 16 }] }],
+    objects: [
+      { id: 'node', kind: 'shape', box: { x: 0, y: 0, width: 80, height: 40 }, pathBox: null, labels: [{ text: 'Node', box: { x: 20, y: 10, width: 40, height: 20 }, fontPixels: 16 }] },
+    ],
   };
 }
 
 function checkRecordedCases(limits) {
-  for (const [name, expectedCodes] of RECORDED_CODES) {
-    expectCodes(`recorded ${name}`, layoutProblems({ ordinal: 1, caption: name }, recorded(name), limits), expectedCodes);
+  for (const { recording, layout, codes } of RECORDED_CASES) {
+    const { diagram, measurement } = recordedCase(recording);
+    expectCodes(`recorded ${recording} (${layout})`, layoutProblems(diagram, measurement, limits), codes);
   }
-  const subjectOf = (name) => ({ ordinal: 2, caption: name });
-  expectProblemText('recorded too-wide', layoutProblems(subjectOf('too-wide'), recorded('too-wide'), limits), 'DIAGRAM-TOO-WIDE', 'under the 7 pt floor — change direction');
-  expectProblemText('recorded too-tall', layoutProblems(subjectOf('too-tall'), recorded('too-tall'), limits), 'DIAGRAM-TOO-TALL', 'a page leaves above its caption — change direction');
+  const problemsOf = (name) => {
+    const { diagram, measurement } = recordedCase(name);
+    return layoutProblems(diagram, measurement, limits);
+  };
+  expectProblemText('recorded too-wide', problemsOf('too-wide'), 'DIAGRAM-TOO-WIDE', 'under the 7 pt floor — change direction to down (direction: down)');
+  expectProblemText('recorded too-tall', problemsOf('too-tall'), 'DIAGRAM-TOO-TALL', 'a page leaves above its caption — change direction to right (direction: right)');
   expectProblemText(
     'recorded label-overlap',
-    layoutProblems(subjectOf('label-overlap'), recorded('label-overlap'), limits),
+    problemsOf('label-overlap'),
     'LABEL-OVERLAP',
     'diagram 2 («label-overlap»): label "A label much wider than its fixed cell" of cell crosses the shape next',
   );
-  expectProblemText(
-    'recorded text-overflow',
-    layoutProblems(subjectOf('text-overflow'), recorded('text-overflow'), limits),
-    'TEXT-OVERFLOW',
-    'label "Label pinned inside a small box" spills out of pinned',
-  );
+  expectProblemText('recorded text-overflow', problemsOf('text-overflow'), 'TEXT-OVERFLOW', 'label "Label pinned inside a small box" spills out of pinned');
+  for (const layout of ['dagre', 'elk']) {
+    expectProblemText(
+      `recorded edge-into-container (${layout})`,
+      problemsOf(`edge-into-container-${layout}`),
+      'LABEL-OVERLAP',
+      `label "book directly" of (managers -> domain.holidays)[0] crosses the shape domain — the label sits inside the container its edge leads into and ${INTO_CONTAINER}`,
+    );
+  }
+}
+
+function groupedMessages() {
+  return {
+    widthPixels: 600,
+    heightPixels: 400,
+    objects: [
+      { id: 'each', kind: 'shape', box: { x: 30, y: 100, width: 500, height: 200 }, pathBox: null, labels: [{ text: 'for each day', box: { x: 40, y: 104, width: 120, height: 18 }, fontPixels: 16 }] },
+      { id: 'each.note', kind: 'shape', box: { x: 300, y: 230, width: 120, height: 40 }, pathBox: null, labels: [{ text: 'A note', box: { x: 320, y: 240, width: 60, height: 18 }, fontPixels: 16 }] },
+      { id: '(job -> factory)[0]', kind: 'connection', box: null, pathBox: { x: 60, y: 160, width: 300, height: 0 }, labels: [{ text: '2. paid holiday', box: { x: 150, y: 140, width: 120, height: 18 }, fontPixels: 16 }] },
+      { id: '(factory -> store)[0]', kind: 'connection', box: null, pathBox: { x: 60, y: 200, width: 300, height: 0 }, labels: [{ text: '3. insert', box: { x: 150, y: 150, width: 120, height: 18 }, fontPixels: 16 }] },
+      { id: '(store -> job)[0]', kind: 'connection', box: null, pathBox: { x: 60, y: 260, width: 400, height: 0 }, labels: [{ text: '4. done', box: { x: 310, y: 245, width: 50, height: 18 }, fontPixels: 16 }] },
+    ],
+  };
+}
+
+function edgeIntoContainer(containerId, holidaysId) {
+  return {
+    widthPixels: 700,
+    heightPixels: 300,
+    objects: [
+      { id: 'managers', kind: 'shape', box: { x: 10, y: 100, width: 120, height: 60 }, pathBox: null, labels: [] },
+      { id: containerId, kind: 'shape', box: { x: 300, y: 50, width: 380, height: 200 }, pathBox: null, labels: [] },
+      { id: holidaysId, kind: 'shape', box: { x: 550, y: 100, width: 110, height: 60 }, pathBox: null, labels: [] },
+      { id: '(managers -> domain.holidays)[0]', kind: 'connection', box: null, pathBox: { x: 130, y: 120, width: 420, height: 10 }, labels: [{ text: 'book directly', box: { x: 310, y: 110, width: 100, height: 18 }, fontPixels: 16 }] },
+    ],
+  };
+}
+
+function checkFramesAndContainers(limits) {
+  const sequenceDiagram = { ordinal: 1, layout: 'elk', source: diagramSource('sequence-group') };
+  const grouped = layoutProblems(sequenceDiagram, groupedMessages(), limits);
+  const messagesCrossingTheGroup = grouped.filter((problem) => problem.what.endsWith('crosses the shape each'));
+  if (messagesCrossingTheGroup.length > 0) failures.push(`a message inside its group frame crossed the group: ${messagesCrossingTheGroup[0].message}`);
+  expectProblemText('two message labels inside a group', grouped, 'LABEL-OVERLAP', 'label "2. paid holiday" of (job -> factory)[0] crosses label "3. insert"');
+  expectProblemText('a message label over a note inside a group', grouped, 'LABEL-OVERLAP', 'label "4. done" of (store -> job)[0] crosses the shape each.note');
+  expectRemedy('a sequence overlap', grouped, 'LABEL-OVERLAP', { includes: ['shorten the message or note label'], excludes: ['data-layout', 'direction'] });
+
+  const intoDagre = layoutProblems({ ordinal: 1, layout: 'dagre', source: GRAPH }, edgeIntoContainer('domain', 'domain.holidays'), limits);
+  expectRemedy('an edge into its container in dagre', intoDagre, 'LABEL-OVERLAP', { includes: [INTO_CONTAINER], excludes: ['data-layout', 'ELK'] });
+  const intoElk = layoutProblems({ ordinal: 1, layout: 'elk', source: GRAPH }, edgeIntoContainer('domain', 'domain.holidays'), limits);
+  expectRemedy('an edge into its container in ELK', intoElk, 'LABEL-OVERLAP', { includes: [INTO_CONTAINER], excludes: ['data-layout', 'ELK'] });
+  const foreign = layoutProblems({ ordinal: 1, layout: 'elk', source: GRAPH }, edgeIntoContainer('zone', 'domain.holidays'), limits);
+  expectRemedy('a label over a container of neither end', foreign, 'LABEL-OVERLAP', { includes: ['shorten or move the label', 'try data-layout="dagre"'], excludes: [INTO_CONTAINER] });
+}
+
+function checkRemediesByTraits(limits) {
+  const wide = labelledMeasurement(1320, 100);
+  const tall = labelledMeasurement(600, 947);
+  const sequence = { ordinal: 1, layout: 'elk', source: 'shape: sequence_diagram\na -> b: hello\n' };
+  expectRemedy('a sequence too wide', layoutProblems(sequence, wide, limits), 'DIAGRAM-TOO-WIDE', { includes: ['five participants'], excludes: ['direction', 'data-layout'] });
+  expectRemedy('a sequence too tall', layoutProblems(sequence, tall, limits), 'DIAGRAM-TOO-TALL', { includes: ['split the sequence'], excludes: ['direction', 'data-layout'] });
+  const erdInElk = { ordinal: 1, layout: 'elk', source: 'accounts: {\n  shape: sql_table\n  id: uuid\n}\n' };
+  expectRemedy('an ERD too wide in ELK', layoutProblems(erdInElk, wide, limits), 'DIAGRAM-TOO-WIDE', { includes: ['data-layout="dagre"', 'figura erd'] });
+  const erdInDagre = { ...erdInElk, layout: 'dagre' };
+  expectRemedy('an ERD too wide in dagre', layoutProblems(erdInDagre, wide, limits), 'DIAGRAM-TOO-WIDE', { includes: ['split the diagram'], excludes: ['data-layout'] });
+  const dagreGraph = { ordinal: 1, layout: 'dagre', source: GRAPH };
+  expectRemedy('a dagre graph too wide', layoutProblems(dagreGraph, wide, limits), 'DIAGRAM-TOO-WIDE', { includes: ['try ELK'], excludes: ['try data-layout="dagre"', 'direction: down'] });
+  const downGraph = { ordinal: 1, layout: 'elk', source: `direction: down\n${GRAPH}` };
+  expectRemedy('a graph already down too wide', layoutProblems(downGraph, wide, limits), 'DIAGRAM-TOO-WIDE', { includes: ['try data-layout="dagre"'], excludes: ['direction: down'] });
+  expectRemedy('a graph going down too tall', layoutProblems(downGraph, tall, limits), 'DIAGRAM-TOO-TALL', { includes: ['direction: right', 'regroup a long chain into layers'] });
+  const rightGraph = { ordinal: 1, layout: 'elk', source: `direction: right\n${GRAPH}` };
+  expectRemedy('a graph already right too tall', layoutProblems(rightGraph, tall, limits), 'DIAGRAM-TOO-TALL', { excludes: ['direction: right'] });
+  expectRemedy('a graph going right too wide', layoutProblems(rightGraph, wide, limits), 'DIAGRAM-TOO-WIDE', { includes: ['direction: down'] });
+}
+
+function checkHighlights(limits) {
+  const measurement = edgeIntoContainer('domain', 'domain.holidays');
+  const [overlap] = layoutProblems({ ordinal: 4, layout: 'dagre', source: GRAPH }, measurement, limits);
+  const label = measurement.objects[3].labels[0].box;
+  const container = measurement.objects[1].box;
+  if (overlap?.diagramOrdinal !== 4 || JSON.stringify(overlap?.highlights) !== JSON.stringify([label, container])) {
+    failures.push(`a label overlap did not carry its diagram and the boxes in conflict: ${JSON.stringify({ ordinal: overlap?.diagramOrdinal, highlights: overlap?.highlights })}`);
+  }
+  const [tooWide] = layoutProblems({ ordinal: 5, layout: 'elk', source: GRAPH }, labelledMeasurement(1320, 100), limits);
+  if (tooWide?.diagramOrdinal !== 5 || JSON.stringify(tooWide?.highlights) !== '[]') {
+    failures.push(`a size problem did not carry its diagram and an empty highlight list: ${JSON.stringify({ ordinal: tooWide?.diagramOrdinal, highlights: tooWide?.highlights })}`);
+  }
 }
 
 function checkSyntheticRules(limits) {
@@ -86,16 +198,23 @@ function checkSyntheticRules(limits) {
     widthPixels: 300,
     heightPixels: 200,
     objects: [
-      { id: 'realm', kind: 'shape', box: { x: 10, y: 30, width: 280, height: 160 }, labels: [{ text: 'Realm', box: { x: 120, y: 5, width: 60, height: 20 }, fontPixels: 16 }] },
-      { id: 'realm.core', kind: 'shape', box: { x: 40, y: 60, width: 120, height: 60 }, labels: [{ text: 'Core', box: { x: 80, y: 80, width: 40, height: 20 }, fontPixels: 16 }] },
-      { id: 'realm.(core -> api)[0]', kind: 'connection', box: null, labels: [{ text: 'calls', box: { x: 170, y: 85, width: 30, height: 14 }, fontPixels: 16 }] },
+      { id: 'realm', kind: 'shape', box: { x: 10, y: 30, width: 280, height: 160 }, pathBox: null, labels: [{ text: 'Realm', box: { x: 120, y: 5, width: 60, height: 20 }, fontPixels: 16 }] },
+      { id: 'realm.core', kind: 'shape', box: { x: 40, y: 60, width: 120, height: 60 }, pathBox: null, labels: [{ text: 'Core', box: { x: 80, y: 80, width: 40, height: 20 }, fontPixels: 16 }] },
+      {
+        id: 'realm.(core -> api)[0]',
+        kind: 'connection',
+        box: null,
+        pathBox: { x: 160, y: 90, width: 100, height: 0 },
+        labels: [{ text: 'calls', box: { x: 170, y: 85, width: 30, height: 14 }, fontPixels: 16 }],
+      },
     ],
   };
-  expectCodes('labels inside an ancestor container and a container label above its box', layoutProblems({ ordinal: 1 }, nested, limits), []);
-  expectCodes('a 1000 px wide diagram keeps its labels at 7.9 pt', layoutProblems({ ordinal: 1 }, labelledMeasurement(1000, 100), limits), []);
-  expectCodes('a 1320 px wide diagram drops its labels to 6 pt', layoutProblems({ ordinal: 1 }, labelledMeasurement(1320, 100), limits), ['DIAGRAM-TOO-WIDE']);
-  expectCodes('a 946 px tall diagram fits above its caption', layoutProblems({ ordinal: 1 }, labelledMeasurement(600, 946), limits), []);
-  expectCodes('a 947 px tall diagram does not', layoutProblems({ ordinal: 1 }, labelledMeasurement(600, 947), limits), ['DIAGRAM-TOO-TALL']);
+  const diagram = { ordinal: 1, layout: 'elk', source: GRAPH };
+  expectCodes('labels inside an ancestor container and a container label above its box', layoutProblems(diagram, nested, limits), []);
+  expectCodes('a 1000 px wide diagram keeps its labels at 7.9 pt', layoutProblems(diagram, labelledMeasurement(1000, 100), limits), []);
+  expectCodes('a 1320 px wide diagram drops its labels to 6 pt', layoutProblems(diagram, labelledMeasurement(1320, 100), limits), ['DIAGRAM-TOO-WIDE']);
+  expectCodes('a 946 px tall diagram fits above its caption', layoutProblems(diagram, labelledMeasurement(600, 946), limits), []);
+  expectCodes('a 947 px tall diagram does not', layoutProblems(diagram, labelledMeasurement(600, 947), limits), ['DIAGRAM-TOO-TALL']);
 }
 
 function prepareBundleWithLauncherStub() {
@@ -168,6 +287,9 @@ try {
   const limits = layoutLimits(loadTheme());
   checkRecordedCases(limits);
   checkSyntheticRules(limits);
+  checkFramesAndContainers(limits);
+  checkRemediesByTraits(limits);
+  checkHighlights(limits);
   checkCommandLine();
 } catch (error) {
   failures.push(`the check loop threw: ${error.stack ?? error.message}`);
@@ -181,5 +303,5 @@ if (failures.length > 0) {
   process.exit(1);
 }
 console.log(
-  'figura checks check passed: the recorded clean diagram passes, the overlap, overflow, too wide and too tall ones fail with their own codes, the scale and height limits hold at their edges, and figura check reports through the real modules with a fake browser and a launcher stub.',
+  'figura checks check passed: the recorded clean diagram and a message inside a sequence group pass, the overlap, overflow, too wide and too tall ones fail with their own codes, a label inside the container its edge leads into fails in dagre and ELK with its own remedy, remedies follow the layout, kind and direction of a diagram, every problem carries its diagram and the boxes in conflict, the scale and height limits hold at their edges, and figura check reports through the real modules with a fake browser and a launcher stub.',
 );

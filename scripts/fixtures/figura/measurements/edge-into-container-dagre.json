@@ -1,0 +1,167 @@
+{
+  "widthPixels": 309,
+  "heightPixels": 537,
+  "objects": [
+    {
+      "id": "managers",
+      "kind": "shape",
+      "box": {
+        "x": 73,
+        "y": 11,
+        "width": 123,
+        "height": 65
+      },
+      "pathBox": null,
+      "labels": [
+        {
+          "text": "Managers",
+          "box": {
+            "x": 95.22149658203125,
+            "y": 33.470149993896484,
+            "width": 78.5570068359375,
+            "height": 19.482006072998047
+          },
+          "fontPixels": 16
+        }
+      ]
+    },
+    {
+      "id": "domain",
+      "kind": "shape",
+      "box": {
+        "x": 48,
+        "y": 216,
+        "width": 250,
+        "height": 310
+      },
+      "pathBox": null,
+      "labels": [
+        {
+          "text": "Holidays domain",
+          "box": {
+            "x": 63.05419158935547,
+            "y": 177.520263671875,
+            "width": 219.89163208007812,
+            "height": 34.34968185424805
+          },
+          "fontPixels": 28
+        }
+      ]
+    },
+    {
+      "id": "domain.requests",
+      "kind": "shape",
+      "box": {
+        "x": 150,
+        "y": 246,
+        "width": 118,
+        "height": 65
+      },
+      "pathBox": null,
+      "labels": [
+        {
+          "text": "Requests",
+          "box": {
+            "x": 172.3066864013672,
+            "y": 268.47015380859375,
+            "width": 73.38666534423828,
+            "height": 19.464818954467773
+          },
+          "fontPixels": 16
+        }
+      ]
+    },
+    {
+      "id": "domain.holidays",
+      "kind": "shape",
+      "box": {
+        "x": 78,
+        "y": 431,
+        "width": 113,
+        "height": 65
+      },
+      "pathBox": null,
+      "labels": [
+        {
+          "text": "Holidays",
+          "box": {
+            "x": 100.3023910522461,
+            "y": 453.4701843261719,
+            "width": 68.39522552490234,
+            "height": 19.464818954467773
+          },
+          "fontPixels": 16
+        }
+      ]
+    },
+    {
+      "id": "(managers -> domain.requests)[0]",
+      "kind": "connection",
+      "box": null,
+      "pathBox": {
+        "x": 162.4993896484375,
+        "y": 77.56173706054688,
+        "width": 46.7506103515625,
+        "height": 164.43826293945312
+      },
+      "labels": [
+        {
+          "text": "request",
+          "box": {
+            "x": 174.79476928710938,
+            "y": 143.97015380859375,
+            "width": 57.546287536621094,
+            "height": 19.464818954467773
+          },
+          "fontPixels": 16
+        }
+      ]
+    },
+    {
+      "id": "(managers -> domain.holidays)[0]",
+      "kind": "connection",
+      "box": null,
+      "pathBox": {
+        "x": 60.25,
+        "y": 77.56173706054688,
+        "width": 46.7506103515625,
+        "height": 350.3147888183594
+      },
+      "labels": [
+        {
+          "text": "book directly",
+          "box": {
+            "x": 10.765464782714844,
+            "y": 242.97015380859375,
+            "width": 98.76900482177734,
+            "height": 19.464818954467773
+          },
+          "fontPixels": 16
+        }
+      ]
+    },
+    {
+      "id": "domain.(requests -> holidays)[0]",
+      "kind": "connection",
+      "box": null,
+      "pathBox": {
+        "x": 163.748779296875,
+        "y": 313,
+        "width": 45.501220703125,
+        "height": 114.87652587890625
+      },
+      "labels": [
+        {
+          "text": "creates",
+          "box": {
+            "x": 172.94683837890625,
+            "y": 366.97015380859375,
+            "width": 57.106346130371094,
+            "height": 19.464818954467773
+          },
+          "fontPixels": 16
+        }
+      ]
+    }
+  ]
+}

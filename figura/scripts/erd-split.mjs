@@ -157,7 +157,7 @@ export function planErdDiagrams(model, { theme, hideServiceColumns = false, keyC
     const caption = tableNames.length === 1 ? `table ${tableNames[0]}` : `${tableNames.length} tables`;
     const source = erdD2(model, tableNames, columnOptions);
     const { svg } = renderDiagram({ ordinal: 1, caption, layout: MEASURED_LAYOUT, source }, theme, { workDirectory, launcherPath });
-    return diagramSizeProblems({ ordinal: 1, caption }, svgSizeMeasurement(svg), limits);
+    return diagramSizeProblems({ ordinal: 1, caption, layout: MEASURED_LAYOUT, source }, svgSizeMeasurement(svg), limits);
   };
   const { parts, tablesTooLargeAlone } = splitIntoParts(model, sizeProblemsOfPart);
   const relationEnds = relationEndColumns(model);

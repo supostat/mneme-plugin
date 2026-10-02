@@ -1,0 +1,12 @@
+direction: right
+
+request: Holiday request {
+  accepted: Accepted {class: core}
+  rejected: Rejected {class: neutral}
+}
+holiday: Holiday {
+  enabled: Enabled {class: core}
+  disabled: Disabled {class: neutral}
+}
+request.accepted -> holiday.enabled: creates
+request.rejected -> holiday.disabled: keeps

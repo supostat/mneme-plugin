@@ -1,0 +1,8 @@
+managers: Managers {class: app}
+domain: Holidays domain {
+  requests: Requests {class: core}
+  holidays: Holidays {class: core}
+}
+managers -> domain.requests: request
+managers -> domain.holidays: book directly
+domain.requests -> domain.holidays: creates

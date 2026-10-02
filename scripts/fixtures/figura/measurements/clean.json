@@ -11,6 +11,7 @@
         "width": 162,
         "height": 65
       },
+      "pathBox": null,
       "labels": [
         {
           "text": "Source system",
@@ -33,6 +34,7 @@
         "width": 144,
         "height": 65
       },
+      "pathBox": null,
       "labels": [
         {
           "text": "Core service",
@@ -55,6 +57,7 @@
         "width": 134,
         "height": 65
       },
+      "pathBox": null,
       "labels": [
         {
           "text": "Application",
@@ -72,6 +75,12 @@
       "id": "(source -> core)[0]",
       "kind": "connection",
       "box": null,
+      "pathBox": {
+        "x": 92,
+        "y": 78,
+        "width": 0,
+        "height": 154
+      },
       "labels": [
         {
           "text": "pushes people",
@@ -89,6 +98,12 @@
       "id": "(core -> app)[0]",
       "kind": "connection",
       "box": null,
+      "pathBox": {
+        "x": 92,
+        "y": 303,
+        "width": 0,
+        "height": 154
+      },
       "labels": [
         {
           "text": "signs in",

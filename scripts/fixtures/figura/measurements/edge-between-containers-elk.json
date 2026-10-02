@@ -1,0 +1,190 @@
+{
+  "widthPixels": 694,
+  "heightPixels": 272,
+  "objects": [
+    {
+      "id": "request",
+      "kind": "shape",
+      "box": {
+        "x": 11,
+        "y": 11,
+        "width": 252,
+        "height": 250
+      },
+      "pathBox": null,
+      "labels": [
+        {
+          "text": "Holiday request",
+          "box": {
+            "x": 32.765159606933594,
+            "y": 16.46031951904297,
+            "width": 208.4696502685547,
+            "height": 33.965606689453125
+          },
+          "fontPixels": 28
+        }
+      ]
+    },
+    {
+      "id": "holiday",
+      "kind": "shape",
+      "box": {
+        "x": 470,
+        "y": 11,
+        "width": 213,
+        "height": 250
+      },
+      "pathBox": null,
+      "labels": [
+        {
+          "text": "Holiday",
+          "box": {
+            "x": 526.6201782226562,
+            "y": 16.46031951904297,
+            "width": 99.75962829589844,
+            "height": 33.965606689453125
+          },
+          "fontPixels": 28
+        }
+      ]
+    },
+    {
+      "id": "request.accepted",
+      "kind": "shape",
+      "box": {
+        "x": 76,
+        "y": 61,
+        "width": 121,
+        "height": 65
+      },
+      "pathBox": null,
+      "labels": [
+        {
+          "text": "Accepted",
+          "box": {
+            "x": 98.5827407836914,
+            "y": 83.89418029785156,
+            "width": 75.83452606201172,
+            "height": 19.27777671813965
+          },
+          "fontPixels": 16
+        }
+      ]
+    },
+    {
+      "id": "request.rejected",
+      "kind": "shape",
+      "box": {
+        "x": 84,
+        "y": 146,
+        "width": 113,
+        "height": 65
+      },
+      "pathBox": null,
+      "labels": [
+        {
+          "text": "Rejected",
+          "box": {
+            "x": 106.1184310913086,
+            "y": 168.89418029785156,
+            "width": 68.76313781738281,
+            "height": 19.27777671813965
+          },
+          "fontPixels": 16
+        }
+      ]
+    },
+    {
+      "id": "holiday.enabled",
+      "kind": "shape",
+      "box": {
+        "x": 520,
+        "y": 61,
+        "width": 107,
+        "height": 65
+      },
+      "pathBox": null,
+      "labels": [
+        {
+          "text": "Enabled",
+          "box": {
+            "x": 542.0086669921875,
+            "y": 83.89418029785156,
+            "width": 62.9826774597168,
+            "height": 19.27777671813965
+          },
+          "fontPixels": 16
+        }
+      ]
+    },
+    {
+      "id": "holiday.disabled",
+      "kind": "shape",
+      "box": {
+        "x": 520,
+        "y": 146,
+        "width": 113,
+        "height": 65
+      },
+      "pathBox": null,
+      "labels": [
+        {
+          "text": "Disabled",
+          "box": {
+            "x": 542.4268188476562,
+            "y": 168.89418029785156,
+            "width": 68.14636993408203,
+            "height": 19.27777671813965
+          },
+          "fontPixels": 16
+        }
+      ]
+    },
+    {
+      "id": "(request.accepted -> holiday.enabled)[0]",
+      "kind": "connection",
+      "box": null,
+      "pathBox": {
+        "x": 199,
+        "y": 93.5,
+        "width": 317,
+        "height": 0
+      },
+      "labels": [
+        {
+          "text": "creates",
+          "box": {
+            "x": 329.9562683105469,
+            "y": 84.39418029785156,
+            "width": 57.08746337890625,
+            "height": 19.27777671813965
+          },
+          "fontPixels": 16
+        }
+      ]
+    },
+    {
+      "id": "(request.rejected -> holiday.disabled)[0]",
+      "kind": "connection",
+      "box": null,
+      "pathBox": {
+        "x": 199,
+        "y": 178.5,
+        "width": 317,
+        "height": 0
+      },
+      "labels": [
+        {
+          "text": "keeps",
+          "box": {
+            "x": 336.2797546386719,
+            "y": 169.39418029785156,
+            "width": 45.44047546386719,
+            "height": 19.27777671813965
+          },
+          "fontPixels": 16
+        }
+      ]
+    }
+  ]
+}

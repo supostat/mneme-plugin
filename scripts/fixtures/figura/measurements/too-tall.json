@@ -11,6 +11,7 @@
         "width": 111,
         "height": 65
       },
+      "pathBox": null,
       "labels": [
         {
           "text": "Stage 01",
@@ -33,6 +34,7 @@
         "width": 115,
         "height": 65
       },
+      "pathBox": null,
       "labels": [
         {
           "text": "Stage 02",
@@ -55,6 +57,7 @@
         "width": 115,
         "height": 65
       },
+      "pathBox": null,
       "labels": [
         {
           "text": "Stage 03",
@@ -77,6 +80,7 @@
         "width": 116,
         "height": 65
       },
+      "pathBox": null,
       "labels": [
         {
           "text": "Stage 04",
@@ -99,6 +103,7 @@
         "width": 115,
         "height": 65
       },
+      "pathBox": null,
       "labels": [
         {
           "text": "Stage 05",
@@ -121,6 +126,7 @@
         "width": 115,
         "height": 65
       },
+      "pathBox": null,
       "labels": [
         {
           "text": "Stage 06",
@@ -143,6 +149,7 @@
         "width": 114,
         "height": 65
       },
+      "pathBox": null,
       "labels": [
         {
           "text": "Stage 07",
@@ -165,6 +172,7 @@
         "width": 115,
         "height": 65
       },
+      "pathBox": null,
       "labels": [
         {
           "text": "Stage 08",
@@ -187,6 +195,7 @@
         "width": 115,
         "height": 65
       },
+      "pathBox": null,
       "labels": [
         {
           "text": "Stage 09",
@@ -209,6 +218,7 @@
         "width": 112,
         "height": 65
       },
+      "pathBox": null,
       "labels": [
         {
           "text": "Stage 10",
@@ -231,6 +241,7 @@
         "width": 107,
         "height": 65
       },
+      "pathBox": null,
       "labels": [
         {
           "text": "Stage 11",
@@ -253,6 +264,7 @@
         "width": 111,
         "height": 65
       },
+      "pathBox": null,
       "labels": [
         {
           "text": "Stage 12",
@@ -275,6 +287,7 @@
         "width": 111,
         "height": 65
       },
+      "pathBox": null,
       "labels": [
         {
           "text": "Stage 13",
@@ -297,6 +310,7 @@
         "width": 112,
         "height": 65
       },
+      "pathBox": null,
       "labels": [
         {
           "text": "Stage 14",
@@ -319,6 +333,7 @@
         "width": 111,
         "height": 65
       },
+      "pathBox": null,
       "labels": [
         {
           "text": "Stage 15",
@@ -341,6 +356,7 @@
         "width": 111,
         "height": 65
       },
+      "pathBox": null,
       "labels": [
         {
           "text": "Stage 16",
@@ -363,6 +379,7 @@
         "width": 110,
         "height": 65
       },
+      "pathBox": null,
       "labels": [
         {
           "text": "Stage 17",
@@ -385,6 +402,7 @@
         "width": 111,
         "height": 65
       },
+      "pathBox": null,
       "labels": [
         {
           "text": "Stage 18",
@@ -407,6 +425,7 @@
         "width": 111,
         "height": 65
       },
+      "pathBox": null,
       "labels": [
         {
           "text": "Stage 19",
@@ -429,6 +448,7 @@
         "width": 116,
         "height": 65
       },
+      "pathBox": null,
       "labels": [
         {
           "text": "Stage 20",
@@ -451,6 +471,7 @@
         "width": 111,
         "height": 65
       },
+      "pathBox": null,
       "labels": [
         {
           "text": "Stage 21",
@@ -473,6 +494,7 @@
         "width": 115,
         "height": 65
       },
+      "pathBox": null,
       "labels": [
         {
           "text": "Stage 22",
@@ -495,6 +517,7 @@
         "width": 115,
         "height": 65
       },
+      "pathBox": null,
       "labels": [
         {
           "text": "Stage 23",
@@ -517,6 +540,7 @@
         "width": 116,
         "height": 65
       },
+      "pathBox": null,
       "labels": [
         {
           "text": "Stage 24",
@@ -539,6 +563,7 @@
         "width": 115,
         "height": 65
       },
+      "pathBox": null,
       "labels": [
         {
           "text": "Stage 25",
@@ -561,6 +586,7 @@
         "width": 115,
         "height": 65
       },
+      "pathBox": null,
       "labels": [
         {
           "text": "Stage 26",
@@ -583,6 +609,7 @@
         "width": 114,
         "height": 65
       },
+      "pathBox": null,
       "labels": [
         {
           "text": "Stage 27",
@@ -605,6 +632,7 @@
         "width": 115,
         "height": 65
       },
+      "pathBox": null,
       "labels": [
         {
           "text": "Stage 28",
@@ -627,6 +655,7 @@
         "width": 115,
         "height": 65
       },
+      "pathBox": null,
       "labels": [
         {
           "text": "Stage 29",
@@ -649,6 +678,7 @@
         "width": 116,
         "height": 65
       },
+      "pathBox": null,
       "labels": [
         {
           "text": "Stage 30",
@@ -666,174 +696,348 @@
       "id": "(stage01 -> stage02)[0]",
       "kind": "connection",
       "box": null,
+      "pathBox": {
+        "x": 69,
+        "y": 78,
+        "width": 0,
+        "height": 64
+      },
       "labels": []
     },
     {
       "id": "(stage02 -> stage03)[0]",
       "kind": "connection",
       "box": null,
+      "pathBox": {
+        "x": 69,
+        "y": 213,
+        "width": 0,
+        "height": 64
+      },
       "labels": []
     },
     {
       "id": "(stage03 -> stage04)[0]",
       "kind": "connection",
       "box": null,
+      "pathBox": {
+        "x": 69,
+        "y": 348,
+        "width": 0,
+        "height": 64
+      },
       "labels": []
     },
     {
       "id": "(stage04 -> stage05)[0]",
       "kind": "connection",
       "box": null,
+      "pathBox": {
+        "x": 69,
+        "y": 483,
+        "width": 0,
+        "height": 64
+      },
       "labels": []
     },
     {
       "id": "(stage05 -> stage06)[0]",
       "kind": "connection",
       "box": null,
+      "pathBox": {
+        "x": 69,
+        "y": 618,
+        "width": 0,
+        "height": 64
+      },
       "labels": []
     },
     {
       "id": "(stage06 -> stage07)[0]",
       "kind": "connection",
       "box": null,
+      "pathBox": {
+        "x": 69,
+        "y": 753,
+        "width": 0,
+        "height": 64
+      },
       "labels": []
     },
     {
       "id": "(stage07 -> stage08)[0]",
       "kind": "connection",
       "box": null,
+      "pathBox": {
+        "x": 69,
+        "y": 888,
+        "width": 0,
+        "height": 64
+      },
       "labels": []
     },
     {
       "id": "(stage08 -> stage09)[0]",
       "kind": "connection",
       "box": null,
+      "pathBox": {
+        "x": 69,
+        "y": 1023,
+        "width": 0,
+        "height": 64
+      },
       "labels": []
     },
     {
       "id": "(stage09 -> stage10)[0]",
       "kind": "connection",
       "box": null,
+      "pathBox": {
+        "x": 69,
+        "y": 1158,
+        "width": 0,
+        "height": 64
+      },
       "labels": []
     },
     {
       "id": "(stage10 -> stage11)[0]",
       "kind": "connection",
       "box": null,
+      "pathBox": {
+        "x": 69,
+        "y": 1293,
+        "width": 0,
+        "height": 64
+      },
       "labels": []
     },
     {
       "id": "(stage11 -> stage12)[0]",
       "kind": "connection",
       "box": null,
+      "pathBox": {
+        "x": 69,
+        "y": 1428,
+        "width": 0,
+        "height": 64
+      },
       "labels": []
     },
     {
       "id": "(stage12 -> stage13)[0]",
       "kind": "connection",
       "box": null,
+      "pathBox": {
+        "x": 69,
+        "y": 1563,
+        "width": 0,
+        "height": 64
+      },
       "labels": []
     },
     {
       "id": "(stage13 -> stage14)[0]",
       "kind": "connection",
       "box": null,
+      "pathBox": {
+        "x": 69,
+        "y": 1698,
+        "width": 0,
+        "height": 64
+      },
       "labels": []
     },
     {
       "id": "(stage14 -> stage15)[0]",
       "kind": "connection",
       "box": null,
+      "pathBox": {
+        "x": 69,
+        "y": 1833,
+        "width": 0,
+        "height": 64
+      },
       "labels": []
     },
     {
       "id": "(stage15 -> stage16)[0]",
       "kind": "connection",
       "box": null,
+      "pathBox": {
+        "x": 69,
+        "y": 1968,
+        "width": 0,
+        "height": 64
+      },
       "labels": []
     },
     {
       "id": "(stage16 -> stage17)[0]",
       "kind": "connection",
       "box": null,
+      "pathBox": {
+        "x": 69,
+        "y": 2103,
+        "width": 0,
+        "height": 64
+      },
       "labels": []
     },
     {
       "id": "(stage17 -> stage18)[0]",
       "kind": "connection",
       "box": null,
+      "pathBox": {
+        "x": 69,
+        "y": 2238,
+        "width": 0,
+        "height": 64
+      },
       "labels": []
     },
     {
       "id": "(stage18 -> stage19)[0]",
       "kind": "connection",
       "box": null,
+      "pathBox": {
+        "x": 69,
+        "y": 2373,
+        "width": 0,
+        "height": 64
+      },
       "labels": []
     },
     {
       "id": "(stage19 -> stage20)[0]",
       "kind": "connection",
       "box": null,
+      "pathBox": {
+        "x": 69,
+        "y": 2508,
+        "width": 0,
+        "height": 64
+      },
       "labels": []
     },
     {
       "id": "(stage20 -> stage21)[0]",
       "kind": "connection",
       "box": null,
+      "pathBox": {
+        "x": 69,
+        "y": 2643,
+        "width": 0,
+        "height": 64
+      },
       "labels": []
     },
     {
       "id": "(stage21 -> stage22)[0]",
       "kind": "connection",
       "box": null,
+      "pathBox": {
+        "x": 69,
+        "y": 2778,
+        "width": 0,
+        "height": 64
+      },
       "labels": []
     },
     {
       "id": "(stage22 -> stage23)[0]",
       "kind": "connection",
       "box": null,
+      "pathBox": {
+        "x": 69,
+        "y": 2913,
+        "width": 0,
+        "height": 64
+      },
       "labels": []
     },
     {
       "id": "(stage23 -> stage24)[0]",
       "kind": "connection",
       "box": null,
+      "pathBox": {
+        "x": 69,
+        "y": 3048,
+        "width": 0,
+        "height": 64
+      },
       "labels": []
     },
     {
       "id": "(stage24 -> stage25)[0]",
       "kind": "connection",
       "box": null,
+      "pathBox": {
+        "x": 69,
+        "y": 3183,
+        "width": 0,
+        "height": 64
+      },
       "labels": []
     },
     {
       "id": "(stage25 -> stage26)[0]",
       "kind": "connection",
       "box": null,
+      "pathBox": {
+        "x": 69,
+        "y": 3318,
+        "width": 0,
+        "height": 64
+      },
       "labels": []
     },
     {
       "id": "(stage26 -> stage27)[0]",
       "kind": "connection",
       "box": null,
+      "pathBox": {
+        "x": 69,
+        "y": 3453,
+        "width": 0,
+        "height": 64
+      },
       "labels": []
     },
     {
       "id": "(stage27 -> stage28)[0]",
       "kind": "connection",
       "box": null,
+      "pathBox": {
+        "x": 69,
+        "y": 3588,
+        "width": 0,
+        "height": 64
+      },
       "labels": []
     },
     {
       "id": "(stage28 -> stage29)[0]",
       "kind": "connection",
       "box": null,
+      "pathBox": {
+        "x": 69,
+        "y": 3723,
+        "width": 0,
+        "height": 64
+      },
       "labels": []
     },
     {
       "id": "(stage29 -> stage30)[0]",
       "kind": "connection",
       "box": null,
+      "pathBox": {
+        "x": 69,
+        "y": 3858,
+        "width": 0,
+        "height": 64
+      },
       "labels": []
     }
   ]

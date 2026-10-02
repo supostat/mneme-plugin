@@ -129,7 +129,7 @@ function checkThirtyTables() {
   const limits = layoutLimits(theme);
   for (const diagram of plan.diagrams) {
     const { svg } = renderDiagram({ ordinal: diagram.number, layout: 'dagre', source: diagram.source }, theme, { workDirectory, launcherPath: FAKE_LAUNCHER });
-    const problems = diagramSizeProblems({ ordinal: diagram.number }, svgSizeMeasurement(svg), limits);
+    const problems = diagramSizeProblems({ ordinal: diagram.number, layout: 'dagre', source: diagram.source }, svgSizeMeasurement(svg), limits);
     if (problems.length > 0) failures.push(`part ${diagram.number} fails the checks: ${problems.map((problem) => problem.message).join('; ')}`);
   }
   const domainOf = new Map(model.tables.map((table) => [table.name, table.domain]));

@@ -11,6 +11,7 @@
         "width": 60,
         "height": 65
       },
+      "pathBox": null,
       "labels": [
         {
           "text": "A label much wider than its fixed cell",
@@ -33,6 +34,7 @@
         "width": 158,
         "height": 65
       },
+      "pathBox": null,
       "labels": [
         {
           "text": "Neighbour cell",

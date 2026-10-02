@@ -1,0 +1,226 @@
+{
+  "widthPixels": 642,
+  "heightPixels": 537,
+  "objects": [
+    {
+      "id": "job",
+      "kind": "shape",
+      "box": {
+        "x": 11,
+        "y": 11,
+        "width": 129,
+        "height": 65
+      },
+      "pathBox": null,
+      "labels": [
+        {
+          "text": "Weekly job",
+          "box": {
+            "x": 33.59160232543945,
+            "y": 33.47015380859375,
+            "width": 83.81680297851562,
+            "height": 19.464818954467773
+          },
+          "fontPixels": 16
+        }
+      ]
+    },
+    {
+      "id": "factory",
+      "kind": "shape",
+      "box": {
+        "x": 280,
+        "y": 11,
+        "width": 160,
+        "height": 65
+      },
+      "pathBox": null,
+      "labels": [
+        {
+          "text": "Holiday factory",
+          "box": {
+            "x": 302.3122253417969,
+            "y": 33.47015380859375,
+            "width": 115.37557220458984,
+            "height": 19.464818954467773
+          },
+          "fontPixels": 16
+        }
+      ]
+    },
+    {
+      "id": "store",
+      "kind": "shape",
+      "box": {
+        "x": 480,
+        "y": 11,
+        "width": 151,
+        "height": 65
+      },
+      "pathBox": null,
+      "labels": [
+        {
+          "text": "Holidays table",
+          "box": {
+            "x": 501.927001953125,
+            "y": 33.47015380859375,
+            "width": 107.14595794677734,
+            "height": 19.464818954467773
+          },
+          "fontPixels": 16
+        }
+      ]
+    },
+    {
+      "id": "(job -- )[0]",
+      "kind": "connection",
+      "box": null,
+      "pathBox": {
+        "x": 75.5,
+        "y": 78,
+        "width": 0,
+        "height": 447
+      },
+      "labels": []
+    },
+    {
+      "id": "(factory -- )[0]",
+      "kind": "connection",
+      "box": null,
+      "pathBox": {
+        "x": 360,
+        "y": 78,
+        "width": 0,
+        "height": 447
+      },
+      "labels": []
+    },
+    {
+      "id": "(store -- )[0]",
+      "kind": "connection",
+      "box": null,
+      "pathBox": {
+        "x": 555.5,
+        "y": 78,
+        "width": 0,
+        "height": 447
+      },
+      "labels": []
+    },
+    {
+      "id": "each",
+      "kind": "shape",
+      "box": {
+        "x": 35,
+        "y": 224,
+        "width": 560,
+        "height": 164
+      },
+      "pathBox": null,
+      "labels": [
+        {
+          "text": "for each staff member and date",
+          "box": {
+            "x": 40.25917053222656,
+            "y": 228.97015380859375,
+            "width": 239.481689453125,
+            "height": 19.464818954467773
+          },
+          "fontPixels": 16
+        }
+      ]
+    },
+    {
+      "id": "(job -> factory)[1]",
+      "kind": "connection",
+      "box": null,
+      "pathBox": {
+        "x": 77.5,
+        "y": 156,
+        "width": 278.5,
+        "height": 0
+      },
+      "labels": [
+        {
+          "text": "1. public holidays of the week",
+          "box": {
+            "x": 106.390380859375,
+            "y": 145.9701690673828,
+            "width": 223.42918395996094,
+            "height": 19.528867721557617
+          },
+          "fontPixels": 16
+        }
+      ]
+    },
+    {
+      "id": "(job -> factory)[0]",
+      "kind": "connection",
+      "box": null,
+      "pathBox": {
+        "x": 77.5,
+        "y": 276,
+        "width": 278.5,
+        "height": 0
+      },
+      "labels": [
+        {
+          "text": "2. paid holiday",
+          "box": {
+            "x": 161.95814514160156,
+            "y": 265.97015380859375,
+            "width": 112.38236236572266,
+            "height": 19.464818954467773
+          },
+          "fontPixels": 16
+        }
+      ]
+    },
+    {
+      "id": "(factory -> store)[0]",
+      "kind": "connection",
+      "box": null,
+      "pathBox": {
+        "x": 362,
+        "y": 366,
+        "width": 189.5,
+        "height": 0
+      },
+      "labels": [
+        {
+          "text": "3. insert",
+          "box": {
+            "x": 426.8805236816406,
+            "y": 355.9701843261719,
+            "width": 61.3811149597168,
+            "height": 19.464818954467773
+          },
+          "fontPixels": 16
+        }
+      ]
+    },
+    {
+      "id": "(factory -> job)[0]",
+      "kind": "connection",
+      "box": null,
+      "pathBox": {
+        "x": 79.5,
+        "y": 456,
+        "width": 278.5,
+        "height": 0
+      },
+      "labels": [
+        {
+          "text": "4. done",
+          "box": {
+            "x": 189.2410888671875,
+            "y": 445.9701843261719,
+            "width": 57.517826080322266,
+            "height": 19.464818954467773
+          },
+          "fontPixels": 16
+        }
+      ]
+    }
+  ]
+}

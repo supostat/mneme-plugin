@@ -36,13 +36,15 @@ const MEASURE_OPEN_SVG = `(async () => {
     const id = decodeObjectId((group.getAttribute('class') ?? '').trim().split(' ')[0]);
     if (id === undefined) continue;
     const shape = group.querySelector(':scope > g.shape');
+    const connection = group.querySelector('path.connection');
     const labels = [...group.querySelectorAll('text')]
       .filter((text) => text.textContent.trim() !== '')
       .map((text) => ({ text: text.textContent.trim(), box: boxInDrawing(text), fontPixels: parseFloat(getComputedStyle(text).fontSize) }));
     objects.push({
       id,
-      kind: group.querySelector('path.connection') === null ? 'shape' : 'connection',
+      kind: connection === null ? 'shape' : 'connection',
       box: shape === null ? null : boxInDrawing(shape),
+      pathBox: connection === null ? null : boxInDrawing(connection),
       labels,
     });
   }

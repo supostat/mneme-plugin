@@ -11,6 +11,7 @@
         "width": 389,
         "height": 65
       },
+      "pathBox": null,
       "labels": [
         {
           "text": "Step 01 of a pipeline far too long for one row",
@@ -33,6 +34,7 @@
         "width": 392,
         "height": 65
       },
+      "pathBox": null,
       "labels": [
         {
           "text": "Step 02 of a pipeline far too long for one row",
@@ -55,6 +57,7 @@
         "width": 393,
         "height": 65
       },
+      "pathBox": null,
       "labels": [
         {
           "text": "Step 03 of a pipeline far too long for one row",
@@ -77,6 +80,7 @@
         "width": 393,
         "height": 65
       },
+      "pathBox": null,
       "labels": [
         {
           "text": "Step 04 of a pipeline far too long for one row",
@@ -99,6 +103,7 @@
         "width": 392,
         "height": 65
       },
+      "pathBox": null,
       "labels": [
         {
           "text": "Step 05 of a pipeline far too long for one row",
@@ -121,6 +126,7 @@
         "width": 393,
         "height": 65
       },
+      "pathBox": null,
       "labels": [
         {
           "text": "Step 06 of a pipeline far too long for one row",
@@ -143,6 +149,7 @@
         "width": 392,
         "height": 65
       },
+      "pathBox": null,
       "labels": [
         {
           "text": "Step 07 of a pipeline far too long for one row",
@@ -165,6 +172,7 @@
         "width": 393,
         "height": 65
       },
+      "pathBox": null,
       "labels": [
         {
           "text": "Step 08 of a pipeline far too long for one row",
@@ -187,6 +195,7 @@
         "width": 393,
         "height": 65
       },
+      "pathBox": null,
       "labels": [
         {
           "text": "Step 09 of a pipeline far too long for one row",
@@ -209,6 +218,7 @@
         "width": 389,
         "height": 65
       },
+      "pathBox": null,
       "labels": [
         {
           "text": "Step 10 of a pipeline far too long for one row",
@@ -231,6 +241,7 @@
         "width": 385,
         "height": 65
       },
+      "pathBox": null,
       "labels": [
         {
           "text": "Step 11 of a pipeline far too long for one row",
@@ -253,6 +264,7 @@
         "width": 388,
         "height": 65
       },
+      "pathBox": null,
       "labels": [
         {
           "text": "Step 12 of a pipeline far too long for one row",
@@ -270,66 +282,132 @@
       "id": "(step01 -> step02)[0]",
       "kind": "connection",
       "box": null,
+      "pathBox": {
+        "x": 402,
+        "y": 43.5,
+        "width": 64,
+        "height": 0
+      },
       "labels": []
     },
     {
       "id": "(step02 -> step03)[0]",
       "kind": "connection",
       "box": null,
+      "pathBox": {
+        "x": 864,
+        "y": 43.5,
+        "width": 64,
+        "height": 0
+      },
       "labels": []
     },
     {
       "id": "(step03 -> step04)[0]",
       "kind": "connection",
       "box": null,
+      "pathBox": {
+        "x": 1327,
+        "y": 43.5,
+        "width": 64,
+        "height": 0
+      },
       "labels": []
     },
     {
       "id": "(step04 -> step05)[0]",
       "kind": "connection",
       "box": null,
+      "pathBox": {
+        "x": 1790,
+        "y": 43.5,
+        "width": 64,
+        "height": 0
+      },
       "labels": []
     },
     {
       "id": "(step05 -> step06)[0]",
       "kind": "connection",
       "box": null,
+      "pathBox": {
+        "x": 2252,
+        "y": 43.5,
+        "width": 64,
+        "height": 0
+      },
       "labels": []
     },
     {
       "id": "(step06 -> step07)[0]",
       "kind": "connection",
       "box": null,
+      "pathBox": {
+        "x": 2715,
+        "y": 43.5,
+        "width": 64,
+        "height": 0
+      },
       "labels": []
     },
     {
       "id": "(step07 -> step08)[0]",
       "kind": "connection",
       "box": null,
+      "pathBox": {
+        "x": 3177,
+        "y": 43.5,
+        "width": 64,
+        "height": 0
+      },
       "labels": []
     },
     {
       "id": "(step08 -> step09)[0]",
       "kind": "connection",
       "box": null,
+      "pathBox": {
+        "x": 3640,
+        "y": 43.5,
+        "width": 64,
+        "height": 0
+      },
       "labels": []
     },
     {
       "id": "(step09 -> step10)[0]",
       "kind": "connection",
       "box": null,
+      "pathBox": {
+        "x": 4103,
+        "y": 43.5,
+        "width": 64,
+        "height": 0
+      },
       "labels": []
     },
     {
       "id": "(step10 -> step11)[0]",
       "kind": "connection",
       "box": null,
+      "pathBox": {
+        "x": 4562,
+        "y": 43.5,
+        "width": 64,
+        "height": 0
+      },
       "labels": []
     },
     {
       "id": "(step11 -> step12)[0]",
       "kind": "connection",
       "box": null,
+      "pathBox": {
+        "x": 5017,
+        "y": 43.5,
+        "width": 64,
+        "height": 0
+      },
       "labels": []
     }
   ]
