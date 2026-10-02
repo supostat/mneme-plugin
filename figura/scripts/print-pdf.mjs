@@ -19,6 +19,29 @@ const TITLE_ELEMENT = /<title\b[^>]*>([\s\S]*?)<\/title\s*>/i;
 const HEAD_CLOSING = /<\/head\s*>/i;
 const PDF_PAGE_OBJECT = /\/Type\s*\/Page(?!s)/g;
 const AWAIT_FONTS = 'document.fonts.ready.then(() => document.fonts.status)';
+const UNTOUCHED_BLOCK_OPENING = /<(pre|svg)\b/gi;
+const INLINE_CODE = /(<code\b[^>]*>)([\s\S]*?)(<\/code\s*>)/gi;
+const CODE_MARKUP_OR_SEPARATOR_RUN = /<[^>]*>|&[#a-z0-9]+;|(?:::|[_/.])+/gi;
+const CODE_TAG = /<[^>]*>/g;
+const CODE_CHARACTER_REFERENCE = /&[#a-z0-9]+;/gi;
+const BREAK_OPPORTUNITY = '<wbr>';
+const POINTS_PER_PIXEL = 0.75;
+const TABLE_TOO_WIDE_REMEDY =
+  'use fewer columns or shorter cell text, or add <wbr> inside a long identifier; figura breaks inline code only after _ / :: . and never inside a word';
+const MEASURE_TABLE_OVERFLOWS = `(function measureFiguraTables() {
+  const body = document.body;
+  const bodyWidth = body.style.width;
+  body.style.width = 'calc(var(--figura-page-width) - var(--figura-page-margin-left) - var(--figura-page-margin-right))';
+  const overflows = [...document.querySelectorAll('table')].flatMap((table, index) => {
+    const container = getComputedStyle(table.parentElement);
+    const availablePixels = table.parentElement.clientWidth - parseFloat(container.paddingLeft) - parseFloat(container.paddingRight);
+    const widthPixels = table.getBoundingClientRect().width;
+    if (widthPixels <= availablePixels + 0.5) return [];
+    return [{ ordinal: index + 1, header: table.querySelector('th, td')?.innerText.trim() ?? '', widthPixels, availablePixels }];
+  });
+  body.style.width = bodyWidth;
+  return overflows;
+})()`;
 
 function elementEnd(html, start, tagName) {
   const tagPattern = new RegExp(`<(/?)${tagName}\\b[^>]*>`, 'gi');
@@ -66,6 +89,64 @@ export function keepHeadingsWithNextBlock(html) {
   return `${kept}${html.slice(copiedUpTo)}`;
 }
 
+function visibleLength(codeHtml) {
+  return codeHtml.replace(CODE_TAG, '').replace(CODE_CHARACTER_REFERENCE, '&').length;
+}
+
+function withBreakOpportunities(codeHtml) {
+  const codeLength = visibleLength(codeHtml);
+  let visibleOffset = 0;
+  let scannedUpTo = 0;
+  return codeHtml.replace(CODE_MARKUP_OR_SEPARATOR_RUN, (token, offset) => {
+    visibleOffset += offset - scannedUpTo;
+    scannedUpTo = offset + token.length;
+    if (token.startsWith('<')) return token;
+    if (token.startsWith('&')) {
+      visibleOffset += 1;
+      return token;
+    }
+    const runStart = visibleOffset;
+    visibleOffset += token.length;
+    return runStart > 0 && visibleOffset < codeLength ? `${token}${BREAK_OPPORTUNITY}` : token;
+  });
+}
+
+function withInlineCodeBreaks(html) {
+  return html.replace(INLINE_CODE, (element, opening, content, closing) => `${opening}${withBreakOpportunities(content)}${closing}`);
+}
+
+export function withCodeBreakOpportunities(html) {
+  let broken = '';
+  let copiedUpTo = 0;
+  UNTOUCHED_BLOCK_OPENING.lastIndex = 0;
+  for (let block = UNTOUCHED_BLOCK_OPENING.exec(html); block !== null; block = UNTOUCHED_BLOCK_OPENING.exec(html)) {
+    const blockEnd = elementEnd(html, block.index, block[1]);
+    if (blockEnd === -1) break;
+    broken += `${withInlineCodeBreaks(html.slice(copiedUpTo, block.index))}${html.slice(block.index, blockEnd)}`;
+    copiedUpTo = blockEnd;
+    UNTOUCHED_BLOCK_OPENING.lastIndex = blockEnd;
+  }
+  return `${broken}${withInlineCodeBreaks(html.slice(copiedUpTo))}`;
+}
+
+function rounded(value) {
+  return Math.round(value * 10) / 10;
+}
+
+function tableSubject({ ordinal, header }) {
+  return header === '' ? `table ${ordinal}` : `table ${ordinal} («${header}»)`;
+}
+
+function tableTooWide(overflows) {
+  const what = overflows
+    .map(
+      (overflow) =>
+        `${tableSubject(overflow)} is ${rounded(overflow.widthPixels * POINTS_PER_PIXEL)} pt wide against a ${rounded(overflow.availablePixels * POINTS_PER_PIXEL)} pt column`,
+    )
+    .join('; ');
+  return new FiguraError('TABLE-TOO-WIDE', what, TABLE_TOO_WIDE_REMEDY);
+}
+
 function cssString(text) {
   return `"${text.replaceAll('\\', '\\\\').replaceAll('"', '\\"').replace(/\s+/g, ' ')}"`;
 }
@@ -80,7 +161,7 @@ export function printableDocument(html, theme) {
     `<style>\n${themeCss(theme)}</style>`,
     `<style>@page { @bottom-left { content: ${cssString(title)}; } }</style>`,
   ].join('\n');
-  return keepHeadingsWithNextBlock(html.replace(HEAD_CLOSING, (closing) => `${printStyles}\n${closing}`));
+  return keepHeadingsWithNextBlock(withCodeBreakOpportunities(html).replace(HEAD_CLOSING, (closing) => `${printStyles}\n${closing}`));
 }
 
 export async function printPdf(printableHtml, { executablePath, pdfPath }) {
@@ -104,7 +185,13 @@ export async function printPdf(printableHtml, { executablePath, pdfPath }) {
       throw new FiguraError('PRINT-FAILED', `Chromium could not open ${url}: ${navigation.errorText}`, 'run the build again');
     }
     await session.send('Runtime.evaluate', { expression: AWAIT_FONTS, awaitPromise: true, returnByValue: true }, sessionId);
-    const { data } = await session.send('Page.printToPDF', { preferCSSPageSize: true, printBackground: true }, sessionId);
+    const tableMeasurement = await session.send('Runtime.evaluate', { expression: MEASURE_TABLE_OVERFLOWS, returnByValue: true }, sessionId);
+    const overflows = tableMeasurement.result.value;
+    if (!Array.isArray(overflows)) {
+      throw new FiguraError('PRINT-FAILED', 'measuring the tables of the document returned nothing', 'run the build again');
+    }
+    if (overflows.length > 0) throw tableTooWide(overflows);
+    const { data } =await session.send('Page.printToPDF', { preferCSSPageSize: true, printBackground: true }, sessionId);
     const pdf = Buffer.from(data, 'base64');
     writeFileSync(pdfPath, pdf);
     return { pageCount: (pdf.toString('latin1').match(PDF_PAGE_OBJECT) ?? []).length };

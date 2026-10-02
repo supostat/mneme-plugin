@@ -3,7 +3,9 @@
 // Gate for figura/scripts/theme.mjs: the theme yields CSS custom properties, a D2 class for every
 // role and a table class for sql_table shapes, and exports the page geometry, the caption reserve
 // the label threshold and the colour that frames a failed diagram; a broken theme fails with its
-// named error; figura/template/print.css loads only the theme's existing font files.
+// named error; figura/template/print.css loads only the theme's existing font files and sizes
+// inline code relative to its parent by the theme's code-to-text ratio, while code blocks keep the
+// absolute code size.
 
 import { existsSync, readFileSync } from 'node:fs';
 import { dirname, join, relative, resolve } from 'node:path';
@@ -135,6 +137,28 @@ function checkPrintCssFonts(theme) {
   }
 }
 
+function cssRule(css, selector) {
+  return new RegExp(`(?:^|\\n)${selector} \\{([^}]*)\\}`).exec(css)?.[1] ?? '';
+}
+
+function checkCodeSizes(theme) {
+  const declaration = '--figura-code-relative-size: 1em;';
+  if (!themeCss(theme).includes(declaration)) failures.push(`the CSS of the bundled theme lacks ${declaration}, the ratio of its 9.3 pt code to its 9.3 pt text`);
+  const smallerCode = structuredClone(theme);
+  smallerCode.typography.code.sizePoints = 8;
+  smallerCode.typography.text.sizePoints = 10;
+  const smallerDeclaration = '--figura-code-relative-size: 0.8em;';
+  if (!themeCss(smallerCode).includes(smallerDeclaration)) failures.push(`a theme with 8 pt code and 10 pt text lacks ${smallerDeclaration}`);
+  const printCss = readFileSync(PRINT_CSS_PATH, 'utf8');
+  if (!cssRule(printCss, 'code').includes('font-size: var(--figura-code-relative-size);')) {
+    failures.push('print.css does not size inline code by --figura-code-relative-size, so code in a caption or a table cell prints larger than the text around it');
+  }
+  const codeBlock = cssRule(printCss, 'pre');
+  if (!codeBlock.includes('font-size: var(--figura-code-size);') || codeBlock.includes('--figura-code-relative-size')) {
+    failures.push('print.css does not keep code blocks at the absolute --figura-code-size');
+  }
+}
+
 let theme;
 try {
   theme = loadTheme();
@@ -180,6 +204,7 @@ if (theme !== undefined) {
   );
   if (!/^#[0-9a-f]{6}$/.test(failureHighlightColor(theme))) failures.push(`the failure highlight colour is ${JSON.stringify(failureHighlightColor(theme))}`);
   checkPrintCssFonts(theme);
+  checkCodeSizes(theme);
 }
 
 if (failures.length > 0) {
@@ -188,5 +213,5 @@ if (failures.length > 0) {
   process.exit(1);
 }
 console.log(
-  'figura theme check passed: every role has its CSS properties and D2 class, sql_table shapes have their table class, the geometry, caption reserve, label threshold and failure highlight are exported, a missing role, a bad color, a bad failure highlight and a missing font file are each rejected by name, and print.css loads only the theme fonts.',
+  'figura theme check passed: every role has its CSS properties and D2 class, sql_table shapes have their table class, the geometry, caption reserve, label threshold and failure highlight are exported, a missing role, a bad color, a bad failure highlight and a missing font file are each rejected by name, and print.css loads only the theme fonts, sizes inline code by the theme ratio relative to its parent and keeps code blocks at the absolute code size.',
 );

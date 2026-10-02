@@ -7,6 +7,7 @@ import { basename } from 'node:path';
 const MESSAGE_TERMINATOR = '\0';
 const FAKE_VERSION = 'Chromium 131.0.6778.0';
 const HIGHLIGHT_MARKER = 'data-figura-highlight';
+const TABLE_MEASURE_MARKER = 'measureFiguraTables';
 const ONE_PIXEL_PNG = 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==';
 const TWO_PAGE_PDF = [
   '%PDF-1.4',
@@ -26,6 +27,8 @@ if (process.argv.includes('--version')) {
 
 const recordedMeasurements =
   process.env.FIGURA_FAKE_MEASUREMENTS === undefined ? undefined : JSON.parse(readFileSync(process.env.FIGURA_FAKE_MEASUREMENTS, 'utf8'));
+const recordedTableOverflows =
+  process.env.FIGURA_FAKE_TABLE_OVERFLOWS === undefined ? [] : JSON.parse(readFileSync(process.env.FIGURA_FAKE_TABLE_OVERFLOWS, 'utf8'));
 const commands = new Socket({ fd: 3, readable: true, writable: false });
 const replies = new Socket({ fd: 4, readable: false, writable: true });
 const pageUrlBySession = new Map();
@@ -47,8 +50,12 @@ function recordHighlights(expression) {
   appendFileSync(process.env.FIGURA_FAKE_OVERLAY_LOG, `${expression}\n`);
 }
 
-function evaluate(id, sessionId) {
+function evaluate(id, sessionId, expression) {
   if (recordedMeasurements === undefined) return;
+  if (expression.includes(TABLE_MEASURE_MARKER)) {
+    reply({ id, sessionId, result: { result: { type: 'object', value: recordedTableOverflows } } });
+    return;
+  }
   const fileName = basename(new URL(pageUrlBySession.get(sessionId)).pathname);
   const measurement = recordedMeasurements[fileName];
   reply({ id, sessionId, result: { result: measurement === undefined ? { type: 'undefined' } : { type: 'object', value: measurement } } });
@@ -91,7 +98,7 @@ function handle({ id, method, params, sessionId }) {
       break;
     case 'Runtime.evaluate':
       recordHighlights(params.expression);
-      evaluate(id, sessionId);
+      evaluate(id, sessionId, params.expression);
       break;
     case 'Emulation.setDeviceMetricsOverride':
       reply({ id, sessionId, result: {} });

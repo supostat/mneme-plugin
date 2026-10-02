@@ -115,7 +115,7 @@ strong {
 
 code {
   font-family: var(--figura-font-code);
-  font-size: var(--figura-code-size);
+  font-size: var(--figura-code-relative-size);
 }
 
 pre {
@@ -159,7 +159,7 @@ td {
   border: var(--figura-table-rule-width) solid var(--figura-table-rule);
   text-align: left;
   vertical-align: top;
-  overflow-wrap: anywhere;
+  overflow-wrap: break-word;
 }
 
 th {

@@ -6,14 +6,17 @@
 // previews, a broken diagram stops the build without a PDF or page previews and leaves a picture of
 // the failed diagram named in the report, a failed check leaves that picture beside the page
 // previews of the last build and the next check takes it away, and a heading before a diagram
-// lands in a keep group.
+// lands in a keep group. Inline code outside pre and svg gets a break opportunity after every
+// inner run of _ / :: . and nothing else changes; printing stops with TABLE-TOO-WIDE and no PDF
+// when the measured tables overflow the column, and with PRINT-FAILED when the measurement is not
+// a list.
 
 import { spawnSync } from 'node:child_process';
 import { chmodSync, copyFileSync, cpSync, existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { delimiter, dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { keepHeadingsWithNextBlock, printableDocument } from '../figura/scripts/print-pdf.mjs';
+import { keepHeadingsWithNextBlock, printableDocument, printPdf, withCodeBreakOpportunities } from '../figura/scripts/print-pdf.mjs';
 import { loadTheme, themeCss } from '../figura/scripts/theme.mjs';
 
 const REPO_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
@@ -73,6 +76,82 @@ function checkPrintableDocument(theme) {
     error = caught;
   }
   if (error?.code !== 'DOCUMENT-INVALID') failures.push(`a document without <head> was not refused with DOCUMENT-INVALID: ${error?.message ?? 'no error'}`);
+}
+
+const CODE_BREAK_CASES = [
+  ['a path and a file name', '<code>app/models/tax_year.rb</code>', '<code>app/<wbr>models/<wbr>tax_<wbr>year.<wbr>rb</code>'],
+  ['a namespace', '<code>Finance::ReportUpdates</code>', '<code>Finance::<wbr>ReportUpdates</code>'],
+  ['a run of separators', '<code>user__name</code>', '<code>user__<wbr>name</code>'],
+  ['separators only at both ends', '<code>__init__</code>', '<code>__init__</code>'],
+  ['a separator at the start', '<code>_private</code>', '<code>_private</code>'],
+  ['a separator at the end', '<code>path/</code>', '<code>path/</code>'],
+  ['a hidden file name', '<code>.figura</code>', '<code>.figura</code>'],
+  ['a CamelCase name', '<code>ProcessFinanceReportUpdatesJob</code>', '<code>ProcessFinanceReportUpdatesJob</code>'],
+  ['a single colon', '<code>key:value</code>', '<code>key:value</code>'],
+  ['character references', '<code>Map&lt;K_V&gt;</code>', '<code>Map&lt;K_<wbr>V&gt;</code>'],
+  ['a tag inside code', '<code><a href="docs/a_b.html">a_b</a></code>', '<code><a href="docs/a_b.html">a_<wbr>b</a></code>'],
+  ['a separator after a leading tag', '<code><em>_x</em></code>', '<code><em>_x</em></code>'],
+  ['text outside code', '<p>tax_year.rb</p>', '<p>tax_year.rb</p>'],
+  ['a code block', '<pre><code>config/app.yml</code></pre>', '<pre><code>config/app.yml</code></pre>'],
+  ['code inside a diagram', '<svg><svg><code>a_b</code></svg><code>c_d</code></svg>', '<svg><svg><code>a_b</code></svg><code>c_d</code></svg>'],
+];
+
+function checkCodeBreaks(theme) {
+  for (const [caseName, html, expected] of CODE_BREAK_CASES) {
+    const broken = withCodeBreakOpportunities(html);
+    if (broken !== expected) failures.push(`${caseName}: ${JSON.stringify(html)} became ${JSON.stringify(broken)}, expected ${JSON.stringify(expected)}`);
+  }
+  const printable = printableDocument(
+    '<!doctype html><html><head><title>Code</title></head><body><table><tr><td><code>holiday_transitions</code></td></tr></table><pre><code>a_b</code></pre></body></html>',
+    theme,
+  );
+  expectIncludes('the printable document', printable, '<code>holiday_<wbr>transitions</code>');
+  expectIncludes('the printable document', printable, '<pre><code>a_b</code></pre>');
+}
+
+async function printedWithFakeBrowser(caseName, tableOverflows) {
+  const pdfPath = join(workDirectory, `${caseName}.pdf`);
+  const overflowsPath = join(workDirectory, `${caseName}-overflows.json`);
+  writeFileSync(overflowsPath, JSON.stringify(tableOverflows));
+  process.env.FIGURA_FAKE_TABLE_OVERFLOWS = overflowsPath;
+  try {
+    const { pageCount } = await printPdf('<!doctype html><html><head><title>Tables</title></head><body><table><tr><td>x</td></tr></table></body></html>', {
+      executablePath: FAKE_BROWSER,
+      pdfPath,
+    });
+    return { pageCount, pdfWritten: existsSync(pdfPath) };
+  } catch (error) {
+    return { error, pdfWritten: existsSync(pdfPath) };
+  } finally {
+    delete process.env.FIGURA_FAKE_TABLE_OVERFLOWS;
+  }
+}
+
+async function checkTableMeasurement() {
+  const measurementsPath = join(workDirectory, 'measurements-none.json');
+  writeFileSync(measurementsPath, '{}');
+  process.env.FIGURA_FAKE_MEASUREMENTS = measurementsPath;
+  try {
+    const fitting = await printedWithFakeBrowser('fitting', []);
+    if (fitting.error !== undefined || fitting.pageCount !== 2 || !fitting.pdfWritten) {
+      failures.push(`tables that fit the column did not print: ${fitting.error?.message ?? `${fitting.pageCount} pages, PDF written: ${fitting.pdfWritten}`}`);
+    }
+    const overflowing = await printedWithFakeBrowser('overflowing', [
+      { ordinal: 2, header: 'Job', widthPixels: 949.87, availablePixels: 660.37 },
+      { ordinal: 5, header: '', widthPixels: 700, availablePixels: 600 },
+    ]);
+    const expectedWhat = 'table 2 («Job») is 712.4 pt wide against a 495.3 pt column; table 5 is 525 pt wide against a 450 pt column';
+    if (overflowing.error?.code !== 'TABLE-TOO-WIDE' || overflowing.error.what !== expectedWhat || !overflowing.error.remedy.includes('add <wbr> inside a long identifier')) {
+      failures.push(`tables wider than the column were not refused with TABLE-TOO-WIDE naming each of them: ${overflowing.error?.message ?? 'no error'}`);
+    }
+    if (overflowing.pdfWritten) failures.push('tables wider than the column still got a PDF');
+    const unmeasured = await printedWithFakeBrowser('unmeasured', { tables: [] });
+    if (unmeasured.error?.code !== 'PRINT-FAILED' || !unmeasured.error.what.includes('measuring the tables')) {
+      failures.push(`a table measurement that is not a list was not refused with PRINT-FAILED: ${unmeasured.error?.message ?? 'no error'}`);
+    }
+  } finally {
+    delete process.env.FIGURA_FAKE_MEASUREMENTS;
+  }
 }
 
 function prepareToolchain() {
@@ -188,6 +267,8 @@ try {
   const theme = loadTheme();
   checkKeepGroups();
   checkPrintableDocument(theme);
+  checkCodeBreaks(theme);
+  await checkTableMeasurement();
   const toolchain = prepareToolchain();
   checkBuilds(toolchain);
   checkFailedCheckPictures(toolchain);
@@ -203,5 +284,5 @@ if (failures.length > 0) {
   process.exit(1);
 }
 console.log(
-  'figura pdf check passed: headings travel with their next block, the printable document carries the theme and the footer title, a clean build reports its pages and previews in .figura/ behind a .gitignore, a rebuild clears old previews, a broken diagram stops the build without a PDF and leaves a named picture of itself, and a failed check leaves its picture beside the page previews until the next check.',
+  'figura pdf check passed: headings travel with their next block, the printable document carries the theme and the footer title, inline code breaks only after inner runs of _ / :: . while code blocks, diagrams and plain text stay untouched, tables wider than the column stop the print with TABLE-TOO-WIDE and an unreadable table measurement with PRINT-FAILED, a clean build reports its pages and previews in .figura/ behind a .gitignore, a rebuild clears old previews, a broken diagram stops the build without a PDF and leaves a named picture of itself, and a failed check leaves its picture beside the page previews until the next check.',
 );

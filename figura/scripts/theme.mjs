@@ -7,6 +7,7 @@ const THEME_PATH = resolve(BUNDLE_ROOT, 'theme', 'theme.json');
 const HEX_COLOR = /^#[0-9a-f]{6}$/;
 const CSS_SAFE_FAMILY = /^[A-Za-z0-9 -]+$/;
 const CAPTION_RESERVE_LINES = 2;
+const CODE_RELATIVE_SIZE_DECIMALS = 4;
 
 export const ROLE_NAMES = ['source', 'core', 'tool', 'app', 'observability', 'neutral', 'note'];
 export const SQL_TABLE_CLASS = 'table';
@@ -150,6 +151,10 @@ function points(value) {
   return `${value}pt`;
 }
 
+function codeRelativeSize(theme) {
+  return `${Number((theme.typography.code.sizePoints / theme.typography.text.sizePoints).toFixed(CODE_RELATIVE_SIZE_DECIMALS))}em`;
+}
+
 export function themeCss(theme) {
   const properties = [
     ['page-width', points(theme.page.widthPoints)],
@@ -168,6 +173,7 @@ export function themeCss(theme) {
       [`${entry}-size`, points(theme.typography[entry].sizePoints)],
       [`${entry}-line-height`, points(theme.typography[entry].lineHeightPoints)],
     ]),
+    ['code-relative-size', codeRelativeSize(theme)],
     ...[...SPACING_PROPERTIES].map(([key, property]) => [property, points(theme.spacing[key])]),
     ['caption-gap', points(theme.diagram.captionGapPoints)],
   ];
