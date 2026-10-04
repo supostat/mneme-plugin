@@ -9,19 +9,22 @@ const CAPTURE_SCALE = 2;
 const HIGHLIGHT_STROKE_PIXELS = 2;
 export const HIGHLIGHT_MARKER = 'data-figura-highlight';
 
-function highlightExpression(highlights, color) {
+export function highlightExpression(highlights, color) {
   return `(async () => {
   await document.fonts.ready;
   const root = document.documentElement;
-  const drawing = root.querySelector('svg') ?? root;
   const viewBox = root.viewBox.baseVal;
   root.setAttribute('width', viewBox.width);
   root.setAttribute('height', viewBox.height);
+  const isLimitLine = (box) => box.width === 0 || box.height === 0;
   for (const box of ${JSON.stringify(highlights)}) {
-    const frame = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
-    const attributes = { x: box.x, y: box.y, width: box.width, height: box.height, fill: 'none', stroke: ${JSON.stringify(color)}, 'stroke-width': ${HIGHLIGHT_STROKE_PIXELS}, '${HIGHLIGHT_MARKER}': '' };
+    const frame = document.createElementNS('http://www.w3.org/2000/svg', isLimitLine(box) ? 'line' : 'rect');
+    const geometry = isLimitLine(box)
+      ? { x1: box.x, y1: box.y, x2: box.x + box.width, y2: box.y + box.height }
+      : { x: box.x, y: box.y, width: box.width, height: box.height, fill: 'none' };
+    const attributes = { ...geometry, stroke: ${JSON.stringify(color)}, 'stroke-width': ${HIGHLIGHT_STROKE_PIXELS}, '${HIGHLIGHT_MARKER}': '' };
     for (const [name, value] of Object.entries(attributes)) frame.setAttribute(name, value);
-    drawing.appendChild(frame);
+    root.appendChild(frame);
   }
   return { widthPixels: viewBox.width, heightPixels: viewBox.height };
 })()`;

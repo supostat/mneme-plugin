@@ -4,10 +4,11 @@
 // Chromium, where a clean diagram passes, each broken one fails with its own code, a message inside a
 // sequence group passes, and a label inside the container its edge leads into fails in dagre and ELK
 // alike; synthetic rules for edge frames, edges into containers, remedies that follow the layout,
-// kind and direction of a diagram, the ordinal and highlights every problem carries, and print
-// scales where the ERD diagrams of a document share the smallest of their own scales, a label
-// floor broken by that shared scale names the diagram that set it, and the height is checked at
-// the scale passed; and
+// kind and direction of a diagram, the ordinal and highlights every problem carries — the boxes in
+// conflict, or for a size problem the line of the limit it broke — and print scales where the ERD
+// diagrams of a document share the smallest of their own scales, a label floor broken by that
+// shared scale names the diagram that set it and draws no line, and the height is checked at the
+// scale passed; and
 // `figura check` on fixture documents through the real render and check modules, with a fake
 // browser and a launcher stub at the process boundary.
 
@@ -16,7 +17,7 @@ import { chmodSync, copyFileSync, cpSync, mkdirSync, mkdtempSync, readFileSync, 
 import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { layoutLimits, layoutProblems, printScales } from '../figura/scripts/layout-checks.mjs';
+import { layoutLimits, layoutProblems, POINTS_PER_PIXEL, printScales } from '../figura/scripts/layout-checks.mjs';
 import { loadTheme } from '../figura/scripts/theme.mjs';
 
 const REPO_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
@@ -194,10 +195,20 @@ function checkHighlights(limits) {
   if (overlap?.diagramOrdinal !== 4 || JSON.stringify(overlap?.highlights) !== JSON.stringify([label, container])) {
     failures.push(`a label overlap did not carry its diagram and the boxes in conflict: ${JSON.stringify({ ordinal: overlap?.diagramOrdinal, highlights: overlap?.highlights })}`);
   }
-  const [tooWide] = problemsAlone({ ordinal: 5, layout: 'elk', source: GRAPH }, labelledMeasurement(1320, 100), limits);
-  if (tooWide?.diagramOrdinal !== 5 || JSON.stringify(tooWide?.highlights) !== '[]') {
-    failures.push(`a size problem did not carry its diagram and an empty highlight list: ${JSON.stringify({ ordinal: tooWide?.diagramOrdinal, highlights: tooWide?.highlights })}`);
-  }
+  const graph = (ordinal) => ({ ordinal, layout: 'elk', source: GRAPH });
+  const expectLimitLine = (caseName, problem, ordinal, line) => {
+    if (problem?.diagramOrdinal !== ordinal || JSON.stringify(problem?.highlights) !== JSON.stringify(line)) {
+      failures.push(`${caseName} did not carry its diagram and ${JSON.stringify(line)}: ${JSON.stringify({ ordinal: problem?.diagramOrdinal, highlights: problem?.highlights })}`);
+    }
+  };
+  const [tooWide] = problemsAlone(graph(5), labelledMeasurement(1320, 100), limits);
+  expectLimitLine('a diagram too wide at its own scale', tooWide, 5, [{ x: (limits.columnWidthPoints * 16) / limits.minimumLabelPoints, y: 0, width: 0, height: 100 }]);
+  const [smallAtFullSize] = problemsAlone(graph(6), labelledMeasurement(300, 100, 8), limits);
+  expectLimitLine('a diagram inside the column whose labels are too small even at full size', smallAtFullSize, 6, []);
+  const [tooTall] = problemsAlone(graph(7), labelledMeasurement(600, 947), limits);
+  expectLimitLine('a diagram too tall at its own scale', tooTall, 7, [{ x: 0, y: limits.diagramHeightPoints / (POINTS_PER_PIXEL * 1), width: 600, height: 0 }]);
+  const [tooTallScaled] = layoutProblems(graph(8), labelledMeasurement(600, 2000), limits, { factor: 0.9, setBy: 8 });
+  expectLimitLine('a diagram too tall at a 90% print scale', tooTallScaled, 8, [{ x: 0, y: limits.diagramHeightPoints / (POINTS_PER_PIXEL * 0.9), width: 600, height: 0 }]);
 }
 
 function checkSyntheticRules(limits) {
@@ -248,6 +259,7 @@ function checkPrintScales(limits) {
   const pulledDown = layoutProblems(narrowErd, smallLabels, limits, sharedScale);
   expectProblemText('an ERD with small labels at the shared scale', pulledDown, 'DIAGRAM-TOO-WIDE', 'scaled to 66%, the scale the ERD diagrams of this document share (set by diagram 3), its smallest label prints at 5.9 pt');
   expectRemedy('an ERD with small labels at the shared scale', pulledDown, 'DIAGRAM-TOO-WIDE', { includes: ['print at one scale', 'split diagram 3 into narrower parts'], excludes: ['data-layout'] });
+  if (JSON.stringify(pulledDown[0]?.highlights) !== '[]') failures.push(`an ERD failing at the scale another diagram set carried a limit line: ${JSON.stringify(pulledDown[0]?.highlights)}`);
   expectCodes('the same ERD at its own scale', problemsAlone(narrowErd, smallLabels, limits), []);
   expectCodes('the ERD that sets the shared scale', layoutProblems(wideErd, labelledMeasurement(1000, 100), limits, setterScale), []);
 
@@ -343,5 +355,5 @@ if (failures.length > 0) {
   process.exit(1);
 }
 console.log(
-  'figura checks check passed: the recorded clean diagram and a message inside a sequence group pass, the overlap, overflow, too wide and too tall ones fail with their own codes, a label inside the container its edge leads into fails in dagre and ELK with its own remedy, remedies follow the layout, kind and direction of a diagram, every problem carries its diagram and the boxes in conflict, the scale and height limits hold at their edges, the ERD diagrams of a document print at one scale whose floor names the diagram that set it, and figura check reports through the real modules with a fake browser and a launcher stub.',
+  'figura checks check passed: the recorded clean diagram and a message inside a sequence group pass, the overlap, overflow, too wide and too tall ones fail with their own codes, a label inside the container its edge leads into fails in dagre and ELK with its own remedy, remedies follow the layout, kind and direction of a diagram, every problem carries its diagram and the boxes in conflict or the line of the size limit it broke, the scale and height limits hold at their edges, the ERD diagrams of a document print at one scale whose floor names the diagram that set it, and figura check reports through the real modules with a fake browser and a launcher stub.',
 );

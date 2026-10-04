@@ -6,15 +6,18 @@
 // fixtures, a message inside a sequence group and edges into and between containers in both
 // layouts, the pdf stage d2, Chromium and poppler (pdftoppm, pdftotext), the erd stage a d2 the
 // launcher can serve for the 30-table and hubs-and-spokes fixtures, where self references draw no
-// edge and the date column of public_holidays keeps its date type in the SVG.
+// edge and the date column of public_holidays keeps its date type in the SVG, the pictures stage d2
+// and Chromium for the frames a failed-diagram picture draws on a dagre container diagram, a
+// sequence diagram and an ELK diagram.
 
 import { spawnSync } from 'node:child_process';
 import { copyFileSync, existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { dirname, join, resolve } from 'node:path';
+import { basename, dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { inflateSync } from 'node:zlib';
 import { locateChromium } from '../figura/scripts/browser-locate.mjs';
+import { highlightExpression } from '../figura/scripts/capture-failed-diagrams.mjs';
 import { openCdpSession } from '../figura/scripts/cdp-session.mjs';
 import { schemaModel } from '../figura/scripts/erd-model.mjs';
 import { planErdDiagrams, svgSizeMeasurement } from '../figura/scripts/erd-split.mjs';
@@ -23,7 +26,7 @@ import { diagramSizeProblems, layoutLimits, layoutProblems, printScales } from '
 import { startLoopbackServer } from '../figura/scripts/loopback-server.mjs';
 import { measureDiagrams } from '../figura/scripts/measure-diagram.mjs';
 import { renderDiagram } from '../figura/scripts/render-diagram.mjs';
-import { loadTheme } from '../figura/scripts/theme.mjs';
+import { failureHighlightColor, loadTheme } from '../figura/scripts/theme.mjs';
 import { hubsAndSpokesSchema } from './fixtures/figura/erd-hubs.mjs';
 
 const FIGURA_BIN = resolve(dirname(fileURLToPath(import.meta.url)), '..', 'figura', 'bin');
@@ -310,6 +313,98 @@ function splitErdFixturesWithRealD2(workDirectory) {
   }
 }
 
+const PICTURE_FIXTURES = [
+  { name: 'edge-into-container', layout: 'dagre' },
+  { name: 'sequence-group', layout: 'elk' },
+  { name: 'clean', layout: 'elk' },
+];
+const FRAME_TOLERANCE_PIXELS = 1;
+const LIMIT_LINE_X_PIXELS = 10;
+
+function screenFramesExpression(shapeIds) {
+  return `(() => {
+  const decodeObjectId = (token) => {
+    try {
+      const bytes = Uint8Array.from(atob(token), (character) => character.charCodeAt(0));
+      return new TextDecoder('utf-8', { fatal: true }).decode(bytes).replaceAll('&gt;', '>').replaceAll('&lt;', '<').replaceAll('&amp;', '&');
+    } catch {
+      return undefined;
+    }
+  };
+  const groups = new Map([...document.documentElement.querySelector('svg').children]
+    .filter((group) => group.tagName === 'g')
+    .map((group) => [decodeObjectId((group.getAttribute('class') ?? '').trim().split(' ')[0]), group]));
+  const screenBox = (element) => {
+    const box = element.getBoundingClientRect();
+    return { x: box.x, y: box.y, width: box.width, height: box.height };
+  };
+  return {
+    frames: [...document.querySelectorAll('[data-figura-highlight]')].map((frame) => ({ tag: frame.tagName, ...screenBox(frame) })),
+    shapes: ${JSON.stringify(shapeIds)}.map((id) => screenBox(groups.get(id).querySelector(':scope > g.shape'))),
+  };
+})()`;
+}
+
+async function framesInChromium(svgPath, highlights, shapeIds, { executablePath, highlightColor }) {
+  const server = await startLoopbackServer([{ urlPrefix: '/diagrams/', directory: dirname(svgPath) }]);
+  const session = openCdpSession({ executablePath });
+  try {
+    const { targetId } = await session.send('Target.createTarget', { url: 'about:blank' });
+    const { sessionId } = await session.send('Target.attachToTarget', { targetId, flatten: true });
+    await session.send('Page.enable', {}, sessionId);
+    await Promise.all([
+      session.send('Page.navigate', { url: `${server.origin}/diagrams/${basename(svgPath)}` }, sessionId),
+      session.waitForEvent('Page.loadEventFired', { sessionId }),
+    ]);
+    await session.send('Runtime.evaluate', { expression: highlightExpression(highlights, highlightColor), awaitPromise: true, returnByValue: true }, sessionId);
+    const { result } = await session.send('Runtime.evaluate', { expression: screenFramesExpression(shapeIds), returnByValue: true }, sessionId);
+    return result.value;
+  } finally {
+    await session.close();
+    await server.close();
+  }
+}
+
+function frameOffProblems(caseName, frame, expected) {
+  const off = ['x', 'y', 'width', 'height'].filter((key) => Math.abs(frame[key] - expected[key]) > FRAME_TOLERANCE_PIXELS);
+  return off.length === 0 ? [] : [`${caseName}: the frame stands at ${JSON.stringify(frame)}, expected ${JSON.stringify(expected)} (±${FRAME_TOLERANCE_PIXELS} px)`];
+}
+
+async function framesOnShapesWithRealTools(workDirectory) {
+  let executablePath;
+  try {
+    executablePath = locateChromium().executablePath;
+  } catch (error) {
+    if (error instanceof FiguraError) return [error.message];
+    throw error;
+  }
+  const theme = loadTheme();
+  const problems = [];
+  for (const { name, layout } of PICTURE_FIXTURES) {
+    const fixtureDirectory = join(workDirectory, `${name}-${layout}`);
+    mkdirSync(fixtureDirectory);
+    let svgPath;
+    try {
+      ({ svgPath } = renderDiagram({ ordinal: 1, layout, source: readFileSync(join(FIXTURE_DIAGRAMS, `${name}.d2`), 'utf8') }, theme, { workDirectory: fixtureDirectory }));
+    } catch (error) {
+      if (error instanceof FiguraError) return [error.message];
+      throw error;
+    }
+    const [measurement] = await measureDiagrams([svgPath], { executablePath });
+    const shapes = measurement.objects.filter((object) => object.kind === 'shape');
+    const limitLine = { x: LIMIT_LINE_X_PIXELS, y: 0, width: 0, height: measurement.heightPixels };
+    const placed = await framesInChromium(svgPath, [...shapes.map((shape) => shape.box), limitLine], shapes.map((shape) => shape.id), {
+      executablePath,
+      highlightColor: failureHighlightColor(theme),
+    });
+    shapes.forEach((shape, index) => problems.push(...frameOffProblems(`${name} (${layout}), shape ${shape.id}`, placed.frames[index], placed.shapes[index])));
+    const line = placed.frames.at(-1);
+    if (line.tag !== 'line') problems.push(`${name} (${layout}): a zero width frame was drawn as ${line.tag}, not as a line`);
+    problems.push(...frameOffProblems(`${name} (${layout}), limit line`, line, { tag: 'line', ...limitLine }));
+  }
+  return problems;
+}
+
 const STAGES = new Map([
   [
     'd2',
@@ -353,6 +448,14 @@ const STAGES = new Map([
       check: splitErdFixturesWithRealD2,
       passed:
         'the real d2 rendered every part of the 30-table and hubs-and-spokes fixtures with dagre within the width and height of an A4 page, each table in one part, no self reference drawn as an edge and the date type of public_holidays.date shown',
+    },
+  ],
+  [
+    'pictures',
+    {
+      check: framesOnShapesWithRealTools,
+      passed:
+        'the real d2 and Chromium put the frame of every measured shape of a dagre container diagram, a sequence diagram and an ELK diagram exactly on the shape on screen, and drew a zero width frame as a limit line',
     },
   ],
 ]);

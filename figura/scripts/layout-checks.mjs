@@ -97,29 +97,32 @@ export function diagramSizeProblems(diagram, measurement, limits, printScale) {
   const widthPoints = measurement.widthPixels * POINTS_PER_PIXEL;
   const fontSizes = measurement.objects.flatMap((object) => object.labels.map((label) => label.fontPixels));
   if (fontSizes.length > 0) {
-    const effectiveLabelPoints = Math.min(...fontSizes) * POINTS_PER_PIXEL * scale;
+    const smallestFontPixels = Math.min(...fontSizes);
+    const effectiveLabelPoints = smallestFontPixels * POINTS_PER_PIXEL * scale;
     if (effectiveLabelPoints < limits.minimumLabelPoints) {
-      const sharedScaleCause = printScale.setBy === diagram.ordinal ? {} : { scaleSetBy: printScale.setBy };
+      const isOwnScale = printScale.setBy === diagram.ordinal;
+      const widestReadableLine = { x: (limits.columnWidthPoints * smallestFontPixels) / limits.minimumLabelPoints, y: 0, width: 0, height: measurement.heightPixels };
       problems.push(
         diagramProblem(
           diagram,
           'DIAGRAM-TOO-WIDE',
           `${subject(diagram)} is ${rounded(widthPoints)} pt wide against a ${rounded(limits.columnWidthPoints)} pt column; scaled to ${scaleNote(diagram, printScale)} its smallest label prints at ${rounded(effectiveLabelPoints)} pt, under the ${limits.minimumLabelPoints} pt floor`,
-          layoutRemedy('DIAGRAM-TOO-WIDE', traits, sharedScaleCause),
-          [],
+          layoutRemedy('DIAGRAM-TOO-WIDE', traits, isOwnScale ? {} : { scaleSetBy: printScale.setBy }),
+          isOwnScale && widthPoints > limits.columnWidthPoints ? [widestReadableLine] : [],
         ),
       );
     }
   }
   const printedHeightPoints = measurement.heightPixels * POINTS_PER_PIXEL * scale;
   if (printedHeightPoints > limits.diagramHeightPoints) {
+    const tallestFittingLine = { x: 0, y: limits.diagramHeightPoints / (POINTS_PER_PIXEL * scale), width: measurement.widthPixels, height: 0 };
     problems.push(
       diagramProblem(
         diagram,
         'DIAGRAM-TOO-TALL',
         `${subject(diagram)} prints ${rounded(printedHeightPoints)} pt tall at ${Math.round(scale * 100)}% scale, over the ${rounded(limits.diagramHeightPoints)} pt a page leaves above its caption`,
         layoutRemedy('DIAGRAM-TOO-TALL', traits),
-        [],
+        [tallestFittingLine],
       ),
     );
   }
