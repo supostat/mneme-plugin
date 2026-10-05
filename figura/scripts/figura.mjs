@@ -169,7 +169,11 @@ async function buildCommand([documentArgument]) {
       return 1;
     }
     const printable = printableDocument(inlineDiagrams(html, diagrams), theme);
-    const { pageCount } = await printPdf(printable, { executablePath: locateChromium().executablePath, pdfPath });
+    const { pageCount, layoutProblems: printedLayoutProblems } = await printPdf(printable, { executablePath: locateChromium().executablePath, pdfPath });
+    if (printedLayoutProblems.length > 0) {
+      console.error(failureReport(documentPath, printedLayoutProblems));
+      return 1;
+    }
     const previewPaths = rasterizePages(pdfPath, documentPath);
     console.log(buildSuccessLine({ pdfPath, pageCount, diagramCount: diagrams.length, warnings: [], previewPaths }));
     return 0;

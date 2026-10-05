@@ -7,9 +7,10 @@
 // the failed diagram named in the report, a failed check leaves that picture beside the page
 // previews of the last build and the next check takes it away, and a heading before a diagram
 // lands in a keep group. Inline code outside pre and svg gets a break opportunity after every
-// inner run of _ / :: . and nothing else changes; printing stops with TABLE-TOO-WIDE and no PDF
-// when the measured tables overflow the column, and with PRINT-FAILED when the measurement is not
-// a list.
+// inner run of _ / :: . and nothing else changes; printing returns its layout problems without a
+// PDF — one TABLE-TOO-WIDE line per table wider than the column and one HEADING-APART line per
+// heading that does not fit a page with its figure, together in one list — and stops with
+// PRINT-FAILED when a measurement is not a list.
 
 import { spawnSync } from 'node:child_process';
 import { chmodSync, copyFileSync, cpSync, existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
@@ -109,45 +110,78 @@ function checkCodeBreaks(theme) {
   expectIncludes('the printable document', printable, '<pre><code>a_b</code></pre>');
 }
 
-async function printedWithFakeBrowser(caseName, tableOverflows) {
+const TWO_OVERFLOWING_TABLES = [
+  { ordinal: 2, header: 'Job', widthPixels: 949.87, availablePixels: 660.37 },
+  { ordinal: 5, header: '', widthPixels: 700, availablePixels: 600 },
+];
+const HEADING_APART = { heading: 'Lifecycles', caption: 'Figure 3. Lifecycle of a holiday', heightPixels: 1013.6, pagePixels: 989.19 };
+
+async function printedWithFakeBrowser(caseName, { tableOverflows = [], headingsApart = [] }) {
   const pdfPath = join(workDirectory, `${caseName}.pdf`);
   const overflowsPath = join(workDirectory, `${caseName}-overflows.json`);
+  const headingsPath = join(workDirectory, `${caseName}-headings.json`);
   writeFileSync(overflowsPath, JSON.stringify(tableOverflows));
+  writeFileSync(headingsPath, JSON.stringify(headingsApart));
   process.env.FIGURA_FAKE_TABLE_OVERFLOWS = overflowsPath;
+  process.env.FIGURA_FAKE_HEADINGS_APART = headingsPath;
   try {
-    const { pageCount } = await printPdf('<!doctype html><html><head><title>Tables</title></head><body><table><tr><td>x</td></tr></table></body></html>', {
+    const printed = await printPdf('<!doctype html><html><head><title>Layout</title></head><body><table><tr><td>x</td></tr></table></body></html>', {
       executablePath: FAKE_BROWSER,
       pdfPath,
     });
-    return { pageCount, pdfWritten: existsSync(pdfPath) };
+    return { ...printed, pdfWritten: existsSync(pdfPath) };
   } catch (error) {
     return { error, pdfWritten: existsSync(pdfPath) };
   } finally {
     delete process.env.FIGURA_FAKE_TABLE_OVERFLOWS;
+    delete process.env.FIGURA_FAKE_HEADINGS_APART;
   }
 }
 
-async function checkTableMeasurement() {
+function problemLines(printed) {
+  return (printed.layoutProblems ?? []).map((problem) => `${problem.code}: ${problem.what}`);
+}
+
+function expectRefusedLayout(caseName, printed, expectedLines) {
+  if (JSON.stringify(problemLines(printed)) !== JSON.stringify(expectedLines)) {
+    failures.push(`${caseName} reported ${JSON.stringify(printed.error?.message ?? problemLines(printed))}, expected ${JSON.stringify(expectedLines)}`);
+  }
+  if (printed.pageCount !== 0 || printed.pdfWritten) failures.push(`${caseName} still printed ${printed.pageCount} pages, PDF written: ${printed.pdfWritten}`);
+}
+
+async function checkLayoutMeasurement() {
   const measurementsPath = join(workDirectory, 'measurements-none.json');
   writeFileSync(measurementsPath, '{}');
   process.env.FIGURA_FAKE_MEASUREMENTS = measurementsPath;
   try {
-    const fitting = await printedWithFakeBrowser('fitting', []);
-    if (fitting.error !== undefined || fitting.pageCount !== 2 || !fitting.pdfWritten) {
-      failures.push(`tables that fit the column did not print: ${fitting.error?.message ?? `${fitting.pageCount} pages, PDF written: ${fitting.pdfWritten}`}`);
+    const fitting = await printedWithFakeBrowser('fitting', {});
+    if (fitting.error !== undefined || fitting.pageCount !== 2 || fitting.layoutProblems.length > 0 || !fitting.pdfWritten) {
+      failures.push(`a layout that fits the page did not print: ${fitting.error?.message ?? `${fitting.pageCount} pages, PDF written: ${fitting.pdfWritten}`}`);
     }
-    const overflowing = await printedWithFakeBrowser('overflowing', [
-      { ordinal: 2, header: 'Job', widthPixels: 949.87, availablePixels: 660.37 },
-      { ordinal: 5, header: '', widthPixels: 700, availablePixels: 600 },
-    ]);
-    const expectedWhat = 'table 2 («Job») is 712.4 pt wide against a 495.3 pt column; table 5 is 525 pt wide against a 450 pt column';
-    if (overflowing.error?.code !== 'TABLE-TOO-WIDE' || overflowing.error.what !== expectedWhat || !overflowing.error.remedy.includes('add <wbr> inside a long identifier')) {
-      failures.push(`tables wider than the column were not refused with TABLE-TOO-WIDE naming each of them: ${overflowing.error?.message ?? 'no error'}`);
+    const tableLines = ['TABLE-TOO-WIDE: table 2 («Job») is 712.4 pt wide against a 495.3 pt column', 'TABLE-TOO-WIDE: table 5 is 525 pt wide against a 450 pt column'];
+    const overflowing = await printedWithFakeBrowser('overflowing', { tableOverflows: TWO_OVERFLOWING_TABLES });
+    expectRefusedLayout('two tables wider than the column', overflowing, tableLines);
+    if (!overflowing.layoutProblems?.every((problem) => problem.remedy.includes('add <wbr> inside a long identifier'))) {
+      failures.push('a table wider than the column was refused without the <wbr> remedy');
     }
-    if (overflowing.pdfWritten) failures.push('tables wider than the column still got a PDF');
-    const unmeasured = await printedWithFakeBrowser('unmeasured', { tables: [] });
-    if (unmeasured.error?.code !== 'PRINT-FAILED' || !unmeasured.error.what.includes('measuring the tables')) {
-      failures.push(`a table measurement that is not a list was not refused with PRINT-FAILED: ${unmeasured.error?.message ?? 'no error'}`);
+    const headingLine = 'HEADING-APART: heading «Lifecycles» and the figure «Figure 3. Lifecycle of a holiday» are 760.2 pt tall together against a 741.9 pt page';
+    const apart = await printedWithFakeBrowser('apart', { headingsApart: [HEADING_APART] });
+    expectRefusedLayout('a heading that does not fit a page with its figure', apart, [headingLine]);
+    if (!apart.layoutProblems?.[0]?.remedy.includes('put a paragraph between the heading and the figure')) {
+      failures.push(`a heading apart from its figure was refused without its remedy: ${apart.layoutProblems?.[0]?.remedy}`);
+    }
+    const uncaptioned = await printedWithFakeBrowser('uncaptioned', { headingsApart: [{ ...HEADING_APART, caption: '' }] });
+    expectRefusedLayout('a heading over an uncaptioned figure', uncaptioned, ['HEADING-APART: heading «Lifecycles» and the figure are 760.2 pt tall together against a 741.9 pt page']);
+    const both = await printedWithFakeBrowser('both', { tableOverflows: [TWO_OVERFLOWING_TABLES[0]], headingsApart: [HEADING_APART] });
+    expectRefusedLayout('a wide table and a heading apart in one document', both, [tableLines[0], headingLine]);
+    for (const [subject, measured] of [
+      ['tables', { tableOverflows: { tables: [] } }],
+      ['headings', { headingsApart: { headings: [] } }],
+    ]) {
+      const unmeasured = await printedWithFakeBrowser(`unmeasured-${subject}`, measured);
+      if (unmeasured.error?.code !== 'PRINT-FAILED' || !unmeasured.error.what.includes(`measuring the ${subject}`)) {
+        failures.push(`a ${subject} measurement that is not a list was not refused with PRINT-FAILED: ${unmeasured.error?.message ?? 'no error'}`);
+      }
     }
   } finally {
     delete process.env.FIGURA_FAKE_MEASUREMENTS;
@@ -268,7 +302,7 @@ try {
   checkKeepGroups();
   checkPrintableDocument(theme);
   checkCodeBreaks(theme);
-  await checkTableMeasurement();
+  await checkLayoutMeasurement();
   const toolchain = prepareToolchain();
   checkBuilds(toolchain);
   checkFailedCheckPictures(toolchain);
@@ -284,5 +318,5 @@ if (failures.length > 0) {
   process.exit(1);
 }
 console.log(
-  'figura pdf check passed: headings travel with their next block, the printable document carries the theme and the footer title, inline code breaks only after inner runs of _ / :: . while code blocks, diagrams and plain text stay untouched, tables wider than the column stop the print with TABLE-TOO-WIDE and an unreadable table measurement with PRINT-FAILED, a clean build reports its pages and previews in .figura/ behind a .gitignore, a rebuild clears old previews, a broken diagram stops the build without a PDF and leaves a named picture of itself, and a failed check leaves its picture beside the page previews until the next check.',
+  'figura pdf check passed: headings travel with their next block, the printable document carries the theme and the footer title, inline code breaks only after inner runs of _ / :: . while code blocks, diagrams and plain text stay untouched, tables wider than the column and headings that do not fit a page with their figure come back as one list of layout problems without a PDF and an unreadable measurement stops with PRINT-FAILED, a clean build reports its pages and previews in .figura/ behind a .gitignore, a rebuild clears old previews, a broken diagram stops the build without a PDF and leaves a named picture of itself, and a failed check leaves its picture beside the page previews until the next check.',
 );

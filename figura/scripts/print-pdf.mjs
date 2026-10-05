@@ -42,6 +42,28 @@ const MEASURE_TABLE_OVERFLOWS = `(function measureFiguraTables() {
   body.style.width = bodyWidth;
   return overflows;
 })()`;
+const HEADING_APART_REMEDY =
+  'the figure fits a page alone but not under its heading; make the diagram shorter, or put a paragraph between the heading and the figure';
+const MEASURE_HEADINGS_APART = `(function measureFiguraHeadings() {
+  const body = document.body;
+  const bodyWidth = body.style.width;
+  body.style.width = 'calc(var(--figura-page-width) - var(--figura-page-margin-left) - var(--figura-page-margin-right))';
+  const page = document.createElement('div');
+  page.style.height = 'calc(var(--figura-page-height) - var(--figura-page-margin-top) - var(--figura-page-margin-bottom))';
+  body.appendChild(page);
+  const pagePixels = page.getBoundingClientRect().height;
+  page.remove();
+  const apart = [...document.querySelectorAll('div.${KEEP_GROUP_CLASS}')]
+    .filter((group) => group.lastElementChild.tagName === 'FIGURE')
+    .flatMap((group) => {
+      const heightPixels = group.getBoundingClientRect().height;
+      if (heightPixels <= pagePixels + 0.5) return [];
+      const caption = group.lastElementChild.querySelector('figcaption')?.innerText.trim() ?? '';
+      return [{ heading: group.firstElementChild.innerText.trim(), caption, heightPixels, pagePixels }];
+    });
+  body.style.width = bodyWidth;
+  return apart;
+})()`;
 
 function elementEnd(html, start, tagName) {
   const tagPattern = new RegExp(`<(/?)${tagName}\\b[^>]*>`, 'gi');
@@ -137,14 +159,33 @@ function tableSubject({ ordinal, header }) {
   return header === '' ? `table ${ordinal}` : `table ${ordinal} («${header}»)`;
 }
 
-function tableTooWide(overflows) {
-  const what = overflows
-    .map(
-      (overflow) =>
-        `${tableSubject(overflow)} is ${rounded(overflow.widthPixels * POINTS_PER_PIXEL)} pt wide against a ${rounded(overflow.availablePixels * POINTS_PER_PIXEL)} pt column`,
-    )
-    .join('; ');
-  return new FiguraError('TABLE-TOO-WIDE', what, TABLE_TOO_WIDE_REMEDY);
+function tableTooWide(overflow) {
+  return new FiguraError(
+    'TABLE-TOO-WIDE',
+    `${tableSubject(overflow)} is ${rounded(overflow.widthPixels * POINTS_PER_PIXEL)} pt wide against a ${rounded(overflow.availablePixels * POINTS_PER_PIXEL)} pt column`,
+    TABLE_TOO_WIDE_REMEDY,
+  );
+}
+
+function figureSubject(caption) {
+  return caption === '' ? 'the figure' : `the figure «${caption}»`;
+}
+
+function headingApart({ heading, caption, heightPixels, pagePixels }) {
+  return new FiguraError(
+    'HEADING-APART',
+    `heading «${heading}» and ${figureSubject(caption)} are ${rounded(heightPixels * POINTS_PER_PIXEL)} pt tall together against a ${rounded(pagePixels * POINTS_PER_PIXEL)} pt page`,
+    HEADING_APART_REMEDY,
+  );
+}
+
+async function measuredLayout(session, sessionId, expression, subject) {
+  const measurement = await session.send('Runtime.evaluate', { expression, returnByValue: true }, sessionId);
+  const measured = measurement.result.value;
+  if (!Array.isArray(measured)) {
+    throw new FiguraError('PRINT-FAILED', `measuring the ${subject} of the document returned nothing`, 'run the build again');
+  }
+  return measured;
 }
 
 function cssString(text) {
@@ -185,16 +226,14 @@ export async function printPdf(printableHtml, { executablePath, pdfPath }) {
       throw new FiguraError('PRINT-FAILED', `Chromium could not open ${url}: ${navigation.errorText}`, 'run the build again');
     }
     await session.send('Runtime.evaluate', { expression: AWAIT_FONTS, awaitPromise: true, returnByValue: true }, sessionId);
-    const tableMeasurement = await session.send('Runtime.evaluate', { expression: MEASURE_TABLE_OVERFLOWS, returnByValue: true }, sessionId);
-    const overflows = tableMeasurement.result.value;
-    if (!Array.isArray(overflows)) {
-      throw new FiguraError('PRINT-FAILED', 'measuring the tables of the document returned nothing', 'run the build again');
-    }
-    if (overflows.length > 0) throw tableTooWide(overflows);
-    const { data } =await session.send('Page.printToPDF', { preferCSSPageSize: true, printBackground: true }, sessionId);
+    const overflows = await measuredLayout(session, sessionId, MEASURE_TABLE_OVERFLOWS, 'tables');
+    const headingsApart = await measuredLayout(session, sessionId, MEASURE_HEADINGS_APART, 'headings');
+    const layoutProblems = [...overflows.map(tableTooWide), ...headingsApart.map(headingApart)];
+    if (layoutProblems.length > 0) return { pageCount: 0, layoutProblems };
+    const { data } = await session.send('Page.printToPDF', { preferCSSPageSize: true, printBackground: true }, sessionId);
     const pdf = Buffer.from(data, 'base64');
     writeFileSync(pdfPath, pdf);
-    return { pageCount: (pdf.toString('latin1').match(PDF_PAGE_OBJECT) ?? []).length };
+    return { pageCount: (pdf.toString('latin1').match(PDF_PAGE_OBJECT) ?? []).length, layoutProblems };
   } finally {
     await session.close();
     await server.close();

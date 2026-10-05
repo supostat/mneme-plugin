@@ -8,6 +8,7 @@ const MESSAGE_TERMINATOR = '\0';
 const FAKE_VERSION = 'Chromium 131.0.6778.0';
 const HIGHLIGHT_MARKER = 'data-figura-highlight';
 const TABLE_MEASURE_MARKER = 'measureFiguraTables';
+const HEADINGS_MEASURE_MARKER = 'measureFiguraHeadings';
 const ONE_PIXEL_PNG = 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==';
 const TWO_PAGE_PDF = [
   '%PDF-1.4',
@@ -29,6 +30,8 @@ const recordedMeasurements =
   process.env.FIGURA_FAKE_MEASUREMENTS === undefined ? undefined : JSON.parse(readFileSync(process.env.FIGURA_FAKE_MEASUREMENTS, 'utf8'));
 const recordedTableOverflows =
   process.env.FIGURA_FAKE_TABLE_OVERFLOWS === undefined ? [] : JSON.parse(readFileSync(process.env.FIGURA_FAKE_TABLE_OVERFLOWS, 'utf8'));
+const recordedHeadingsApart =
+  process.env.FIGURA_FAKE_HEADINGS_APART === undefined ? [] : JSON.parse(readFileSync(process.env.FIGURA_FAKE_HEADINGS_APART, 'utf8'));
 const commands = new Socket({ fd: 3, readable: true, writable: false });
 const replies = new Socket({ fd: 4, readable: false, writable: true });
 const pageUrlBySession = new Map();
@@ -54,6 +57,10 @@ function evaluate(id, sessionId, expression) {
   if (recordedMeasurements === undefined) return;
   if (expression.includes(TABLE_MEASURE_MARKER)) {
     reply({ id, sessionId, result: { result: { type: 'object', value: recordedTableOverflows } } });
+    return;
+  }
+  if (expression.includes(HEADINGS_MEASURE_MARKER)) {
+    reply({ id, sessionId, result: { result: { type: 'object', value: recordedHeadingsApart } } });
     return;
   }
   const fileName = basename(new URL(pageUrlBySession.get(sessionId)).pathname);
