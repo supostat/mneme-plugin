@@ -10,7 +10,8 @@
 // part. In the printed PDF, read back with pdftotext, a tight table keeps every plain word whole and
 // breaks identifiers only after _ / :: ., a table wider than the column stops the build with
 // TABLE-TOO-WIDE, and the largest hubs part and a single-table part print their rows at one height
-// although their own scales differ. It needs d2 (the launcher downloads the pinned release),
+// although their own scales differ. A diagram that passes the height check alone but not under an
+// h1 stops the build with HEADING-APART, and builds once a paragraph stands between them. It needs d2 (the launcher downloads the pinned release),
 // Chromium 131 or newer and poppler at once; a missing one stops it with preflight's named line and
 // recipe.
 
@@ -20,7 +21,7 @@ import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { svgSizeMeasurement } from '../figura/scripts/erd-split.mjs';
-import { layoutLimits, printScales } from '../figura/scripts/layout-checks.mjs';
+import { layoutLimits, POINTS_PER_PIXEL, printScales } from '../figura/scripts/layout-checks.mjs';
 import { preflight } from '../figura/scripts/preflight.mjs';
 import { renderDiagram } from '../figura/scripts/render-diagram.mjs';
 import { loadTheme } from '../figura/scripts/theme.mjs';
@@ -280,6 +281,43 @@ function checkErdRowsAtOneScale(workDirectory, schemaPath) {
   }
 }
 
+function figureHtml(caption, source, layout) {
+  return `    <figure>\n      <pre class="d2" data-layout="${layout}">\n${escapedHtml(source)}</pre>\n      <figcaption class="caption"><strong>${caption}.</strong> Six steps of a holiday request.</figcaption>\n    </figure>`;
+}
+
+function checkHeadingApart(workDirectory) {
+  const source = readFileSync(join(FIXTURE_DIAGRAMS, 'near-page-tall.d2'), 'utf8');
+  const theme = loadTheme();
+  const limits = layoutLimits(theme);
+  const renderDirectory = join(workDirectory, 'near-page-tall');
+  mkdirSync(renderDirectory);
+  const diagram = { ordinal: 1, layout: 'dagre', source };
+  const measurement = svgSizeMeasurement(renderDiagram(diagram, theme, { workDirectory: renderDirectory }).svg);
+  const printedHeightPoints = measurement.heightPixels * POINTS_PER_PIXEL * printScales([diagram], [measurement], limits)[0].factor;
+  const headingPoints = theme.typography.h1.lineHeightPoints + theme.spacing.headingAfterPoints;
+  if (!(printedHeightPoints <= limits.diagramHeightPoints && printedHeightPoints > limits.diagramHeightPoints - headingPoints)) {
+    failures.push(
+      `near-page-tall.d2 prints ${printedHeightPoints} pt tall, outside the window (${limits.diagramHeightPoints - headingPoints}, ${limits.diagramHeightPoints}] where it passes the check alone but not under an h1, so the case proves nothing`,
+    );
+    return;
+  }
+  const apartDirectory = join(workDirectory, 'heading-apart');
+  mkdirSync(apartDirectory);
+  writeFileSync(join(apartDirectory, 'apart.html'), documentOfBody('Lifecycles', figureHtml('Holiday request', source, 'dagre')));
+  const apart = figura(apartDirectory, ['build', 'apart.html']);
+  if (apart.status !== 1 || !apart.stderr.includes('  - HEADING-APART: heading «Lifecycles» and the figure «Holiday request. Six steps of a holiday request.» are ')) {
+    failures.push(`figura build of an h1 right over a near-page-tall diagram did not stop with HEADING-APART (exit ${apart.status}): ${output(apart)}`);
+  }
+  if (existsSync(join(apartDirectory, 'apart.pdf'))) failures.push('an h1 right over a near-page-tall diagram still got a PDF');
+  const leadDirectory = join(workDirectory, 'heading-lead');
+  mkdirSync(leadDirectory);
+  writeFileSync(join(leadDirectory, 'lead.html'), documentOfBody('Lifecycles', `    <p>The request moves through six steps.</p>\n${figureHtml('Holiday request', source, 'dagre')}`));
+  const lead = figura(leadDirectory, ['build', 'lead.html']);
+  if (lead.status !== 0 || !existsSync(join(leadDirectory, 'lead.pdf'))) {
+    failures.push(`figura build of the same diagram after a lead paragraph exited ${lead.status}: ${output(lead)}`);
+  }
+}
+
 const missing = missingTools();
 if (missing.length > 0) {
   console.error('figura-e2e FAILED: the real tools are missing:');
@@ -296,6 +334,7 @@ try {
   checkHubsAndSpokesErd(workDirectory);
   checkTableBreaks(workDirectory);
   checkTableTooWide(workDirectory);
+  checkHeadingApart(workDirectory);
 } finally {
   rmSync(workDirectory, { recursive: true, force: true });
 }
@@ -306,5 +345,5 @@ if (failures.length > 0) {
   process.exit(1);
 }
 console.log(
-  'figura-e2e passed: the real d2, Chromium and poppler built the demo with a preview per page, stopped the broken document with LABEL-OVERLAP, DIAGRAM-TOO-WIDE and DIAGRAM-TOO-TALL before any PDF with a PNG picture of each failed diagram, passed a sequence group and edges between containers, failed a labelled edge into a container in dagre and ELK with its own remedy, checked every dagre ERD part of the Prisma fixture and the hubs-and-spokes schema on the page, each table drawn once, printed the largest hubs part and a single table with rows of one height, kept the plain words of a tight table whole while its identifiers broke only after _ / :: ., and stopped a table wider than the column with TABLE-TOO-WIDE.',
+  'figura-e2e passed: the real d2, Chromium and poppler built the demo with a preview per page, stopped the broken document with LABEL-OVERLAP, DIAGRAM-TOO-WIDE and DIAGRAM-TOO-TALL before any PDF with a PNG picture of each failed diagram, passed a sequence group and edges between containers, failed a labelled edge into a container in dagre and ELK with its own remedy, checked every dagre ERD part of the Prisma fixture and the hubs-and-spokes schema on the page, each table drawn once, printed the largest hubs part and a single table with rows of one height, kept the plain words of a tight table whole while its identifiers broke only after _ / :: ., stopped a table wider than the column with TABLE-TOO-WIDE, and stopped an h1 right over a near-page-tall diagram with HEADING-APART while the same diagram after a lead paragraph built.',
 );

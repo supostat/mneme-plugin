@@ -3,13 +3,15 @@
 // Gate for figura's main path on the real modules: the real entry figura/bin/figura builds the
 // reference demo through the dispatcher, preflight, extraction, theme, render, measure, checks,
 // inline, print, previews and report; a broken document stops before any PDF with every problem
-// named and a picture of each failed diagram with its conflicts framed in the theme colour; the
-// ERD parts figura erd writes from the Prisma fixture build into a PDF with dagre, the layout erd
-// measured them with; two ERD diagrams of different width print at the scale the wider one needs
-// while a graph between them keeps its own; and a table wider than the column stops the build
-// before the printer with TABLE-TOO-WIDE. Only the process boundary is faked: a launcher stub
-// answers for d2 with a recorded SVG, a fake browser answers the CDP pipe with recorded boxes and
-// table widths, a two-page PDF and screenshots, and a pdftoppm stub writes the previews. That the modules reach the real d2, Chromium and
+// named and a picture of each failed diagram with its conflicts framed in the theme colour and the
+// line of the width limit on the too wide one; the ERD parts figura erd writes from the Prisma
+// fixture build into a PDF with dagre, the layout erd measured them with; two ERD diagrams of
+// different width print at the scale the wider one needs while a graph between them keeps its own;
+// a table wider than the column stops the build before the printer with TABLE-TOO-WIDE, and a
+// heading that does not fit a page with its figure with HEADING-APART. Only the process boundary
+// is faked: a launcher stub answers for d2 with a recorded SVG, a fake browser answers the CDP pipe
+// with recorded boxes, table widths and heading groups, a two-page PDF and screenshots, and a
+// pdftoppm stub writes the previews. That the modules reach the real d2, Chromium and
 // pdftoppm is what the smoke stages and scripts/figura-e2e.mjs prove; this gate proves the modules
 // are wired to one another.
 
@@ -32,7 +34,8 @@ const workDirectory = mkdtempSync(join(tmpdir(), 'figura-wire-check-'));
 const launcherLog = join(workDirectory, 'launcher.log');
 const printedPage = join(workDirectory, 'printed.html');
 const highlightLog = join(workDirectory, 'highlights.log');
-const FAILURE_HIGHLIGHT = JSON.parse(readFileSync(join(REPO_ROOT, 'figura', 'theme', 'theme.json'), 'utf8')).diagram.failureHighlight;
+const THEME = JSON.parse(readFileSync(join(REPO_ROOT, 'figura', 'theme', 'theme.json'), 'utf8'));
+const FAILURE_HIGHLIGHT = THEME.diagram.failureHighlight;
 
 function recorded(name) {
   return JSON.parse(readFileSync(join(FIXTURES, 'measurements', `${name}.json`), 'utf8'));
@@ -69,7 +72,7 @@ function prepareToolchain() {
   return { entry: join(bundle, 'bin', 'figura'), stubBin, home };
 }
 
-function runFigura(toolchain, projectDirectory, commandArguments, measurements, tableOverflows = []) {
+function runFigura(toolchain, projectDirectory, commandArguments, measurements, { tableOverflows = [], headingsApart = [] } = {}) {
   rmSync(launcherLog, { force: true });
   rmSync(printedPage, { force: true });
   rmSync(highlightLog, { force: true });
@@ -77,6 +80,8 @@ function runFigura(toolchain, projectDirectory, commandArguments, measurements, 
   writeFileSync(measurementsPath, JSON.stringify(measurements));
   const tableOverflowsPath = join(projectDirectory, 'table-overflows.json');
   writeFileSync(tableOverflowsPath, JSON.stringify(tableOverflows));
+  const headingsApartPath = join(projectDirectory, 'headings-apart.json');
+  writeFileSync(headingsApartPath, JSON.stringify(headingsApart));
   return spawnSync('/bin/sh', [toolchain.entry, ...commandArguments], {
     cwd: projectDirectory,
     env: {
@@ -89,6 +94,7 @@ function runFigura(toolchain, projectDirectory, commandArguments, measurements, 
       FIGURA_FAKE_PRINTED_PAGE: printedPage,
       FIGURA_FAKE_OVERLAY_LOG: highlightLog,
       FIGURA_FAKE_TABLE_OVERFLOWS: tableOverflowsPath,
+      FIGURA_FAKE_HEADINGS_APART: headingsApartPath,
     },
     encoding: 'utf8',
   });
@@ -167,6 +173,13 @@ function checkBrokenDocument(toolchain) {
   if (!highlights.includes(JSON.stringify(overlappingLabel)) || !highlights.includes(JSON.stringify(FAILURE_HIGHLIGHT))) {
     failures.push(`the page of the failed diagram did not get the overlapping label framed in ${FAILURE_HIGHLIGHT}: ${highlights.slice(0, 300)}`);
   }
+  const tooWideMeasurement = recorded('too-wide');
+  const smallestFontPixels = Math.min(...tooWideMeasurement.objects.flatMap((object) => object.labels.map((label) => label.fontPixels)));
+  const columnWidthPoints = THEME.page.widthPoints - THEME.page.marginPoints.left - THEME.page.marginPoints.right;
+  const limitLine = { x: (columnWidthPoints * smallestFontPixels) / THEME.diagram.minimumLabelPoints, y: 0, width: 0, height: tooWideMeasurement.heightPixels };
+  if (!highlights.includes(JSON.stringify(limitLine))) {
+    failures.push(`the picture of the too wide diagram did not get the line of its width limit ${JSON.stringify(limitLine)}: ${highlights.slice(0, 300)}`);
+  }
   if (existsSync(printedPage)) failures.push('the broken document reached the printer');
 }
 
@@ -223,12 +236,25 @@ function checkTableTooWide(toolchain) {
     join(project, 'tables.html'),
     '<!doctype html>\n<html lang="en">\n  <head><meta charset="utf-8" /><title>Tables</title></head>\n  <body>\n    <h1>Tables</h1>\n    <table><thead><tr><th>Job</th></tr></thead><tbody><tr><td><code>ProcessFinanceReportUpdatesJob</code></td></tr></tbody></table>\n  </body>\n</html>\n',
   );
-  const run = runFigura(toolchain, project, ['build', 'tables.html'], {}, [{ ordinal: 1, header: 'Job', widthPixels: 949.87, availablePixels: 660.37 }]);
+  const run = runFigura(toolchain, project, ['build', 'tables.html'], {}, { tableOverflows: [{ ordinal: 1, header: 'Job', widthPixels: 949.87, availablePixels: 660.37 }] });
   if (run.status !== 1 || !run.stderr.includes('  - TABLE-TOO-WIDE: table 1 («Job») is 712.4 pt wide against a 495.3 pt column — use fewer columns')) {
     failures.push(`the build of a table wider than the column did not stop with TABLE-TOO-WIDE (exit ${run.status}): ${run.stderr.trim()}`);
   }
   if (existsSync(join(project, 'tables.pdf'))) failures.push('a table wider than the column still got a PDF');
   if (existsSync(printedPage)) failures.push('a table wider than the column reached the printer');
+}
+
+function checkHeadingApart(toolchain) {
+  const project = projectDirectory('heading-apart');
+  writeFileSync(join(project, 'lifecycles.html'), documentOfDiagrams('Lifecycles', ['a -> b\n']));
+  const headingsApart = [{ heading: 'Lifecycles', caption: 'Figure 1. A diagram of the wiring check.', heightPixels: 1013.6, pagePixels: 989.19 }];
+  const run = runFigura(toolchain, project, ['build', 'lifecycles.html'], measurementsOf(['clean']), { headingsApart });
+  const expected = '  - HEADING-APART: heading «Lifecycles» and the figure «Figure 1. A diagram of the wiring check.» are 760.2 pt tall together against a 741.9 pt page — the figure fits a page alone';
+  if (run.status !== 1 || !run.stderr.includes(expected)) {
+    failures.push(`the build of a heading that does not fit a page with its figure did not stop with HEADING-APART (exit ${run.status}): ${run.stderr.trim()}`);
+  }
+  if (existsSync(join(project, 'lifecycles.pdf'))) failures.push('a heading apart from its figure still got a PDF');
+  if (existsSync(printedPage)) failures.push('a heading apart from its figure reached the printer');
 }
 
 try {
@@ -238,6 +264,7 @@ try {
   checkErdIntoDocument(toolchain);
   checkSharedErdScale(toolchain);
   checkTableTooWide(toolchain);
+  checkHeadingApart(toolchain);
 } catch (error) {
   failures.push(`the main path threw: ${error.stack ?? error.message}`);
 } finally {
@@ -250,5 +277,5 @@ if (failures.length > 0) {
   process.exit(1);
 }
 console.log(
-  'figura wire check passed: the real entry built the reference demo through every module, with every diagram rendered in its layout, inlined and printed with the theme and footer, a broken document stopped before the printer with each problem named and a picture of each failed diagram with its conflicts framed, the ERD parts of the Prisma fixture built into a PDF with every part drawn by dagre, two ERD diagrams printed at one scale beside a graph at its own, and a table wider than the column stopped before the printer with TABLE-TOO-WIDE.',
+  'figura wire check passed: the real entry built the reference demo through every module, with every diagram rendered in its layout, inlined and printed with the theme and footer, a broken document stopped before the printer with each problem named and a picture of each failed diagram with its conflicts framed and the width limit drawn, the ERD parts of the Prisma fixture built into a PDF with every part drawn by dagre, two ERD diagrams printed at one scale beside a graph at its own, a table wider than the column stopped before the printer with TABLE-TOO-WIDE, and a heading that does not fit a page with its figure with HEADING-APART.',
 );
