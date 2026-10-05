@@ -19,13 +19,14 @@ stylesheet owns the page. You write the source; you never place anything by coor
 3. Read the report. A failed build prints `figura: <document> FAILED:` and one
    `CODE: what — remedy` line per problem, and writes no PDF. Each diagram that failed a layout
    check is drawn into `.figura/<name>/failed-NN.png` with the labels and shapes in conflict
-   framed, and the last line of the report names those pictures: open each with Read before you
-   change its diagram. Fix every line (see `## Failure codes`) and build again.
+   framed; a diagram too wide or too tall carries a line where its limit runs, and whatever lies
+   beyond the line is what does not fit. The last line of the report names those pictures: open
+   each with Read before you change its diagram. Fix every line (see `## Failure codes`) and build
+   again.
 4. Review the pages. A successful build prints one line with the PDF path and the previews in
    `.figura/<name>/page-NN.png`. Open every preview page that holds a diagram with Read and look for
    what the checks cannot see: an edge crossing a title, a label that says too little, a crowded
-   diagram, a heading left alone at the bottom of a page. Fix the source and build again until
-   the pages read well.
+   diagram. Fix the source and build again until the pages read well.
 5. Deliver the build's success line and the PDF path.
 
 `${CLAUDE_PLUGIN_ROOT}/bin/figura check docs/<name>.html` runs the same checks without printing a
@@ -115,6 +116,7 @@ the entity declarations the parser left out of the diagrams.
 | --- | --- |
 | `DIAGRAM-TOO-WIDE` | Follow the remedy on the line: it knows the diagram's layout, kind and direction and offers only what they have not tried — fewer participants for a sequence, dagre for an ERD part, and for an ERD printed at the scale another part set, a split of that part |
 | `TABLE-TOO-WIDE` | Only `build` finds it: use fewer columns or shorter cell text, or put `<wbr>` inside a long identifier |
+| `HEADING-APART` | Only `build` finds it: the figure fits a page alone but not under its heading, so the heading would be left alone at the bottom of a page — make the diagram shorter, or put a paragraph between the heading and the figure |
 | `DIAGRAM-TOO-TALL` | Follow the remedy on the line: another direction or layout, layers instead of a long chain, or a split |
 | `LABEL-OVERLAP` | Open the picture of the failed diagram, then follow the remedy: shorten, move or drop the label, or name an edge into a container in the caption |
 | `TEXT-OVERFLOW` | Shorten the label or break it into two short lines |

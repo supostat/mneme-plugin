@@ -95,14 +95,21 @@ never offers what is already set. It prints one success line, or `figura: <docum
 one `CODE: what — remedy` line per problem and exit status 1; it builds no PDF. Every diagram that
 failed a layout check is opened again in Chromium, the labels and shapes in conflict are framed in the
 theme's `diagram.failureHighlight`, and the picture lands in `.figura/<name>/failed-NN.png`; the last
-line of the report names those pictures. A check removes its old pictures first and leaves the page
+line of the report names those pictures. The frames go into the root svg, whose coordinates are those
+of the measurement, so each one lies on its shape. A diagram too wide at its own scale carries a
+vertical line at the widest width at which its smallest label still meets the floor, and a diagram
+too tall a horizontal line at the tallest height a page leaves above its caption at its print scale;
+whatever lies beyond the line is what does not fit. A check removes its old pictures first and leaves the page
 previews of the last build alone. An unknown command prints the usage and exits with status 2.
 
 `bin/figura build <document.html>` runs the same check and stops without a PDF on any problem.
 Otherwise it puts every diagram in place at its print scale, gives inline code outside code blocks
 and diagrams a `<wbr>` after every inner run of `_`, `/`, `::` and `.`, and lays the document out at
 the column width: a table wider than its column stops the build with TABLE-TOO-WIDE and no PDF,
-because a cell breaks only between words and at those points. Then it prints the document next to its
+because a cell breaks only between words and at those points, and a heading followed by a figure
+that together are taller than a page stops it with HEADING-APART, naming the heading and the
+caption, because the heading would be left alone at the bottom of a page. Every such table and
+heading gets its own line in one report. Then it prints the document next to its
 source (`doc.html` gives `doc.pdf`) with the theme, the title on the left of the footer and the page
 number on the right, keeps every heading on the page of the block that follows it, and renders one
 preview per page with
