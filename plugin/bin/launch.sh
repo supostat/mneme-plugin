@@ -14,6 +14,10 @@
 # exec — the SessionStart hook uses it so the first MCP start does not wait for
 # the download. Exits 0 when no release is pinned yet.
 #
+# Any other arguments are forwarded to the binary as they are — `launch.sh
+# survey --brief` runs the engine's survey CLI through the same dev-or-cached
+# resolution. --warm itself never reaches the binary: warm mode never execs.
+#
 # Every failure is a named line on stderr and a non-zero exit.
 
 set -eu
@@ -45,7 +49,7 @@ if [ -x "$self_dir/mneme" ]; then
   if [ "$warm" -eq 1 ]; then
     exit 0
   fi
-  exec "$self_dir/mneme"
+  exec "$self_dir/mneme" "$@"
 fi
 
 pin_file="$self_dir/release.json"
@@ -111,4 +115,4 @@ fi
 if [ "$warm" -eq 1 ]; then
   exit 0
 fi
-exec "$cache_bin"
+exec "$cache_bin" "$@"

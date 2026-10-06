@@ -1,9 +1,12 @@
 #!/bin/sh
 #
-# Gate for plugin/bin/launch.sh: five behavioural scenarios run against
-# fixtures in a temporary directory (mocked curl / sha tools / uname), plus
-# the git-ignore regression check — the old `bin/` ignore pattern silently
-# dropped the launcher from the bundle, and must never come back.
+# Gate for plugin/bin/launch.sh: ten behavioural scenarios run against
+# fixtures in a temporary directory (mocked curl / sha tools / uname) — the
+# five resolution paths (dev, cache-hit, download, mismatch, platform), argv
+# forwarding to the binary in dev and cache-hit mode, and --warm in dev,
+# cache-fill and no-pin mode (exit 0, never an exec) — plus the git-ignore
+# regression check: the old `bin/` ignore pattern silently dropped the
+# launcher from the bundle, and must never come back.
 #
 # Usage: sh scripts/check-launcher.sh   (exit 0 = all scenarios green)
 
@@ -48,8 +51,11 @@ scenario_dir() {
   printf '%s' "$dir"
 }
 
+# The fake binary echoes its token and, when given any, its argv — so argv
+# forwarding is observable while the no-argv assertions keep their exact token.
 write_fake_binary() {
-  printf '#!/bin/sh\necho %s\n' "$2" >"$1"
+  # shellcheck disable=SC2016 -- the ${1:+ }$* must reach the generated script unexpanded
+  printf '#!/bin/sh\necho "%s${1:+ }$*"\n' "$2" >"$1"
   chmod +x "$1"
 }
 
@@ -150,6 +156,50 @@ if run_launcher "$dir" >/dev/null 2>"$dir/stderr"; then
   say_fail 'platform: launcher exited 0 on an unsupported platform'
 fi
 grep -q 'unsupported platform' "$dir/stderr" || say_fail 'platform: stderr does not name the unsupported platform'
+
+# Scenario 6: argv forwarding in dev mode — the binary receives the arguments as they are.
+dir=$(scenario_dir forward-dev)
+write_fake_binary "$dir/plugin/bin/mneme" 'DEV-OK'
+write_mock_curl "$dir/mockbin"
+out=$(run_launcher "$dir" survey --brief 2>&1) || say_fail 'forward-dev: non-zero exit'
+[ "$out" = 'DEV-OK survey --brief' ] || say_fail "forward-dev: expected 'DEV-OK survey --brief', got: $out"
+[ ! -f "$dir/mockbin/curl.log" ] || say_fail 'forward-dev: curl was called in dev mode'
+
+# Scenario 7: argv forwarding on a cache hit — the cached binary receives the same arguments.
+dir=$(scenario_dir forward-cache)
+write_pin "$dir/plugin/bin" 'cafe1234'
+write_mock_curl "$dir/mockbin"
+write_mock_sha "$dir/mockbin" 'cafe1234'
+mkdir -p "$dir/home/.mneme/bin/9.9.9"
+write_fake_binary "$dir/home/.mneme/bin/9.9.9/mneme-$target" 'CACHE-OK'
+out=$(run_launcher "$dir" survey --brief 2>&1) || say_fail 'forward-cache: non-zero exit'
+[ "$out" = 'CACHE-OK survey --brief' ] || say_fail "forward-cache: expected 'CACHE-OK survey --brief', got: $out"
+[ ! -f "$dir/mockbin/curl.log" ] || say_fail 'forward-cache: curl was called on a warm cache'
+
+# Scenario 8: --warm in dev mode — exit 0, no exec, no network.
+dir=$(scenario_dir warm-dev)
+write_fake_binary "$dir/plugin/bin/mneme" 'DEV-OK'
+write_mock_curl "$dir/mockbin"
+out=$(run_launcher "$dir" --warm 2>&1) || say_fail 'warm-dev: non-zero exit'
+[ -z "$out" ] || say_fail "warm-dev: expected no output, got: $out"
+[ ! -f "$dir/mockbin/curl.log" ] || say_fail 'warm-dev: curl was called in dev mode'
+
+# Scenario 9: --warm on a cache miss — fills the cache, never execs (the fake would print).
+dir=$(scenario_dir warm-fill)
+write_pin "$dir/plugin/bin" 'feedbeef'
+write_mock_curl "$dir/mockbin"
+write_mock_sha "$dir/mockbin" 'feedbeef'
+out=$(run_launcher "$dir" --warm 2>&1) || say_fail 'warm-fill: non-zero exit'
+[ -z "$out" ] || say_fail "warm-fill: expected no output (no exec), got: $out"
+[ -f "$dir/mockbin/curl.log" ] || say_fail 'warm-fill: curl was never called'
+[ -x "$dir/home/.mneme/bin/9.9.9/mneme-$target" ] || say_fail 'warm-fill: cached binary missing or not executable'
+
+# Scenario 10: --warm with no pin and no dev build — silent exit 0 (nothing to warm yet).
+dir=$(scenario_dir warm-nopin)
+write_mock_curl "$dir/mockbin"
+out=$(run_launcher "$dir" --warm 2>&1) || say_fail 'warm-nopin: non-zero exit'
+[ -z "$out" ] || say_fail "warm-nopin: expected no output, got: $out"
+[ ! -f "$dir/mockbin/curl.log" ] || say_fail 'warm-nopin: curl was called without a pin'
 
 # Git-ignore regression: the launcher and the pin MUST be trackable, the
 # binary itself MUST stay ignored.
