@@ -9,7 +9,7 @@
 // TEST, not the next live episode. The same argument covers every other fact a skill's text
 // states about itself — the finale class it claims, the bundle script it invokes, the tools it is
 // granted — and each of those facts is pinned by ONE map here, never by a second copy elsewhere.
-// Eleven checks:
+// Twelve checks:
 //
 //   (a) every non-dev skill declares its expected FINALE-CLASS token — and never both;
 //   (b) handoff finales (plan, fix, migrate) reference HANDOFF-DECISION and carry a closing
@@ -43,7 +43,11 @@
 //       error), a skill whose contract needs a tool must actually carry it;
 //   (k) HANDOFF-TRIGGER — the phrase design hands over and the phrase plan's
 //       ETALON-ACCEPTANCE-RULE triggers on are ONE literal: plan must quote it, design must carry
-//       it inside its fenced `/mneme:plan "…"` handoff — a replica with an anchor, the (d) pattern.
+//       it inside its fenced `/mneme:plan "…"` handoff — a replica with an anchor, the (d) pattern;
+//   (l) LOG-FREE — resume's text names none of the event-log markers (`events/`, `.jsonl`,
+//       `.git/HEAD`, `workflow_step_applied`, `result_kind`, `schema_version`): orientation reads
+//       the engine's read-only survey, and a skill that still names the log is a skill that will
+//       read it again the day a survey answer looks thin.
 //
 // Dev tooling: lives at the repo ROOT, never inside plugin/ (same rule as the other check-*).
 //
@@ -208,6 +212,7 @@ for (const name of ALL_SKILLS) {
 const TOOL_TOKEN_EXPECTATIONS = [
   { skill: 'design-server', rule: 'exactly', tools: ['Read', 'Bash'] },
   { skill: 'design', rule: 'carries', tools: ['Edit'] },
+  { skill: 'resume', rule: 'exactly', tools: ['Read', 'Grep', 'mcp__plugin_mneme_memory__workflow_survey'] },
 ];
 
 for (const { skill, rule, tools } of TOOL_TOKEN_EXPECTATIONS) {
@@ -244,6 +249,14 @@ if (!skillText('design').includes(HANDOFF_PHRASE)) {
   failures.push(`design: the handoff block carries no line «${HANDOFF_PHRASE}…» — the phrase design hands over would not trigger plan's ETALON-ACCEPTANCE-RULE`);
 }
 
+// (l) LOG-FREE: orientation reads the engine's survey, never the event log
+const LOG_MARKERS = ['events/', '.jsonl', '.git/HEAD', 'workflow_step_applied', 'result_kind', 'schema_version'];
+const resumeText = skillText('resume');
+
+for (const marker of LOG_MARKERS.filter((candidate) => resumeText.includes(candidate))) {
+  failures.push(`resume: text mentions «${marker}» — orientation reads the engine's survey, never the event log`);
+}
+
 if (failures.length > 0) {
   console.error('Handoff-finale sync check FAILED:');
   for (const failure of failures) console.error(`  - ${failure}`);
@@ -251,5 +264,5 @@ if (failures.length > 0) {
 }
 
 console.log(
-  'Handoff-finale sync check passed: finale classes declared, handoff menus in place, staging grants curated, contract replicas aligned, no stale markers, MENU-CONTEXT replicas aligned and unweakened, SPEC-REVIEW-MENU replicas aligned with self-endorsement barred, invoked bundle scripts present, allowed-tools grants matching their contracts, the handoff phrase shared by design and plan.',
+  'Handoff-finale sync check passed: finale classes declared, handoff menus in place, staging grants curated, contract replicas aligned, no stale markers, MENU-CONTEXT replicas aligned and unweakened, SPEC-REVIEW-MENU replicas aligned with self-endorsement barred, invoked bundle scripts present, allowed-tools grants matching their contracts, the handoff phrase shared by design and plan, resume free of event-log markers.',
 );
