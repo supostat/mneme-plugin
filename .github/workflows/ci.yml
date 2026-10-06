@@ -25,6 +25,9 @@ jobs:
       - name: Launcher is shellcheck-clean
         run: shellcheck plugin/bin/launch.sh
 
+      - name: Orientation hook wrapper is shellcheck-clean
+        run: shellcheck plugin/scripts/session-orient.sh
+
       - name: Design-server launcher is shellcheck-clean
         run: shellcheck plugin/scripts/design-server.sh
 

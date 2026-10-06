@@ -77,6 +77,12 @@ requireMarker(ciPath, ci, 'shellcheck plugin/bin/launch.sh', 'the launcher shell
 requireMarker(
   ciPath,
   ci,
+  'shellcheck plugin/scripts/session-orient.sh',
+  'the orientation hook wrapper shellcheck gate must run in CI',
+);
+requireMarker(
+  ciPath,
+  ci,
   'shellcheck plugin/scripts/design-server.sh',
   'the design-server launcher shellcheck gate must run in CI',
 );
