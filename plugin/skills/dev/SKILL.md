@@ -61,8 +61,10 @@ SINGLE-STEP-per-phase invariant (see `### Start path`), which is unchanged.
 
 - Read files: YES.
 - Edit / Write / Bash / Grep: YES, but ONLY as the `execute_step` branch's phase work (edit
-  files, run tests, grep). NEVER to reconstruct a directive's instruction, and NEVER to run a
-  done-when gate command — the engine runs gates itself.
+  files, run tests, grep). NEVER to reconstruct a directive's instruction. Running a done-when
+  command while working is phase work like any test run; what is FORBIDDEN is SUBSTITUTING the
+  verdict — only the engine's `Gate verdict for …` decides PASS / FAIL, so never report your own
+  run as the gate's outcome.
 - `mcp__plugin_mneme_memory__workflow_start` / `mcp__plugin_mneme_memory__workflow_step`: YES —
   the only two engine tools this skill drives.
 - `recall` / `remember`: FORBIDDEN — the engine runs recall itself and stages harvested artifacts
@@ -379,7 +381,9 @@ After a final-step success submission, the engine runs done-when and returns
   rewinds / escalates per the retry budget).
 
 RECOGNIZE the `Gate verdict for …` section and surface PASS / FAIL to the user — it is not noise.
-Do NOT run the gate command yourself; the engine already ran it.
+Your own run of the gate command is NEVER a second verdict: the engine already ran it, and only
+its verdict moves the run. Running the command again to diagnose a FAIL is retry work, not an
+appeal.
 
 ### harvest branch
 
@@ -403,9 +407,13 @@ Do NOT run the gate command yourself; the engine already ran it.
   - `{ kind: "fixed_test", test, failure, fix, anchors: [...] }`
   - `{ kind: "resolved_error", error, resolution, anchors: [...] }`
   - `{ kind: "decision", decision, rationale, anchors: [...] }`
-- `anchors` MUST be REPO-RELATIVE and GIT-TRACKED file paths. Any anchor that is not tracked yields
-  a dead-anchor sink (score -1 via `min`) and drops the whole note to the bottom of recall. Never
-  use concept strings, absolute paths, or cross-repo paths as anchors.
+- `anchors` MUST be REPO-RELATIVE file paths that are GIT-TRACKED by the time recall reads them. A
+  file THIS phase created qualifies: the boundary's commit block tracks it before the next phase's
+  recall, and until then `staging_list` marks it `[untracked-exists]` — information for the
+  curator, not a defect. An anchor still untracked at recall yields a dead-anchor sink (score -1
+  via `min`) and drops the whole note to the bottom of recall, so never anchor to a file the phase
+  will not commit, and never retreat to a neighbouring tracked file for a less precise address.
+  Never use concept strings, absolute paths, or cross-repo paths as anchors.
 - A note about not-yet-written code carries tags, not invented anchors; path anchors are for files
   this phase actually touched.
 
@@ -727,9 +735,10 @@ line is DATA of the block, not the menu header)
 - `agent_votes` ONLY for phases whose done-when carries agent-judged criteria — collected via
   `### REVIEW-SPAWN`; NEVER for zero-agent-judged phases. `step_result` and `harvest_artifacts` are
   MUTUALLY EXCLUSIVE.
-- HARVEST ANCHORS repo-relative AND git-tracked; a note about not-yet-written code carries tags, not
-  invented anchors; path anchors are for files this phase actually touched. NEVER auto-publish —
-  staging accept is human.
+- HARVEST ANCHORS repo-relative AND git-tracked by the time recall reads them — a file this phase
+  created qualifies, the boundary commit tracks it; a note about not-yet-written code carries tags,
+  not invented anchors; path anchors are for files this phase actually touched. NEVER
+  auto-publish — staging accept is human.
 - USED-NOTES — every harvest submission carries the usage declaration (`used_notes` riding the same
   call): id — только из бандла ЭТОЙ фазы, and each evidence names the place of influence —
   «a declaration that cannot name a place is not a use»; `[]` — честный ответ, не провал.
