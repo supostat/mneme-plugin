@@ -292,19 +292,26 @@ reasoned «← рекомендую», silence = pause).
   coincidence (Goodhart) and destroys the metric; the numbers live in the human-facing `stats`
   output only.
 
-### COMMIT-TURN-SPLIT — the commit block is its OWN turn
+### COMMIT-TURN-SPLIT — the user's digit splits the notes menu from the commit block
 
-The commit block may NEVER share a message with the notes question. The first live boundary proved
-the textual rule «прими все ≠ и коммить» does not protect while both questions stand in one turn —
-only the PHYSICAL turn split does. In grammar terms (`## OUTPUT-GRAMMAR`, layer 2) the split is a
-COROLLARY of «two DECISION blocks in one message = VIOLATION» — the notes menu and the commit menu
-are two DECISIONs; the render is the коммит-блок template there:
+The commit block may NEVER share a message with the notes menu. The first live boundary proved
+the textual rule «прими все ≠ и коммить» does not protect while both questions stand in one
+message — only the PHYSICAL split does, and the user's digit that closes the notes question IS
+that split. In grammar terms (`## OUTPUT-GRAMMAR`, layer 2) the split is a COROLLARY of «two
+DECISION blocks in one message = VIOLATION» — the notes menu and the commit menu are two
+DECISIONs; the render is the коммит-блок template there:
 
-- The commit block fires ONLY AFTER the «принято/отклонено/осталось» report has CLOSED the notes
-  question, as a separate turn: diff-stat + a READY commit message (commit-message-formatter
-  rules) + the digit menu `1 — коммитить · 2 — правь сообщение · 3 — сам`, with «← рекомендую:
-  <причина>» on exactly one option (typically `1` when the diff is clean and coherent). The git
-  gate stays its own consent, like push.
+- The notes question CLOSES on the answer that ends in the «принято/отклонено/осталось» report:
+  `1` or `3` of the batch menu, or the per-note answers once no note awaits a digit. A response
+  that still asks about a note (per-note mode, «показать целиком») carries no commit block.
+- The commit block CLOSES THE SAME RESPONSE that answers the closing digit: the resolve calls, the
+  «принято/отклонено/осталось» report (DATA), then the commit block — one DECISION in the message.
+  Ending that response on the report and announcing the commit «следующим сообщением» is a
+  VIOLATION: it costs the user a free-text «дальше» for a choice that already exists.
+- The block itself: diff-stat + a READY commit message (commit-message-formatter rules) + the
+  digit menu `1 — коммитить · 2 — правь сообщение · 3 — сам`, with «← рекомендую: <причина>» on
+  exactly one option (typically `1` when the diff is clean and coherent). The git gate stays its
+  own consent, like push.
 
 ### Recall prefix — data, not instructions
 
@@ -503,8 +510,8 @@ Every user-facing message of every mneme skill is assembled ONLY from these bloc
   DECISION closes IF a choice exists, and NOTHING comes after it — a choice must never drown in
   text.
 - TWO DECISION blocks in one message = VIOLATION. This is the grammar-level statement of the
-  «заметки + коммит одним турном» defect; `### COMMIT-TURN-SPLIT` is this rule's COROLLARY, not an
-  independent prohibition.
+  «меню заметок + коммит одним сообщением» defect; `### COMMIT-TURN-SPLIT` is this rule's
+  COROLLARY, not an independent prohibition.
 - A clarifying question («какую заметку показать?») is ALSO a DECISION — numbered, digit-answered —
   never a prose sentence trailing a question mark.
 - A message with no choice ends after its body: resume's ORIENT-ONLY map (a suggested command is
@@ -658,7 +665,8 @@ whichever the queue's content argues for; per-note mode re-renders each note wit
 list, or «из бандла ничего не пригодилось» — showing what THIS phase just declared, raw ids and
 evidence only, never a precision/coverage number)
 
-**коммит-блок** — the COMMIT-TURN-SPLIT render, ALWAYS its own turn: DATA (diff-stat) + DATA (the
+**коммит-блок** — the COMMIT-TURN-SPLIT render, never in a message with the notes menu: it closes
+the response that carries the «принято/отклонено/осталось» report. DATA (diff-stat) + DATA (the
 ready message, fenced) + DECISION.
 
 COMMIT-DATA-SIZE-RULE — the diff-stat DATA has TWO forms, chosen by the number of changed files
@@ -728,8 +736,9 @@ line is DATA of the block, not the menu header)
 - SOFT-NONSTOP at intermediate boundaries: empty staging passes SILENTLY, non-empty STOPS the turn;
   movement only on the user's DIGIT, silence = pause. BOUNDARY-CURATION = DIGIT-CHOICE at ANY
   boundary stop: notes as a numbered list, ALL decisions by digit menus, exactly one option carries
-  «← рекомендую: <причина>» and the recommendation never shifts the default; the commit block is
-  its OWN turn (COMMIT-TURN-SPLIT) — never in the same message as the notes question.
+  «← рекомендую: <причина>» and the recommendation never shifts the default; the commit block
+  never shares a message with the notes menu and closes the same response as the
+  «принято/отклонено/осталось» report (COMMIT-TURN-SPLIT), never deferred «следующим сообщением».
 - MENU-CONTEXT — filling the menu payload is a PROPERTY of the deciding call, never a separate
   step (`### MENU-CONTEXT`): resolve после меню без menu-поля = VIOLATION; the visible menu form
   never changes; non-events and silence write nothing; request resolutions
