@@ -1,0 +1,106 @@
+{
+  "languages": {
+    "ruby": 9,
+    "typescript": 3
+  },
+  "warnings": [],
+  "clusters": [
+    {
+      "id": "billing",
+      "dirs": [
+        "app/controllers/api/v1",
+        "app/models",
+        "app/serializers",
+        "app/services/billing",
+        "config",
+        "frontend/apps/Billing"
+      ],
+      "files": [
+        "app/controllers/api/v1/invoices_controller.rb",
+        "app/models/invoice.rb",
+        "app/serializers/invoice_serializer.rb",
+        "app/services/billing/issue_invoice.rb",
+        "app/services/billing/ledger.rb",
+        "config/routes.rb",
+        "frontend/apps/Billing/api.ts",
+        "frontend/apps/Billing/store.ts"
+      ],
+      "symbols": [
+        "Api::V1::InvoicesController",
+        "Billing::IssueInvoice",
+        "Billing::Ledger",
+        "Invoice",
+        "InvoiceSerializer",
+        "invoicesStore",
+        "listInvoices",
+        "showInvoice"
+      ],
+      "edges_out": {
+        "access": 2
+      },
+      "seams": [
+        {
+          "from": "frontend/apps/Billing/api.ts",
+          "to": "app/controllers/api/v1/invoices_controller.rb",
+          "kind": "seam",
+          "route": "/api/v1/invoices",
+          "evidence": "/api/v1/invoices"
+        },
+        {
+          "from": "frontend/apps/Billing/api.ts",
+          "to": "app/controllers/api/v1/invoices_controller.rb",
+          "kind": "seam",
+          "route": "/api/v1/invoices/:id",
+          "evidence": "/api/v1/invoices/${id}"
+        }
+      ],
+      "draft": {
+        "id": "billing",
+        "anchors": [
+          "app/services/billing",
+          "frontend/apps/Billing",
+          "app/controllers/api/v1/invoices_controller.rb",
+          "app/models/invoice.rb",
+          "app/serializers/invoice_serializer.rb",
+          "config/routes.rb"
+        ],
+        "terms": [
+          "Api::V1::InvoicesController",
+          "Invoice",
+          "listInvoices",
+          "showInvoice",
+          "Billing::IssueInvoice",
+          "Billing::Ledger",
+          "InvoiceSerializer",
+          "invoicesStore"
+        ]
+      },
+      "changed_files": [
+        "app/models/invoice.rb"
+      ]
+    }
+  ],
+  "seams": [
+    {
+      "from": "frontend/apps/Access/index.ts",
+      "to": "app/controllers/api/v1/users_controller.rb",
+      "kind": "seam",
+      "route": "/api/v1/users/:id",
+      "evidence": "/api/v1/users/${id}"
+    },
+    {
+      "from": "frontend/apps/Billing/api.ts",
+      "to": "app/controllers/api/v1/invoices_controller.rb",
+      "kind": "seam",
+      "route": "/api/v1/invoices",
+      "evidence": "/api/v1/invoices"
+    },
+    {
+      "from": "frontend/apps/Billing/api.ts",
+      "to": "app/controllers/api/v1/invoices_controller.rb",
+      "kind": "seam",
+      "route": "/api/v1/invoices/:id",
+      "evidence": "/api/v1/invoices/${id}"
+    }
+  ]
+}
