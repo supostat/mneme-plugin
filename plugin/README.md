@@ -12,9 +12,9 @@ update and troubleshooting docs live in the repo-root `README.md`.
 plugin/                # ← the installable bundle; the marketplace source points here
   .claude-plugin/
     plugin.json        # MCP server declaration: command → bin/launch.sh
-  skills/              # /mneme:setup, /mneme:grill, /mneme:arch, /mneme:plan, /mneme:fix, /mneme:migrate, /mneme:dev, /mneme:resume, /mneme:map
+  skills/              # /mneme:setup, /mneme:grill, /mneme:arch, /mneme:plan, /mneme:fix, /mneme:migrate, /mneme:dev, /mneme:resume, /mneme:map, /mneme:diary
   hooks/
-    hooks.json         # SessionStart → launch.sh --warm (cache pre-warm) + session-orient.sh (orientation line)
+    hooks.json         # SessionStart → launch.sh --warm (cache pre-warm) + session-orient.sh (orientation line); UserPromptSubmit → diary-due.sh (diary line)
   commands/            # reserved, empty
   bin/
     launch.sh          # POSIX sh launcher: local dev build → cached pinned release
@@ -47,6 +47,16 @@ the engine's one-line survey of the current branch — byte for byte — into
 unfinished run on this branch, a detached HEAD, no corpus, no pin or any other
 failure means silence: empty stdout, exit 0, the session never waits.
 
+A UserPromptSubmit command, behind the same guard, runs `scripts/diary-due.sh`
+→ `launch.sh diary --brief` on every prompt and hands the engine's diary line
+— the branch's last finished run that has no diary entry yet, and the memory
+gaps left open since the session's last note — to the agent as
+`additionalContext` only. Nothing is shown to you: the line is a cue for the
+agent to offer `/mneme:diary` at a natural pause, and what you see is the agent
+acting on it. Nothing to note, an engine without the subcommand, no corpus, no
+pin or any other failure means silence: empty stdout, exit 0, the prompt never
+waits.
+
 ## Versioning
 
 The `version` field in `plugin.json` is maintained by automation: the
@@ -61,7 +71,7 @@ The pin's `plugin_version` must equal `plugin.json`'s version —
 `npm test` at the repo root runs the whole dependency-free gate chain:
 manifest validation, skill-name rules, release-pin rules, workflow structure,
 README invariants, the launcher's ten mocked scenarios and the orientation
-hook's guard, JSON and real-launcher chain. During local
+hook's and the diary hook's guard, JSON and real-launcher chain. During local
 iteration `npm run reinstall` re-copies the working tree into the installed
 plugin; `/reload-plugins` picks it up in-session.
 

@@ -83,6 +83,12 @@ requireMarker(
 requireMarker(
   ciPath,
   ci,
+  'shellcheck plugin/scripts/diary-due.sh',
+  'the diary hook wrapper shellcheck gate must run in CI',
+);
+requireMarker(
+  ciPath,
+  ci,
   'shellcheck plugin/scripts/design-server.sh',
   'the design-server launcher shellcheck gate must run in CI',
 );
