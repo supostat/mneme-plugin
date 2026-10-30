@@ -9,7 +9,7 @@
 // TEST, not the next live episode. The same argument covers every other fact a skill's text
 // states about itself — the finale class it claims, the bundle script it invokes, the tools it is
 // granted — and each of those facts is pinned by ONE map here, never by a second copy elsewhere.
-// Twelve checks:
+// Fourteen checks:
 //
 //   (a) every non-dev skill declares its expected FINALE-CLASS token — and never both;
 //   (b) handoff finales (plan, fix, migrate) reference HANDOFF-DECISION and carry a closing
@@ -40,14 +40,23 @@
 //   (j) TOOL-TOKENS — `allowed-tools` is parsed into EXACT tokens and matched against the
 //       expectations table. Exactness is the point: a substring test for «Edit» is green for
 //       «NotebookEdit» too. A thin wrapper is pinned to its whole grant (anything extra is an
-//       error), a skill whose contract needs a tool must actually carry it;
+//       error), a skill whose contract needs a tool must actually carry it, and a skill that is
+//       not the map's writer must never carry map_put / map_delete;
 //   (k) HANDOFF-TRIGGER — the phrase design hands over and the phrase plan's
 //       ETALON-ACCEPTANCE-RULE triggers on are ONE literal: plan must quote it, design must carry
 //       it inside its fenced `/mneme:plan "…"` handoff — a replica with an anchor, the (d) pattern;
 //   (l) LOG-FREE — resume's text names none of the event-log markers (`events/`, `.jsonl`,
 //       `.git/HEAD`, `workflow_step_applied`, `result_kind`, `schema_version`): orientation reads
 //       the engine's read-only survey, and a skill that still names the log is a skill that will
-//       read it again the day a survey answer looks thin.
+//       read it again the day a survey answer looks thin;
+//   (m) RESOLVE-INDEX — the stale-index answer (`Index not rebuilt:`) is a COMMITTED decision in
+//       the norm (dev) and both curation replicas (plan, fix): the four anchors are present,
+//       whitespace-normalized, and no paragraph around the line tells the agent to retry the
+//       resolve — a retry writes a second event;
+//   (n) MAP — the project-map contract stands where each skill consumes the map: dev names the
+//       MAP fence, the memory-gap line, the section-id ban in used_notes and the domains tail;
+//       plan names recall_domains and domains; arch opens with map_list {}; migrate's convention
+//       names the optional domains <a,b> tail.
 //
 // Dev tooling: lives at the repo ROOT, never inside plugin/ (same rule as the other check-*).
 //
@@ -73,6 +82,7 @@ const EXPECTED_FINALE_CLASS = {
   setup: INFORMATIONAL,
   grill: INFORMATIONAL,
   'design-server': INFORMATIONAL,
+  map: INFORMATIONAL,
 };
 const CONTRACT_REPLICAS = ['dev', 'plan', 'fix'];
 const CONTRACT_ANCHORS = ['прими все', 'поштучный разбор', 'отклони все', 'NEVER tell the user'];
@@ -209,10 +219,19 @@ for (const name of ALL_SKILLS) {
 }
 
 // (j) TOOL-TOKENS: the frontmatter grant parsed into exact tokens, then matched against the table
+const MAP_WRITE_TOOLS = ['mcp__plugin_mneme_memory__map_put', 'mcp__plugin_mneme_memory__map_delete'];
 const TOOL_TOKEN_EXPECTATIONS = [
   { skill: 'design-server', rule: 'exactly', tools: ['Read', 'Bash'] },
   { skill: 'design', rule: 'carries', tools: ['Edit'] },
   { skill: 'resume', rule: 'exactly', tools: ['Read', 'Grep', 'mcp__plugin_mneme_memory__workflow_survey'] },
+  { skill: 'map', rule: 'exactly', tools: ['Read', 'Grep', 'Bash', 'Task', 'mcp__plugin_mneme_memory__map_list', ...MAP_WRITE_TOOLS] },
+  {
+    skill: 'arch',
+    rule: 'exactly',
+    tools: ['Read', 'Grep', 'mcp__plugin_mneme_memory__recall', 'mcp__plugin_mneme_memory__remember', 'mcp__plugin_mneme_memory__map_list'],
+  },
+  { skill: 'plan', rule: 'carries', tools: ['mcp__plugin_mneme_memory__map_list'] },
+  ...['dev', 'resume', 'design-server', 'fix', 'setup'].map((skill) => ({ skill, rule: 'never', tools: MAP_WRITE_TOOLS })),
 ];
 
 for (const { skill, rule, tools } of TOOL_TOKEN_EXPECTATIONS) {
@@ -230,6 +249,10 @@ for (const { skill, rule, tools } of TOOL_TOKEN_EXPECTATIONS) {
     }
     if (missingTools.length > 0) {
       failures.push(`${skill}: allowed-tools lacks ${missingTools.join(', ')} of its exact contract [${tools.join(', ')}]`);
+    }
+  } else if (rule === 'never') {
+    for (const token of tools.filter((tool) => grantedTools.includes(tool))) {
+      failures.push(`${skill}: allowed-tools carries «${token}» — only /mneme:map writes the map`);
     }
   } else {
     for (const token of tools.filter((tool) => !grantedTools.includes(tool))) {
@@ -257,6 +280,40 @@ for (const marker of LOG_MARKERS.filter((candidate) => resumeText.includes(candi
   failures.push(`resume: text mentions «${marker}» — orientation reads the engine's survey, never the event log`);
 }
 
+// (m) RESOLVE-INDEX: a stale-index answer is a committed decision in the norm and both replicas
+const RESOLVE_INDEX_REPLICAS = ['dev', 'plan', 'fix'];
+const RESOLVE_INDEX_ANCHORS = ['RESOLVE-INDEX', 'Index not rebuilt:', 'принятое решение, не ошибка', 'не повторять'];
+const RETRY_INSTRUCTION = /(?<!не )повторить `?staging_resolve/;
+
+for (const name of RESOLVE_INDEX_REPLICAS) {
+  const text = skillText(name);
+  const flat = normalize(text);
+  for (const anchor of RESOLVE_INDEX_ANCHORS) {
+    if (!flat.includes(anchor)) failures.push(`${name}: RESOLVE-INDEX anchor «${anchor}» missing — replicas diverged`);
+  }
+  for (const paragraph of text.split(/\n\s*\n/)) {
+    if (!paragraph.includes('Index not rebuilt:')) continue;
+    const retry = normalize(paragraph).match(RETRY_INSTRUCTION);
+    if (retry) failures.push(`${name}: «${retry[0]}» next to «Index not rebuilt:» — the decision is committed and never retried`);
+  }
+}
+
+// (n) MAP: the map contract's load-bearing tokens stand where each skill consumes the map
+const MEMORY_GAP_LINE = 'No memory above the relevance threshold for this question: record what you learn with remember.';
+const MAP_ANCHORS = {
+  dev: ['BEGIN MNEME MAP', MEMORY_GAP_LINE, 'id раздела карты в `used_notes` запрещён', 'recall_domains', 'domains'],
+  plan: ['recall_domains', 'domains'],
+  arch: ['map_list {}'],
+  migrate: ['domains <a,b>'],
+};
+
+for (const [name, anchors] of Object.entries(MAP_ANCHORS)) {
+  const flat = normalize(skillText(name));
+  for (const anchor of anchors) {
+    if (!flat.includes(anchor)) failures.push(`${name}: MAP anchor «${anchor}» missing — the map is not consumed where the contract puts it`);
+  }
+}
+
 if (failures.length > 0) {
   console.error('Handoff-finale sync check FAILED:');
   for (const failure of failures) console.error(`  - ${failure}`);
@@ -264,5 +321,5 @@ if (failures.length > 0) {
 }
 
 console.log(
-  'Handoff-finale sync check passed: finale classes declared, handoff menus in place, staging grants curated, contract replicas aligned, no stale markers, MENU-CONTEXT replicas aligned and unweakened, SPEC-REVIEW-MENU replicas aligned with self-endorsement barred, invoked bundle scripts present, allowed-tools grants matching their contracts, the handoff phrase shared by design and plan, resume free of event-log markers.',
+  'Handoff-finale sync check passed: finale classes declared, handoff menus in place, staging grants curated, contract replicas aligned, no stale markers, MENU-CONTEXT replicas aligned and unweakened, SPEC-REVIEW-MENU replicas aligned with self-endorsement barred, invoked bundle scripts present, allowed-tools grants matching their contracts, the handoff phrase shared by design and plan, resume free of event-log markers, RESOLVE-INDEX replicas aligned and never retried, the map contract anchored where it is consumed.',
 );

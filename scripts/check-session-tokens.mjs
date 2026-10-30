@@ -38,11 +38,13 @@
 // would poison every case); runScriptWithDeclaredWindow is the only door that sets it.
 //
 // ANCHOR part (default mode only): greps over the REAL SKILL.md files — the norm in dev, the
-// five replicas (plan, fix, migrate, setup, design), the Bash carve-out and frontmatter grant in
-// each replica skill, shared anchor lines that must not diverge between norm and replicas, and a
+// replicas (plan, fix, migrate, setup, design, grill-agent, map), the Bash carve-out and
+// frontmatter grant in each replica skill, shared anchor lines that must not diverge between norm
+// and replicas, the RUN-COST bearers (dev, grill-agent, map) with their literal call anchors, and a
 // negation guard: text that weakens fail-open («задержать меню», «троттлинг»/throttling) fails.
-// The search corpus is the six SKILL.md files ONLY — never this checker, its fixtures, or the
-// docs/ specs (the self-match trap: the spec legitimately DISCUSSES the rejected throttling).
+// The search corpus is the norm and the replica SKILL.md files ONLY — never this checker, its
+// fixtures, or the docs/ specs (the self-match trap: the spec legitimately DISCUSSES the rejected
+// throttling).
 //
 // Dev tooling: lives at the repo ROOT, never inside plugin/ (same rule as the other check-*).
 //
@@ -392,7 +394,7 @@ rmSync(fixtureRoot, { recursive: true, force: true });
 const behaviorOnly = process.argv.includes('--behavior');
 if (!behaviorOnly) {
   const skillText = (name) => readFileSync(join(repoRoot, 'plugin', 'skills', name, 'SKILL.md'), 'utf8');
-  const REPLICA_SKILLS = ['plan', 'fix', 'migrate', 'setup', 'design', 'grill-agent'];
+  const REPLICA_SKILLS = ['plan', 'fix', 'migrate', 'setup', 'design', 'grill-agent', 'map'];
 
   // Shared anchor lines: present in the dev norm AND in every replica, byte-for-byte (the
   // diverged-replica detector, the check-skill-handoff (d) pattern).
@@ -416,7 +418,7 @@ if (!behaviorOnly) {
   // RUN-COST norm: the mark/delta modes belong to the BEARERS registry — every bearer must
   // carry its own replica (section + literal call anchors), and only bearers may mention the
   // modes at all (the guard below).
-  const RUN_COST_BEARERS = ['dev', 'grill-agent'];
+  const RUN_COST_BEARERS = ['dev', 'grill-agent', 'map'];
   if (!dev.includes('### RUN-COST')) {
     failures.push('dev: the RUN-COST norm section (### RUN-COST) is missing');
   }
@@ -425,6 +427,9 @@ if (!behaviorOnly) {
   }
   if (!dev.includes('RUN_COST_BEARERS')) {
     failures.push('dev: the norm does not name the RUN_COST_BEARERS registry');
+  }
+  if (!dev.includes(`\`${RUN_COST_BEARERS.join(', ')}\``)) {
+    failures.push(`dev: the norm's registry line does not list the bearers as «${RUN_COST_BEARERS.join(', ')}»`);
   }
   const RUN_COST_ANCHORS = {
     dev: [
@@ -440,6 +445,7 @@ if (!behaviorOnly) {
       'раундов N · failed K',
       'допрос (с начала текущей сессии)',
     ],
+    map: ['--mark map-', '--delta map-', '--label карта', 'карта (с начала текущей сессии)'],
   };
   for (const bearer of RUN_COST_BEARERS) {
     const text = skillText(bearer);
@@ -527,4 +533,4 @@ if (failures.length > 0) {
   for (const failure of failures) console.error(`  - ${failure}`);
   process.exit(1);
 }
-console.log(`check-session-tokens OK (behavior: 23 cases${behaviorOnly ? '' : ', anchors: norm + RUN-COST + 6 replicas + carve-outs + negation guards'})`);
+console.log(`check-session-tokens OK (behavior: 23 cases${behaviorOnly ? '' : ', anchors: norm + RUN-COST bearers + 7 replicas + carve-outs + negation guards'})`);
