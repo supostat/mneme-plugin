@@ -218,7 +218,7 @@ h3{font-size:1.02rem;font-weight:600;margin:0 0 .4rem}
 .engine-quote .replay{color:var(--amber);font-style:normal}
 
 /* ---------- skills ---------- */
-.skill-row{display:grid;grid-template-columns:repeat(5,minmax(150px,1fr));gap:1px;background:var(--rule);border:1px solid var(--rule);border-radius:6px;overflow-x:auto;margin-top:2.2rem}
+.skill-row{display:grid;grid-template-columns:repeat(4,minmax(150px,1fr));gap:1px;background:var(--rule);border:1px solid var(--rule);border-radius:6px;overflow-x:auto;margin-top:2.2rem}
 .skill-card{background:var(--bg-2);padding:1.1rem 1rem 1.25rem;min-width:150px}
 .skill-card .verb{font-family:var(--serif);font-style:italic;font-size:1.05rem;display:block;margin-bottom:.5rem}
 .skill-card.accent .verb{color:var(--amber)}
@@ -555,8 +555,8 @@ breaking migration: changing costs invalidates every existing vault.</code></pre
   <section id="skills" class="rule-top" aria-labelledby="skills-h">
     <div class="wrap reveal">
       <p class="kicker">08 &middot; the skills</p>
-      <h2 id="skills-h">Ten verbs, one cycle</h2>
-      <div class="skill-row" role="list" tabindex="0" aria-label="The ten skills — horizontally scrollable">
+      <h2 id="skills-h">Twelve verbs, one cycle</h2>
+      <div class="skill-row" role="list" tabindex="0" aria-label="The twelve skills — horizontally scrollable">
         <div class="skill-card" role="listitem">
           <span class="verb">set up</span>
           <h3>/mneme:setup</h3>
@@ -606,6 +606,16 @@ breaking migration: changing costs invalidates every existing vault.</code></pre
           <span class="verb">orient</span>
           <h3>/mneme:resume</h3>
           <p>Where the run stands &mdash; closed, ready, blocked &mdash; then it stops. Look before you act.</p>
+        </div>
+        <div class="skill-card" role="listitem">
+          <span class="verb">map</span>
+          <h3>/mneme:map</h3>
+          <p>A static graph clusters the code, a fresh subagent describes each cluster, you accept every domain and flow by digit. Recall opens with the map.</p>
+        </div>
+        <div class="skill-card" role="listitem">
+          <span class="verb">reflect</span>
+          <h3>/mneme:diary</h3>
+          <p>A retro on a finished run or this session: four evidence-backed questions, one staged note per reusable answer. The one skill the agent may invoke on its own &mdash; at a natural pause.</p>
         </div>
       </div>
       <p class="skills-line">A full cycle from a task in words to shipped code &mdash; with a human at every decision point.</p>

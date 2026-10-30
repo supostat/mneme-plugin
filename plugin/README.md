@@ -12,7 +12,7 @@ update and troubleshooting docs live in the repo-root `README.md`.
 plugin/                # ← the installable bundle; the marketplace source points here
   .claude-plugin/
     plugin.json        # MCP server declaration: command → bin/launch.sh
-  skills/              # /mneme:setup, /mneme:grill, /mneme:arch, /mneme:plan, /mneme:fix, /mneme:migrate, /mneme:dev, /mneme:resume, /mneme:map, /mneme:diary
+  skills/              # /mneme:setup, /mneme:grill, /mneme:grill-agent, /mneme:arch, /mneme:plan, /mneme:design, /mneme:design-server, /mneme:fix, /mneme:migrate, /mneme:dev, /mneme:resume, /mneme:map, /mneme:diary
   hooks/
     hooks.json         # SessionStart → launch.sh --warm (cache pre-warm) + session-orient.sh (orientation line); UserPromptSubmit → diary-due.sh (diary line)
   commands/            # reserved, empty
