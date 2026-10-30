@@ -3,8 +3,8 @@
 // Structural sync test for the anchor-hygiene rule (spec-anchor-tags-future-code).
 //
 // The rule's home is plan/SKILL.md's STAGE-CHOICE: a note about code that does not exist yet
-// carries TAGS instead of invented path anchors. dev and grill-agent stage notes of their own, so
-// they carry the same sentence as REPLICAS — and only one skill's text is loaded at runtime, which
+// carries TAGS instead of invented path anchors. dev, grill-agent and diary stage notes of their
+// own, so they carry the same sentence as REPLICAS — and only one skill's text is loaded at runtime, which
 // is exactly how replicated norms drift (the check-skill-handoff lesson). One check:
 //
 //   (i) every replica carries the rule's load-bearing phrase, whitespace-normalized.
@@ -37,7 +37,7 @@ import { fileURLToPath } from 'node:url';
 const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const skillText = (name) => readFileSync(join(repoRoot, 'plugin', 'skills', name, 'SKILL.md'), 'utf8');
 
-const ANCHOR_RULE_REPLICAS = ['plan', 'dev', 'grill-agent'];
+const ANCHOR_RULE_REPLICAS = ['plan', 'dev', 'grill-agent', 'diary'];
 const ANCHOR_RULE_ANCHORS = ['tags, not invented anchors'];
 
 const normalize = (text) => text.replace(/\s+/g, ' ');

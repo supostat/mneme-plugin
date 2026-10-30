@@ -38,7 +38,7 @@
 // would poison every case); runScriptWithDeclaredWindow is the only door that sets it.
 //
 // ANCHOR part (default mode only): greps over the REAL SKILL.md files — the norm in dev, the
-// replicas (plan, fix, migrate, setup, design, grill-agent, map), the Bash carve-out and
+// replicas (plan, fix, migrate, setup, design, grill-agent, map, diary), the Bash carve-out and
 // frontmatter grant in each replica skill, shared anchor lines that must not diverge between norm
 // and replicas, the RUN-COST bearers (dev, grill-agent, map) with their literal call anchors, and a
 // negation guard: text that weakens fail-open («задержать меню», «троттлинг»/throttling) fails.
@@ -394,7 +394,7 @@ rmSync(fixtureRoot, { recursive: true, force: true });
 const behaviorOnly = process.argv.includes('--behavior');
 if (!behaviorOnly) {
   const skillText = (name) => readFileSync(join(repoRoot, 'plugin', 'skills', name, 'SKILL.md'), 'utf8');
-  const REPLICA_SKILLS = ['plan', 'fix', 'migrate', 'setup', 'design', 'grill-agent', 'map'];
+  const REPLICA_SKILLS = ['plan', 'fix', 'migrate', 'setup', 'design', 'grill-agent', 'map', 'diary'];
 
   // Shared anchor lines: present in the dev norm AND in every replica, byte-for-byte (the
   // diverged-replica detector, the check-skill-handoff (d) pattern).
@@ -533,4 +533,4 @@ if (failures.length > 0) {
   for (const failure of failures) console.error(`  - ${failure}`);
   process.exit(1);
 }
-console.log(`check-session-tokens OK (behavior: 23 cases${behaviorOnly ? '' : ', anchors: norm + RUN-COST bearers + 7 replicas + carve-outs + negation guards'})`);
+console.log(`check-session-tokens OK (behavior: 23 cases${behaviorOnly ? '' : ', anchors: norm + RUN-COST bearers + 8 replicas + carve-outs + negation guards'})`);

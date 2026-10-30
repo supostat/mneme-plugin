@@ -122,16 +122,17 @@ memory store cannot assemble between them.
   session resumes exactly where the last one stopped.
 - **Machine-verified phases** — `done-when` gates are real commands run by the
   engine, not checkbox prose.
-- **Eleven bundled skills** — `/mneme:setup`, `/mneme:grill`, `/mneme:grill-agent`,
+- **Twelve bundled skills** — `/mneme:setup`, `/mneme:grill`, `/mneme:grill-agent`,
   `/mneme:arch`, `/mneme:plan`, `/mneme:design`, `/mneme:fix`, `/mneme:migrate`,
-  `/mneme:dev`, `/mneme:resume`, `/mneme:map`: a one-run onboarding checkup as
-  the entry, then raw idea → interrogated protocol (asked of you, or of a
-  code-grounded respondent) → spec → UI etalons where a page is involved →
-  phases → gated execution, a diagnosis entry for bugs whose gate is the
-  regression test, and a project map of domains and flows that narrows every
-  recall. `/mneme:design` has one optional companion, `/mneme:design-server` —
-  a launcher for the Melete design server, infrastructure of that verb rather
-  than a twelfth verb of its own.
+  `/mneme:dev`, `/mneme:resume`, `/mneme:map`, `/mneme:diary`: a one-run
+  onboarding checkup as the entry, then raw idea → interrogated protocol (asked
+  of you, or of a code-grounded respondent) → spec → UI etalons where a page is
+  involved → phases → gated execution, a diagnosis entry for bugs whose gate is
+  the regression test, a project map of domains and flows that narrows every
+  recall, and a diary that turns a finished run or this session's memory gaps
+  into staged notes. `/mneme:design` has one optional companion,
+  `/mneme:design-server` — a launcher for the Melete design server,
+  infrastructure of that verb rather than a thirteenth verb of its own.
 
 ## Quick start
 

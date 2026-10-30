@@ -479,7 +479,9 @@ appeal.
   form: `<phase_id>: опирался на <M> заметок: <id> — <evidence>; …` or
   `<phase_id>: из бандла ничего не пригодилось`. A phase closed in a PAST session renders
   «(закрыта в прошлой сессии — декларация в логе)» — never invent evidence from memory of another
-  session; the full history lives in `workflow_step_applied.used_notes`.
+  session; the full history lives in `workflow_step_applied.used_notes`. AND the DATA line
+  «дневник прогона — `/mneme:diary run <run_id>`» — a suggested command is DATA, not a menu; the
+  terminal stays exempt from HANDOFF-DECISION.
 - `RUN FAILED: <r>` → stop; print the failure reason in Russian.
 - `RUN ESCALATED at <p>/<s>: <r>` → the retry budget is exhausted; SHOW phase / step / reason and
   ASK the user how to proceed (Russian, numbered options — e.g. `1. повторить вручную`,

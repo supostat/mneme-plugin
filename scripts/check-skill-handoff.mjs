@@ -9,7 +9,7 @@
 // TEST, not the next live episode. The same argument covers every other fact a skill's text
 // states about itself — the finale class it claims, the bundle script it invokes, the tools it is
 // granted — and each of those facts is pinned by ONE map here, never by a second copy elsewhere.
-// Fourteen checks:
+// Sixteen checks:
 //
 //   (a) every non-dev skill declares its expected FINALE-CLASS token — and never both;
 //   (b) handoff finales (plan, fix, migrate) reference HANDOFF-DECISION and carry a closing
@@ -17,7 +17,7 @@
 //   (c) any skill granting staging tools in frontmatter shows the queue and decides by digit —
 //       a grant without a curation surface turns the curator back into an operator;
 //   (d) the curation-contract anchor lines (batch menu labels, the never-tell-the-user rule)
-//       are present in all three replicas (dev, plan, fix) — the diverged-replica detector;
+//       are present in all four replicas (dev, plan, fix, diary) — the diverged-replica detector;
 //   (e) dev carries no stale CONTINUE-DECISION marker (the negation a shell-less gate-runner
 //       cannot express);
 //   (f) every skill granting staging_resolve in frontmatter (plus dev, the norm's home) carries
@@ -50,13 +50,21 @@
 //       the engine's read-only survey, and a skill that still names the log is a skill that will
 //       read it again the day a survey answer looks thin;
 //   (m) RESOLVE-INDEX — the stale-index answer (`Index not rebuilt:`) is a COMMITTED decision in
-//       the norm (dev) and both curation replicas (plan, fix): the four anchors are present,
+//       the norm (dev) and the curation replicas (plan, fix, diary): the four anchors are present,
 //       whitespace-normalized, and no paragraph around the line tells the agent to retry the
 //       resolve — a retry writes a second event;
 //   (n) MAP — the project-map contract stands where each skill consumes the map: dev names the
 //       MAP fence, the memory-gap line, the section-id ban in used_notes and the domains tail;
 //       plan names recall_domains and domains; arch opens with map_list {}; migrate's convention
-//       names the optional domains <a,b> tail.
+//       names the optional domains <a,b> tail;
+//   (o) MODEL-INVOCABLE — the registry of skills the model may invoke on its own is exactly
+//       [diary]: its frontmatter carries no `disable-model-invocation: true`, every other skill
+//       directory does. The skill list comes from plugin/skills/ itself, not from a table, so a
+//       skill forgotten in every registry is still checked; a registry entry without a directory
+//       fails too;
+//   (p) DIARY — the diary contract stands where it is consumed: dev's RUN COMPLETE terminal hands
+//       over `/mneme:diary run <run_id>`, and the diary skill carries the four question labels,
+//       the `run:<run_id>` tag and the `diary:` hook-line prefix in its description.
 //
 // Dev tooling: lives at the repo ROOT, never inside plugin/ (same rule as the other check-*).
 //
@@ -68,6 +76,10 @@ import { fileURLToPath } from 'node:url';
 
 const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const skillText = (name) => readFileSync(join(repoRoot, 'plugin', 'skills', name, 'SKILL.md'), 'utf8');
+const frontmatterOf = (text) => {
+  const frontmatterEnd = text.indexOf('---', 3);
+  return text.slice(0, frontmatterEnd === -1 ? 0 : frontmatterEnd);
+};
 
 const HANDOFF = 'FINALE-CLASS-HANDOFF';
 const INFORMATIONAL = 'FINALE-CLASS-INFORMATIONAL';
@@ -77,6 +89,7 @@ const EXPECTED_FINALE_CLASS = {
   migrate: HANDOFF,
   design: HANDOFF,
   'grill-agent': HANDOFF,
+  diary: HANDOFF,
   arch: INFORMATIONAL,
   resume: INFORMATIONAL,
   setup: INFORMATIONAL,
@@ -84,7 +97,7 @@ const EXPECTED_FINALE_CLASS = {
   'design-server': INFORMATIONAL,
   map: INFORMATIONAL,
 };
-const CONTRACT_REPLICAS = ['dev', 'plan', 'fix'];
+const CONTRACT_REPLICAS = ['dev', 'plan', 'fix', 'diary'];
 const CONTRACT_ANCHORS = ['прими все', 'поштучный разбор', 'отклони все', 'NEVER tell the user'];
 const ALL_SKILLS = ['dev', ...Object.keys(EXPECTED_FINALE_CLASS)];
 
@@ -109,8 +122,7 @@ for (const [name, expected] of Object.entries(EXPECTED_FINALE_CLASS)) {
 // (c) a staging-tool grant demands a curation surface
 for (const name of ALL_SKILLS) {
   const text = skillText(name);
-  const frontmatterEnd = text.indexOf('---', 3);
-  const frontmatter = text.slice(0, frontmatterEnd === -1 ? 0 : frontmatterEnd);
+  const frontmatter = frontmatterOf(text);
   if (!frontmatter.includes('staging_resolve')) continue;
   if (!text.includes('staging_list')) failures.push(`${name}: staging_resolve granted but the queue is never shown (no staging_list)`);
   if (!/прими/.test(text)) failures.push(`${name}: staging_resolve granted but no digit menu offers «прими»`);
@@ -138,10 +150,7 @@ const MENU_ANCHORS = [
 ];
 const menuReplicas = new Set(['dev']); // dev is the norm's home even without a frontmatter grant
 for (const name of ALL_SKILLS) {
-  const text = skillText(name);
-  const frontmatterEnd = text.indexOf('---', 3);
-  const frontmatter = text.slice(0, frontmatterEnd === -1 ? 0 : frontmatterEnd);
-  if (frontmatter.includes('staging_resolve')) menuReplicas.add(name);
+  if (frontmatterOf(skillText(name)).includes('staging_resolve')) menuReplicas.add(name);
 }
 
 for (const name of menuReplicas) {
@@ -231,7 +240,21 @@ const TOOL_TOKEN_EXPECTATIONS = [
     tools: ['Read', 'Grep', 'mcp__plugin_mneme_memory__recall', 'mcp__plugin_mneme_memory__remember', 'mcp__plugin_mneme_memory__map_list'],
   },
   { skill: 'plan', rule: 'carries', tools: ['mcp__plugin_mneme_memory__map_list'] },
-  ...['dev', 'resume', 'design-server', 'fix', 'setup'].map((skill) => ({ skill, rule: 'never', tools: MAP_WRITE_TOOLS })),
+  {
+    skill: 'diary',
+    rule: 'exactly',
+    tools: [
+      'Read',
+      'Grep',
+      'Bash',
+      'mcp__plugin_mneme_memory__diary_facts',
+      'mcp__plugin_mneme_memory__recall',
+      'mcp__plugin_mneme_memory__remember',
+      'mcp__plugin_mneme_memory__staging_list',
+      'mcp__plugin_mneme_memory__staging_resolve',
+    ],
+  },
+  ...['dev', 'resume', 'design-server', 'fix', 'setup', 'diary'].map((skill) => ({ skill, rule: 'never', tools: MAP_WRITE_TOOLS })),
 ];
 
 for (const { skill, rule, tools } of TOOL_TOKEN_EXPECTATIONS) {
@@ -281,7 +304,7 @@ for (const marker of LOG_MARKERS.filter((candidate) => resumeText.includes(candi
 }
 
 // (m) RESOLVE-INDEX: a stale-index answer is a committed decision in the norm and both replicas
-const RESOLVE_INDEX_REPLICAS = ['dev', 'plan', 'fix'];
+const RESOLVE_INDEX_REPLICAS = ['dev', 'plan', 'fix', 'diary'];
 const RESOLVE_INDEX_ANCHORS = ['RESOLVE-INDEX', 'Index not rebuilt:', 'принятое решение, не ошибка', 'не повторять'];
 const RETRY_INSTRUCTION = /(?<!не )повторить `?staging_resolve/;
 
@@ -314,6 +337,47 @@ for (const [name, anchors] of Object.entries(MAP_ANCHORS)) {
   }
 }
 
+// (o) MODEL-INVOCABLE: exactly the registered skills may be invoked by the model; every other skill
+// directory carries the disabling key. The list comes from the directory, never from a table.
+const MODEL_INVOCABLE_SKILLS = ['diary'];
+const DISABLE_MODEL_INVOCATION = 'disable-model-invocation: true';
+const skillDirectories = readdirSync(join(repoRoot, 'plugin', 'skills'), { withFileTypes: true })
+  .filter((entry) => entry.isDirectory())
+  .map((entry) => entry.name);
+
+for (const name of MODEL_INVOCABLE_SKILLS.filter((skill) => !skillDirectories.includes(skill))) {
+  failures.push(`MODEL-INVOCABLE: the registry names «${name}», but plugin/skills/${name}/ does not exist — a stale registry entry`);
+}
+for (const name of skillDirectories) {
+  const frontmatter = frontmatterOf(skillText(name));
+  const registered = MODEL_INVOCABLE_SKILLS.includes(name);
+  const disabled = frontmatter.includes(DISABLE_MODEL_INVOCATION);
+  if (registered && disabled) {
+    failures.push(`${name}: the MODEL-INVOCABLE registry lists it, yet its frontmatter carries «${DISABLE_MODEL_INVOCATION}» — the model could never invoke it`);
+  }
+  if (!registered && !disabled) {
+    failures.push(`${name}: frontmatter lacks «${DISABLE_MODEL_INVOCATION}» — only the MODEL-INVOCABLE registry [${MODEL_INVOCABLE_SKILLS.join(', ')}] may be invoked by the model`);
+  }
+}
+
+// (p) DIARY: the diary contract stands where it is consumed
+const DIARY_ANCHORS = {
+  dev: ['/mneme:diary run <run_id>'],
+  diary: ['Что произошло:', 'Зачем:', 'Правильно ли:', 'Как улучшить:', 'run:<run_id>'],
+};
+const DIARY_HOOK_PREFIX = 'diary:';
+
+for (const [name, anchors] of Object.entries(DIARY_ANCHORS)) {
+  const flat = normalize(skillText(name));
+  for (const anchor of anchors) {
+    if (!flat.includes(anchor)) failures.push(`${name}: DIARY anchor «${anchor}» missing — the diary contract is not carried where it is consumed`);
+  }
+}
+const diaryDescription = skillText('diary').match(/^description:.*$/m)?.[0] ?? '';
+if (!diaryDescription.includes(DIARY_HOOK_PREFIX)) {
+  failures.push(`diary: the description does not name the hook-line prefix «${DIARY_HOOK_PREFIX}» — the model would not know when to invoke the skill`);
+}
+
 if (failures.length > 0) {
   console.error('Handoff-finale sync check FAILED:');
   for (const failure of failures) console.error(`  - ${failure}`);
@@ -321,5 +385,5 @@ if (failures.length > 0) {
 }
 
 console.log(
-  'Handoff-finale sync check passed: finale classes declared, handoff menus in place, staging grants curated, contract replicas aligned, no stale markers, MENU-CONTEXT replicas aligned and unweakened, SPEC-REVIEW-MENU replicas aligned with self-endorsement barred, invoked bundle scripts present, allowed-tools grants matching their contracts, the handoff phrase shared by design and plan, resume free of event-log markers, RESOLVE-INDEX replicas aligned and never retried, the map contract anchored where it is consumed.',
+  'Handoff-finale sync check passed: finale classes declared, handoff menus in place, staging grants curated, contract replicas aligned, no stale markers, MENU-CONTEXT replicas aligned and unweakened, SPEC-REVIEW-MENU replicas aligned with self-endorsement barred, invoked bundle scripts present, allowed-tools grants matching their contracts, the handoff phrase shared by design and plan, resume free of event-log markers, RESOLVE-INDEX replicas aligned and never retried, the map contract anchored where it is consumed, the model-invocable registry pinned to exactly the diary skill, the diary contract anchored in dev\'s terminal and the diary skill.',
 );
