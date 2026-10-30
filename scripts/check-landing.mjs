@@ -60,9 +60,9 @@ if (failures.length === 0) {
     check(indexHtml.includes(marker), `artifact marker missing from ${INDEX_PATH}: ${marker}`);
   }
 
-  // The launcher is not a verb of the roster (which stays ten): it belongs to the
-  // design card. Locating the card by its heading is what makes this positional —
-  // a page-wide substring test would pass with the mention anywhere.
+  // The launcher is not a verb of the roster: it belongs to the design card (the roster
+  // itself is pinned by check-skill-roster.mjs). Locating the card by its heading is what
+  // makes this positional — a page-wide substring test would pass with the mention anywhere.
   const designCardAt = indexHtml.indexOf(DESIGN_CARD_HEADING);
   check(designCardAt !== -1, `design card heading missing from ${INDEX_PATH}: ${DESIGN_CARD_HEADING}`);
   if (designCardAt !== -1) {
@@ -71,7 +71,7 @@ if (failures.length === 0) {
     check(
       designCard.includes(DESIGN_SERVER_SKILL),
       `${DESIGN_SERVER_SKILL} missing from the ${DESIGN_CARD_HEADING} card in ${INDEX_PATH} ` +
-        `(the launcher is mentioned inside the design card, never as an eleventh roster card)`,
+        `(the launcher is mentioned inside the design card, never as a roster card of its own)`,
     );
   }
 
