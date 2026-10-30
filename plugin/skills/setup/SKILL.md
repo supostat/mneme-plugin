@@ -136,10 +136,12 @@ MENU-CONTEXT — compact replica (norm: dev's `### MENU-CONTEXT`):
 Everything setup created was already curated by digit in Step 4 — by this finale the turn leaves
 nothing undecided, so the map is informational and carries no HANDOFF-DECISION.
 
-Short, three lines, no re-telling of every skill: фича начинается с `/mneme:grill` (вскрыть
+Short, four lines, no re-telling of every skill: фича начинается с `/mneme:grill` (вскрыть
 несформулированные решения) или сразу `/mneme:plan` (веер вариантов → спека → фазы) → прогон
-`/mneme:dev` (гейты, harvest в staging); ориентация в графе задач — `/mneme:resume`. Re-run hint:
-`/mneme:setup` идемпотентен — повторный запуск в настроенном проекте даёт короткий зелёный отчёт.
+`/mneme:dev` (гейты, harvest в staging); ориентация в графе задач — `/mneme:resume`; карта
+проекта — `/mneme:map` (домены сужают подборки, вопросы об устройстве — через recall). Re-run
+hint: `/mneme:setup` идемпотентен — повторный запуск в настроенном проекте даёт короткий зелёный
+отчёт.
 
 ### Idempotency
 
@@ -209,7 +211,7 @@ written) + DECISION (chips, vertical, digit-answered):
 
 (exactly ONE option carries «← рекомендую: <причина одной строкой>», per the DECISION rules)
 
-**финал-карта** — DATA (the three "what's next" lines + the idempotency hint), NO DECISION — the
+**финал-карта** — DATA (the four "what's next" lines + the idempotency hint), NO DECISION — the
 run ends after its body.
 
 ## Rules

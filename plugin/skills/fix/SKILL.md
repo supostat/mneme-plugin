@@ -258,6 +258,12 @@ this menu for coverage is FORBIDDEN.
 - NEVER tell the user to operate `staging_list` / `staging_resolve` — the agent calls the tools on
   the user's digit; every per-note decision stays the human's. Details: dev's
   `### BOUNDARY-CURATION`.
+- RESOLVE-INDEX — a `staging_resolve` may answer three lines: the usual outcome line,
+  `Index not rebuilt: <reason>`, and `The decision is committed — do not retry it; the index
+  catches up on the next successful rebuild.` That is a принятое решение, не ошибка: the note is
+  accepted (or rejected) and committed, it counts in «принято / отклонено» as usual, the reason is
+  relayed verbatim, the call is NOT repeated — не повторять, a second call writes a second event —
+  and the finale carries one line «индекс не пересобран: <reason>; догонит при следующем чтении».
 
 TOKEN-LINE — compact replica (norm: dev's `### TOKEN-LINE`): every DECISION block OPENS with the
 token-spend line — before rendering the menu run the read-only call
@@ -292,6 +298,8 @@ MENU-CONTEXT — compact replica (norm: dev's `### MENU-CONTEXT`):
   justification.
 - FIX-NOREPRO-EXIT — non-reproduction ends in the three-exit digit menu; exit 3 is the ONLY
   permitted `remember` call (type bugfix, diagnosis-as-is, queued for human review).
+- RESOLVE-INDEX — a resolve answering `Index not rebuilt:` is a принятое решение, не ошибка:
+  counted as usual, reason relayed verbatim, the call не повторять.
 - FIX-NEVER-FIXES — Edit FORBIDDEN; Write only the repro test + the approved spec; the fix phase
   runs in dev; the dev command is printed, never run.
 - FIX-AUTOMIGRATE — validate → apply-if-clean in one pass after the approved Write; format errors

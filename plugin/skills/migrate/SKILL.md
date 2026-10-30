@@ -86,6 +86,10 @@ this same convention). Built strictly from `workflow_migrate`'s response — it 
 - **Готовые команды** — real, runnable syntax:
   - полный прогон: `/mneme:dev <spec-slug>`
   - до границы: `/mneme:dev <spec-slug> until <boundary-candidate-id>` (one line per candidate).
+  - DOMAINS-TAIL (optional, last): `domains <a,b>` — the project-map domains the run's recall is
+    narrowed to, comma-separated, after `until`. Printed ONLY by a renderer that KNOWS the
+    domains — plan's finale, from its recon; migrate itself never prints it: `workflow_migrate`
+    returns no domains and the skill guesses none, so its commands end at `until`.
 
 In grammar terms (the shared five-block grammar, DEFINED once in the `mneme:dev` skill's
 `## OUTPUT-GRAMMAR` section — never re-stated here): GRAPH-MAP = VERDICT (validation counts) +

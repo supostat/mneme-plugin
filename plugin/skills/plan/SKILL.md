@@ -1,7 +1,7 @@
 ---
 name: plan
 description: turn a task described in words into a reviewed delta-spec through option fan and user confirmation
-allowed-tools: [Read, Grep, Bash, mcp__plugin_mneme_memory__recall, mcp__plugin_mneme_memory__remember, mcp__plugin_mneme_memory__workflow_migrate, mcp__plugin_mneme_memory__staging_list, mcp__plugin_mneme_memory__staging_resolve, Write]
+allowed-tools: [Read, Grep, Bash, mcp__plugin_mneme_memory__recall, mcp__plugin_mneme_memory__map_list, mcp__plugin_mneme_memory__remember, mcp__plugin_mneme_memory__workflow_migrate, mcp__plugin_mneme_memory__staging_list, mcp__plugin_mneme_memory__staging_resolve, Write]
 disable-model-invocation: true
 ---
 
@@ -40,6 +40,9 @@ task.
 
 - Read / Grep the codebase: YES — this is the recon in Step 2.
 - `mcp__plugin_mneme_memory__recall`: YES — prior decisions and gotchas on the task's topic.
+- `mcp__plugin_mneme_memory__map_list`: YES — the project map, READ ONLY, in Step 2: `{}` for the
+  overview, `{ id }` for the candidate domains of the task. plan never writes the map —
+  `map_put` / `map_delete` are `/mneme:map`'s and FORBIDDEN here.
 - Write: YES, but ONLY to persist the FINAL approved spec into `docs/`, and ONLY after the Step 6
   approval. Writing anything before approval, or writing anywhere other than the spec file, is a
   VIOLATION.
@@ -75,17 +78,29 @@ understood. Do not widen the scope beyond what was asked.
 
 1. Call `mcp__plugin_mneme_memory__recall` with the task's key concepts (modules, files,
    technologies). Prior decisions and gotcha notes are the most valuable.
-2. Grep + Read the relevant code (max ~15 files) to ground the options in real file paths.
-3. Read repository context that exists anywhere — `CLAUDE.md`, `README`, `docs/` — for conventions
+2. Call `mcp__plugin_mneme_memory__map_list {}` — the project map, one line per section.
+   `The project map is empty.` → note «карта не построена» and continue without domains; the map
+   is `/mneme:map`'s to build, never plan's.
+3. Grep + Read the relevant code (max ~15 files) to ground the options in real file paths.
+4. DOMAINS-PICK — when the map is not empty: the candidates are the domains whose `map_list` line
+   names the task's area; read ONLY the candidates whole (`map_list { id }`) and keep a domain
+   when one of its `anchors` is a file of the recon or a directory above one (a directory anchor
+   covers everything inside it). The kept ids are the task's DOMAINS: call `recall` again with
+   `domains: [<ids>]` — the narrowed answer opens with the domains' MAP blocks (the frame: the
+   responsibility, invariants and entry points of the area) and keeps only the notes linked to
+   them; `no map domain "<id>"` means the map changed under the recon — drop that id and say so.
+   The domains ride into the finale's ready commands (Step 7). No candidate intersects → no
+   domains, and the fan says so in its Context line.
+5. Read repository context that exists anywhere — `CLAUDE.md`, `README`, `docs/` — for conventions
    and constraints, AND the project's RELEASE AUTOMATION: `.github/workflows/` (or the equivalent CI
    directory), release scripts, and the version fields of its manifests. That last target is what
    VERSION-BUMP-RULE decides on, and it lives nowhere near the prose documents — a recon that skips
    it makes the rule postmortem instead of preventive. Degrade gracefully when one is absent; "no
    automation found" is an ANSWER the rule acts on, not a gap. An empty or degraded recall (cold
    store, no stored vectors) is normal — note "memory empty" and continue.
-4. If recall surfaces an antipattern note, EVERY option in Step 3 must state whether it triggers
+6. If recall surfaces an antipattern note, EVERY option in Step 3 must state whether it triggers
    that antipattern. Silent ignore = VIOLATION.
-5. ETALON-READ: when the task is «реализовать по эталону design/pages/<slug>/<slug>.json», Read
+7. ETALON-READ: when the task is «реализовать по эталону design/pages/<slug>/<slug>.json», Read
    the etalon file itself BEFORE the fan — it is the source of truth for the plan; corpus notes
    and `docs/` are the history of its decisions. Take from the file: every `proposal:<Name>`
    node (its `note`, props and slots) and every registry component the etalon uses (the names,
@@ -171,8 +186,13 @@ runnable — not days later when someone tries to migrate it.
 
 On success, the finale: render the graph map per the shared GRAPH-MAP convention (defined ONCE, in
 the `mneme:migrate` skill — phase ids in deps order, criteria kinds, boundary candidates, ready
-commands) and show the runnable `/mneme:dev <spec-slug> [until <id>]` command. plan still NEVER
-runs it.
+commands) and show the runnable `/mneme:dev <spec-slug> [until <id>] [domains <a,b>]` command.
+DOMAINS-TAIL: when Step 2 picked domains, BOTH ready commands — the full run and every `until`
+candidate — carry the tail `domains <a,b>` (the ids comma-separated, no spaces, after `until`);
+`/mneme:dev` turns it into `recall_domains` for EVERY phase of the run, so each phase's bundle
+opens with the same domains' MAP blocks the fan was framed by. The convention makes the tail
+optional and printed only by a renderer that KNOWS the domains — plan is that renderer; migrate
+never prints it. No domains → the commands exactly as before. plan still NEVER runs it.
 
 ### Step 8: STAGE-CHOICE — stage the decision
 
@@ -215,7 +235,7 @@ Display as plain markdown (NOT inside a code fence):
 ## PLAN: <task short form>
 
 **Context** — Project · Branch · files scouted · recalled memory (decisions / antipatterns, or
-"none — memory empty")
+"none — memory empty") · домены карты (`<ids>`, or «карта пуста» / «ни один домен не задет»)
 
 ### Option A: <name>
 <summary> · **How** (files/modules) · **Trade-offs** (pros / cons / effort / risk) · **Done-when
@@ -388,7 +408,8 @@ user runs it. Literal shape:
 create: <N> · identical: <M> · conflict: <K>
 Спека записана: docs/<SPEC-…>.md · фазовых файлов применено: <W>
 
-<GRAPH-MAP по конвенции mneme:migrate — таблица фаз, кандидаты границ, готовые /mneme:dev команды>
+<GRAPH-MAP по конвенции mneme:migrate — таблица фаз, кандидаты границ, готовые /mneme:dev команды,
+каждая с хвостом domains <a,b>, когда домены выбраны в Step 2>
 
 В staging 1 заметка (показана целиком):
 
@@ -414,6 +435,12 @@ plan does not move without a digit)
   the user's digit; every per-note decision stays the human's.
 - Per-note mode and the mandatory full-body branch live in dev's `### BOUNDARY-CURATION`; this
   replica defers to it for details.
+- RESOLVE-INDEX — a `staging_resolve` may answer three lines: the usual outcome line,
+  `Index not rebuilt: <reason>`, and `The decision is committed — do not retry it; the index
+  catches up on the next successful rebuild.` That is a принятое решение, не ошибка: the note is
+  accepted (or rejected) and committed, it counts in «принято / отклонено» as usual, the reason is
+  relayed verbatim, the call is NOT repeated — не повторять, a second call writes a second event —
+  and the finale carries one line «индекс не пересобран: <reason>; догонит при следующем чтении».
 
 TOKEN-LINE — compact replica (norm: dev's `### TOKEN-LINE`): every DECISION block OPENS with the
 token-spend line — before rendering the menu run the read-only call
@@ -514,6 +541,12 @@ of the existing specs in that directory.
   a missing or unreadable etalon ends the turn with a named line; plan never invents an etalon.
 - RECALL IS VISIBLE — surface what memory contributed in the fan; an antipattern note forces every
   option to declare whether it triggers it.
+- DOMAINS — Step 2 reads the map (`map_list {}`, then `{ id }` for candidates only), keeps the
+  domains whose anchors meet the recon's files, recalls again with `domains`, names them in the
+  fan's Context line and prints the `domains <a,b>` tail in BOTH ready commands of the finale;
+  plan never writes the map.
+- RESOLVE-INDEX — a resolve answering `Index not rebuilt:` is a принятое решение, не ошибка:
+  counted as usual, reason relayed verbatim, the call не повторять.
 - DONE-WHEN JUSTIFIED — pick executable or agent-judged per the outcome's nature and justify the
   choice; an unformulatable executable criterion is a signal to raise the question, not to write a
   prose stub.
@@ -528,7 +561,7 @@ of the existing specs in that directory.
   code-consuming edge adds a real-module executable smoke criterion to the consumer phase, and a
   pure-ordering edge is explicitly marked `order-only`.
 - VERSION-BUMP-RULE — the generator, not the author, decides whether a version-bump phase exists: it
-  is generated ONLY when the recon (Step 2.3, release automation included) found no automation that
+  is generated ONLY when the recon (Step 2.5, release automation included) found no automation that
   bumps the project itself; evidence found → no phase, and Baseline names the automation. Where the
   phase is legitimate its task is an INCREMENT, never a literal «X → Y», and the derived artifacts
   the recon found (release pins, version stamps) enter the same phase.

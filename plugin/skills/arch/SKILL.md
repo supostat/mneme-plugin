@@ -1,7 +1,7 @@
 ---
 name: arch
 description: Read-only architecture analysis — 2-3 solutions with trade-offs, one recommended. Use when designing a component or scoping a refactor.
-allowed-tools: [Read, Grep, mcp__plugin_mneme_memory__recall, mcp__plugin_mneme_memory__remember]
+allowed-tools: [Read, Grep, mcp__plugin_mneme_memory__recall, mcp__plugin_mneme_memory__remember, mcp__plugin_mneme_memory__map_list]
 disable-model-invocation: true
 ---
 
@@ -10,8 +10,8 @@ disable-model-invocation: true
 Read-only analysis of an architecture question. Draws on recalled mneme memory and the
 codebase, proposes 2-3 solutions with trade-offs, recommends one. Does NOT modify code.
 
-Context comes from mneme (`recall`) plus generic repository anchors (`CLAUDE.md`, `docs/`,
-`README`) — this skill depends on no project-specific layout.
+Context comes from mneme (the project map via `map_list`, then `recall`) plus generic repository
+anchors (`CLAUDE.md`, `docs/`, `README`) — this skill depends on no project-specific layout.
 
 ## Arguments
 
@@ -28,6 +28,9 @@ Examples:
 - Write / Edit files: FORBIDDEN — this skill analyzes, it never changes code
 - Bash: FORBIDDEN
 - Memory recall (`mcp__plugin_mneme_memory__recall`): YES
+- Project map (`mcp__plugin_mneme_memory__map_list`): YES — READ only, `{}` for the overview and
+  `{ id }` for the question's area; arch never writes the map (`map_put` / `map_delete` are
+  `/mneme:map`'s and FORBIDDEN here)
 - Memory remember (`mcp__plugin_mneme_memory__remember`): permitted ONLY to STAGE a decision
   the user explicitly asked to persist — never automatically, and it stages for review, it
   does not publish
@@ -49,14 +52,25 @@ question (key concepts, modules, technologies).
 3. Recall augments, it never gates. An empty result or a "degraded mode" notice (no stored
    vectors yet) is normal on a cold store — proceed to Step 1 and note that memory was empty.
 
-### Step 1: Load context
+### Step 1: Load context — the map first
 
-MUST read the project's architecture context from anchors that exist in any repository,
-degrading gracefully when one is absent:
+The project map is the FIRST overview, before any file is opened:
+
+1. `mcp__plugin_mneme_memory__map_list {}` — one line per domain and flow (`<id> [<kind>] … —
+   <первая строка>`). `The project map is empty.` → no map; say so in the Context line and go on
+   with the anchors below — building it is `/mneme:map`'s job, never arch's.
+2. `map_list { id }` for the domain(s) and flow(s) whose line names the question's area — the
+   whole section: responsibility, invariants, entry points, dependencies, open questions. Read
+   only those; the map is a frame, not a corpus to page through.
+3. `recall { query, domains: [<those domain ids>] }` — the Step 0 recall narrowed to the area: the
+   answer opens with the sections' MAP blocks and keeps the notes linked to them. `no map domain
+   "<id>"` → the map changed under the step; drop the id and say so.
+
+Then the anchors that exist in any repository, degrading gracefully when one is absent:
 
 - `CLAUDE.md` (repo root and any nested ones) — conventions, constraints, instructions
 - `README` / `docs/` — architecture, stack, and design notes, if present
-- the notes recalled in Step 0
+- the notes recalled in Step 0 and the sections read above
 
 ### Step 2: Research codebase
 
@@ -96,7 +110,7 @@ never restructure:
 
 ## ARCH: <question short form>
 
-**Context** — Project · Branch · files analyzed · existing patterns · recalled memory (decisions / antipatterns, or "none — memory empty")
+**Context** — Project · Branch · files analyzed · existing patterns · recalled memory (decisions / antipatterns, or "none — memory empty") · домены карты (`<ids>`, or «карта пуста»)
 
 ### Option A: <name>
 <summary> · **How** · **Pros** · **Cons** · **Conventions** (matches / deviates) · **Effort** · **Risk**
@@ -127,6 +141,8 @@ queues the note; the human accepts it separately. Never publish automatically.
 ## Rules
 
 - **Read-only w.r.t. the codebase** — NEVER create or modify a file. VIOLATION = ABORT.
+- **Map is read, never written** — `map_list {}` opens Step 1, `map_list { id }` reads the area,
+  `recall { domains }` narrows to it; `map_put` / `map_delete` never.
 - **MUST propose 2-3 options** — not 1, not 5+.
 - **Evidence-based** — every claim references a specific file or recalled note. No "generally speaking".
 - **Concrete** — name files and modules, not "consider separating concerns".
