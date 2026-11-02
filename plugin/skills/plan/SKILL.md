@@ -30,7 +30,7 @@ explicit confirmation — the turn ends, and it is the user's move.
 
 Examples:
 - `/mneme:plan "rename the memory MCP server key"`
-- `/mneme:plan "fix the filter so archived tickets stay hidden"`
+- `/mneme:plan "hide archived tickets from the default list"`
 - `/mneme:plan "add a staging-list command to the plugin"`
 
 No argument → ask the user for the task in one line (numbered prompt), then proceed. Never invent a
@@ -67,12 +67,46 @@ task.
 Eight steps, two hard stops. Steps 1-3 run in one turn and END at Step 4. Step 5 runs after the
 user's choice and ENDS at Step 6. The Write happens only after Step 6 approval; Step 7 then
 MIGRATES the approved spec into phase files (fail-fast, hot context); Step 8 STAGES the choice as a
-decision note (it queues for human accept — it does not publish).
+decision note (it queues for human accept — it does not publish). Step 1's INPUT-CHECK may end the
+turn before any recon: a spec input stops it, a failure or a page without an etalon asks first.
 
 ### Step 1: Take the task
 
 Read the task from the argument. Restate it in one sentence so the user can see how it was
 understood. Do not widen the scope beyond what was asked.
+
+INPUT-CHECK — right after the restatement and BEFORE any recon, test the input against three
+signals, in this order; the first that fires decides:
+
+1. SPEC — the argument names a file whose text carries a `# Gameplan` heading (Grep it). That is a
+   spec, not a task: END THE TURN with one line «это спека → `/mneme:migrate <путь>`» — no recon,
+   no fan. The heading is a fact, so there is nothing to ask (dev's SPEC-FILE GUARD wording).
+2. FAILURE — the argument reports a failure (an error text, a red test, «работало — сломалось»,
+   behaviour that diverges from what the code should already do) and asks for no new behaviour.
+3. PAGE-WITHOUT-ETALON — the argument describes a new page or screen, or names a page brief, and
+   `design/pages/` holds no etalon for it.
+
+Signals 2 and 3 are judgements, and whether the input really is a failure or a page is the
+USER's call — so they close the turn with a DECISION menu (the TOKEN-LINE replica opens it):
+
+```
+`1 — выдать команду /mneme:fix: <симптом одной фразой>`
+`2 — продолжить plan: <задача, как понята>`
+```
+
+For signal 3 the first chip reads `1 — выдать команду /mneme:design: <страница одной фразой>`.
+Exactly one chip carries «← рекомендую: <причина одной строкой>»; silence = pause. Digit `1` →
+print the ready line as a fenced block and END — plan writes nothing. The line follows the
+target's template, the same literal `/mneme:prompt` carries:
+
+```
+/mneme:fix "<симптом: что делал, что ожидал, что получил; текст ошибки дословно>"
+/mneme:design "<страница или фича: для кого она и что на ней делают>"
+```
+
+The symptom goes in as the user described it — a hypothesis or a ready fix stays out, fix builds
+its own hypothesis fan. Digit `2` → Step 2, the task as restated. No engine call exists at this
+choice, so nothing is stamped. The SPEC stop prints `/mneme:migrate <путь>` with the real path.
 
 ### Step 2: Recon — code + memory
 
@@ -107,6 +141,14 @@ understood. Do not widen the scope beyond what was asked.
    the props it binds, its `data` and `states`). An etalon that is missing or does not read ENDS
    THE TURN with one named line (the path and what is wrong) — plan never invents an etalon.
    HTML etalons are unchanged by this rule.
+8. GRILL-READ: when the task names an interrogation protocol `docs/GRILL-<slug>.md` — the phrase
+   grill and grill-agent hand over is «по протоколу docs/GRILL-<slug>.md», the trigger is
+   `по протоколу docs/GRILL-` — Read the protocol WHOLE BEFORE the fan. Its «Заблокированные
+   решения» and the closed branches of its Knowledge and Conventions seeds are GIVEN: the fan does
+   not re-open them, and they carry into the spec's Knowledge and Conventions. The branches marked
+   «отдать plan'у (нужен веер)» ARE the fan's subject. The branches «отложено пользователем» stay
+   out of scope, and Baseline names them. A protocol that is missing or does not read ENDS THE
+   TURN with one named line (the path and what is wrong) — plan never reconstructs a protocol.
 
 ### Step 3: Fan out options
 
@@ -539,6 +581,13 @@ of the existing specs in that directory.
   fan: proposal nodes become tasks, the registry components it uses are brought to the etalon in
   the same task list, the design book's proposals build the base kit first, before any page, and
   a missing or unreadable etalon ends the turn with a named line; plan never invents an etalon.
+- INPUT-CHECK — Step 1 tests the input before any recon: a file carrying `# Gameplan` ends the turn
+  with «это спека → `/mneme:migrate <путь>`»; a failure or a page without an etalon closes the
+  turn with the two-chip menu (hand over the ready `/mneme:fix` or `/mneme:design` line, or go on
+  with plan), because what the input is stays the user's judgement; plan writes nothing on digit 1.
+- GRILL-READ — a task naming `docs/GRILL-<slug>.md` reads the protocol whole at Step 2, before the
+  fan: its locked decisions are given, its «отдать plan'у» branches are the fan's subject, its
+  deferred branches stay out of scope, and a missing protocol ends the turn with a named line.
 - RECALL IS VISIBLE — surface what memory contributed in the fan; an antipattern note forces every
   option to declare whether it triggers it.
 - DOMAINS — Step 2 reads the map (`map_list {}`, then `{ id }` for candidates only), keeps the

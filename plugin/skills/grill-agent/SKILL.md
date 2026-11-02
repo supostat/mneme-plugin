@@ -241,7 +241,12 @@ per-note mode and the full protocol live in dev's `### BOUNDARY-CURATION`):
 `4 — дальше`
 ```
 
-The hand-off `/mneme:plan` command is printed as DATA after curation resolves, never run.
+After curation resolves, the hand-off is printed as DATA — grill's line, never run:
+
+```
+Продолжение (ход твой, grill-agent его не запускает):
+/mneme:plan "<задача> по протоколу docs/GRILL-<slug>.md"
+```
 
 ## Output format
 

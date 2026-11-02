@@ -134,6 +134,19 @@ it:
 
 (the «← рекомендую: <причина одной строкой>» suffix rides exactly the recommended option's line)
 
+### ARCH-HANDOFF — after the digit
+
+On the user's digit arch prints the chosen option in one line, then the next command as a fenced
+block — DATA, no menu, the finale stays informational:
+
+```
+/mneme:plan "<изменение>. Решено в /mneme:arch: <выбранный вариант своими словами> — <почему он>. Решить: <что осталось открытым>"
+```
+
+The option is spelled out in words, never «вариант B» — plan runs in a session that has not seen
+this fan. «Решить:» carries what the analysis left open; a section with nothing in it drops out
+whole, label included. The line is printed, never run: plan carries `disable-model-invocation`.
+
 Persisting the chosen decision via `mcp__plugin_mneme_memory__remember` (type `decision`, staged
 for human review) stays available — ONLY when the user explicitly asks, on a later turn. Staging
 queues the note; the human accepts it separately. Never publish automatically.
@@ -148,3 +161,5 @@ queues the note; the human accepts it separately. Never publish automatically.
 - **Concrete** — name files and modules, not "consider separating concerns".
 - **Convention-aware** — flag and justify any deviation from established patterns.
 - **No code** — describe what to do; implementation is the coder's job.
+- **ARCH-HANDOFF** — after the user's digit, print the chosen option and the ready `/mneme:plan`
+  line with the option spelled out in words; printed, never run.
