@@ -64,12 +64,15 @@
 //       fails too;
 //   (p) DIARY — the diary contract stands where it is consumed: dev's RUN COMPLETE terminal hands
 //       over `/mneme:diary run <run_id>`, and the diary skill carries the four question labels,
-//       the `run:<run_id>` tag and the `diary:` hook-line prefix in its description;
+//       the `run:<run_id>` tag and the `diary:` hook-line prefix in its description, and the
+//       skill-candidate rule with its handoff: the `### SKILL-CANDIDATE` heading at a line start,
+//       the `skill-candidate` tag, and the `/mneme:plan "создать скилл …` template pinned by (q3);
 //   (q) PROMPT — the commands a skill text names, and the command lines it hands over, are the
 //       bundle's real ones: every `/mneme:<id>` in every skill is a skill directory; every template
 //       of prompt's ROUTE-TABLE takes its argument the way the target's `## Arguments` does, no
 //       template composes dev or `diary run`, and every skill but dev and prompt has a row; each
-//       handoff template is byte-identical in prompt and in every finale that prints it; prompt's
+//       handoff template is byte-identical in every text that carries it — prompt's route table,
+//       the finales that print it, diary's skill-candidate handoff; prompt's
 //       description carries its trigger phrases and its body the five self-check labels; setup's
 //       «what's next» names every entry. The defects this pins were live: a nonexistent command
 //       typed into a prompt, a failure report sent to plan, a finale that knew only some entries.
@@ -373,9 +376,10 @@ for (const name of skillDirectories) {
 // (p) DIARY: the diary contract stands where it is consumed
 const DIARY_ANCHORS = {
   dev: ['/mneme:diary run <run_id>'],
-  diary: ['Что произошло:', 'Зачем:', 'Правильно ли:', 'Как улучшить:', 'run:<run_id>'],
+  diary: ['Что произошло:', 'Зачем:', 'Правильно ли:', 'Как улучшить:', 'run:<run_id>', 'skill-candidate'],
 };
 const DIARY_HOOK_PREFIX = 'diary:';
+const SKILL_CANDIDATE_HEADING = /^### SKILL-CANDIDATE\b/m;
 
 for (const [name, anchors] of Object.entries(DIARY_ANCHORS)) {
   const flat = normalize(skillText(name));
@@ -386,6 +390,9 @@ for (const [name, anchors] of Object.entries(DIARY_ANCHORS)) {
 const diaryDescription = skillText('diary').match(/^description:.*$/m)?.[0] ?? '';
 if (!diaryDescription.includes(DIARY_HOOK_PREFIX)) {
   failures.push(`diary: the description does not name the hook-line prefix «${DIARY_HOOK_PREFIX}» — the model would not know when to invoke the skill`);
+}
+if (!SKILL_CANDIDATE_HEADING.test(skillText('diary'))) {
+  failures.push('diary: no `### SKILL-CANDIDATE` section — a recurring kind of work would never be offered as a skill');
 }
 
 // (q) PROMPT: the commands a skill text names and hands over are the bundle's real ones
@@ -471,11 +478,15 @@ const HANDOFF_TEMPLATES = [
   { literal: '/mneme:fix "<симптом: что делал, что ожидал, что получил; текст ошибки дословно>"', carriers: ['plan', 'prompt'] },
   { literal: '/mneme:design "<страница или фича: для кого она и что на ней делают>"', carriers: ['plan', 'prompt'] },
   { literal: '/mneme:migrate <путь>', carriers: ['plan', 'prompt'] },
+  {
+    literal: '/mneme:plan "создать скилл <вид работы>. Сейчас: <доказательства: прогоны, заметки, повторённые ошибки>. Нужно: <что рецепт закрепит>. Решить: проектный скилл или скилл плагина"',
+    carriers: ['diary'],
+  },
 ];
 
 for (const { literal, carriers } of HANDOFF_TEMPLATES) {
   for (const carrier of carriers.filter((name) => !skillText(name).includes(literal))) {
-    failures.push(`${carrier}: does not carry the handoff template «${literal}» byte for byte — copy it from prompt's ROUTE-TABLE`);
+    failures.push(`${carrier}: does not carry the handoff template «${literal}» byte for byte — restore it from HANDOFF_TEMPLATES in scripts/check-skill-handoff.mjs`);
   }
 }
 if (!skillText('plan').includes(GRILL_PROTOCOL_TRIGGER)) {
@@ -512,5 +523,5 @@ if (failures.length > 0) {
 }
 
 console.log(
-  'Handoff-finale sync check passed: finale classes declared, handoff menus in place, staging grants curated, contract replicas aligned, no stale markers, MENU-CONTEXT replicas aligned and unweakened, SPEC-REVIEW-MENU replicas aligned with self-endorsement barred, invoked bundle scripts present, allowed-tools grants matching their contracts, the handoff phrase shared by design and plan, resume free of event-log markers, RESOLVE-INDEX replicas aligned and never retried, the map contract anchored where it is consumed, the model-invocable registry pinned to exactly the diary and prompt skills, the diary contract anchored in dev\'s terminal and the diary skill, and every command the skills name and hand over resolved to the bundle\'s own — real names, route templates shaped like their targets\' arguments, handoff lines byte-identical across finales, prompt\'s triggers and self-check labels, every entry named in setup\'s finale.',
+  'Handoff-finale sync check passed: finale classes declared, handoff menus in place, staging grants curated, contract replicas aligned, no stale markers, MENU-CONTEXT replicas aligned and unweakened, SPEC-REVIEW-MENU replicas aligned with self-endorsement barred, invoked bundle scripts present, allowed-tools grants matching their contracts, the handoff phrase shared by design and plan, resume free of event-log markers, RESOLVE-INDEX replicas aligned and never retried, the map contract anchored where it is consumed, the model-invocable registry pinned to exactly the diary and prompt skills, the diary contract anchored in dev\'s terminal and the diary skill with its skill-candidate rule, and every command the skills name and hand over resolved to the bundle\'s own — real names, route templates shaped like their targets\' arguments, handoff lines byte-identical across finales, prompt\'s triggers and self-check labels, every entry named in setup\'s finale.',
 );

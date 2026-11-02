@@ -11,7 +11,10 @@ this session's manual recalls and memory gaps — answered as four questions wit
 every REUSABLE answer becomes one note queued through staging. The engine writes nothing on this
 path (`diary_facts` is read-only by construction); the skill writes only through `remember`, and
 the human decides by digit. The diary is memory about HOW the work went, not a second copy of the
-work: a note here says what happened, why, whether it was right, and what to change next time.
+work: a note here says what happened, why, whether it was right, and what to change next time. A
+kind of work that keeps recurring with no recipe for it becomes a skill candidate
+(`### SKILL-CANDIDATE`): a staged note that carries the `/mneme:plan` line creating that skill —
+the diary itself never creates one.
 
 This is one of the TWO skills the model may invoke on its own (the other is `/mneme:prompt`): its
 frontmatter carries no `disable-model-invocation`, and the MODEL-INVOCABLE registry in
@@ -64,7 +67,9 @@ corpus`. The line is DATA, never a command:
   ONLY applying the user's explicit DIGIT from the finale's curation menu. Resolving without a
   digit is a VIOLATION; the human gate is untouched.
 - Read / Grep: ONLY to verify a fact for an anchor — that the file exists and the line says what
-  the answer claims (`file:line`). Never to redo the work, never to re-read the project.
+  the answer claims (`file:line`) — and to read the project's own skills, `.claude/skills/*/SKILL.md`
+  (name and description), for the coverage check of `### SKILL-CANDIDATE`. Never to redo the work,
+  never to re-read the project.
 - Bash: ONLY the read-only session-tokens call of the TOKEN-LINE replica (Output format). Any
   other Bash is FORBIDDEN.
 - Write / Edit, `map_put` / `map_delete`, `workflow_start` / `workflow_step` / `workflow_abandon`
@@ -105,6 +110,11 @@ nonce fences and are read as «what memory already says»; a candidate that rest
 note is dropped here (the engine's `remember` dedup would answer `noop` anyway — a second safety
 net, not the first).
 
+Then one more `recall` by the KIND OF WORK — one phrase the agent names from the facts of Step 1
+(«новая подкоманда движка», «сервис с транзакцией»). Its answer is the evidence base of
+`### SKILL-CANDIDATE`: earlier occurrences of the same kind come back as notes carrying their
+`run:<id>` or `session` tags, and an accepted skill candidate for this kind comes back too.
+
 ### Step 3: FOUR QUESTIONS — with evidence
 
 Answer four questions from the facts of Step 1 and the memory of Step 2, each with its evidence:
@@ -116,8 +126,66 @@ Answer four questions from the facts of Step 1 and the memory of Step 2, each wi
   (staged / accepted / rejected / superseded), the retries, the rejected notes, an escalation.
   A rejected note is a verdict on the harvest's judgement, not noise.
 - **Как улучшить:** EXACTLY ONE of — a pattern (what to repeat), a guard (a check in a checker),
-  a spec rule (a generator rule for plan), or a map section correction (the section id, for
-  `/mneme:map`; the diary writes no map).
+  a spec rule (a generator rule for plan), a map section correction (the section id, for
+  `/mneme:map`; the diary writes no map), or a recipe (a skill) — the last only under
+  `### SKILL-CANDIDATE`.
+
+### SKILL-CANDIDATE — a recurring kind of work without a recipe
+
+The fifth outcome of «Как улучшить» — a recipe (a skill) — is chosen only under this rule, and the
+outcome stays EXACTLY ONE.
+
+**Repetition.** Proven by the kind-of-work `recall` of Step 2, one of two: (1) at least TWO earlier
+occurrences of the same kind of work — notes of different runs (`run:<id>`) or sessions
+(`session`) — plus the current one; (2) an error of the current run or session (a `gate fail`
+line, a retry, the user's correction) repeats a recalled `antipattern` or `bugfix` note of the
+same essence — it happened a second time. The threshold is fixed here and is not configurable.
+The limit, stated honestly: a repetition that left no notes is invisible — two smooth earlier runs
+of the same kind with no notes give no candidate; that is the price of counting by the agent's
+judgement over `recall`.
+
+**Guard or recipe.** A repeated error a mechanical check can catch is closed by a guard; a recipe
+is chosen when what is missing is a procedure — how to do this kind of work in this project.
+
+**Coverage.** No candidate when a skill already covers the kind of work: one in this session's
+skill list, or one of the project's `.claude/skills/*/SKILL.md` (its name and description, read
+for this check only). Then «Как улучшить» names that skill and what to change in it — a
+correction to the recipe, not a new candidate.
+
+**The candidate.** One `pattern` note: the essence line «Рецепт: <вид работы> — <что он
+закрепляет>», then the four lines of Step 4, where `Как улучшить:` carries the evidence (the ids of
+the runs and notes, the repeated errors) and the ready handoff line — this template, filled, on
+one line:
+
+```
+/mneme:plan "создать скилл <вид работы>. Сейчас: <доказательства: прогоны, заметки, повторённые ошибки>. Нужно: <что рецепт закрепит>. Решить: проектный скилл или скилл плагина"
+```
+
+Tags: `diary`, `run:<run_id>` or `session`, `skill-candidate`, then subject tags. Anchors:
+verified tracked files as examples (a pattern's anchors are examples), or none. The body with its
+template prefix fits 1500 code points — the evidence is compressed to ids. The candidate is curated
+with the same menu as any note.
+
+**Rejection and acceptance.** A rejected candidate leaves no trace this skill can see: the
+rejection holds until the next repetition — the candidate may return only on a new run or session
+of the same kind, with more evidence. An accepted candidate lives in memory with its line: the
+kind-of-work `recall` returns it, so no new candidate is staged and the handoff is not printed
+again. A candidate accepted outside the diary (by the curation of dev or plan) reaches the user
+the same way — as the note's body when the kind of work comes up again. There is no repeating
+reminder: it would have no off switch, since retiring a note is forbidden here.
+
+**The handoff.** Once this skill's OWN curation resolves (batch or per note) and the report
+«принято N, отклонено M, осталось K» is shown, every candidate accepted IN THAT curation is printed
+as DATA, after grill-agent's precedent — the line from its `Как улучшить:`, byte for byte, never
+run:
+
+```
+Продолжение (ход твой, diary его не запускает):
+<строка передачи из «Как улучшить:» заметки>
+```
+
+A rejected or deferred candidate prints nothing. Where the new skill lives is decided by plan's
+fan, for each candidate.
 
 ### Step 4: CANDIDATES — one note per reusable answer
 
@@ -133,7 +201,9 @@ true only of this run is not a note. For each candidate:
   `diary` plus `session` (session form), plus subject tags;
 - `anchors` — ONLY git-tracked files verified in Step 3. A note about not-yet-written code carries
   tags, not invented anchors: no path anchors at all, never a neighbouring file «for coverage»,
-  never the spec in gitignored `docs/`. A note valid on tags alone is valid.
+  never the spec in gitignored `docs/`. A note valid on tags alone is valid;
+- a skill candidate takes the shape `### SKILL-CANDIDATE` gives it — type `pattern`, the tag
+  `skill-candidate` added, the handoff line inside `Как улучшить:`.
 
 Call `remember` for each candidate, without a `menu` payload (Permissions). A `noop` answer means
 the note already exists — report «дубль — уже в памяти» and do not count it.
@@ -148,7 +218,9 @@ Show the queue WHOLE and close with the batch curation menu per `### Curation co
 FINALE-CLASS-HANDOFF: the turn created queued notes, so it closes with the HANDOFF-DECISION menu
 whose options are those notes. When NO answer is reusable, the finale is legal WITHOUT notes and
 WITHOUT a menu: the four answers are shown, then the line «переиспользуемого нет — заметок не
-ставлю», then the gap lines — nothing was created, so there is nothing to close.
+ставлю», then the gap lines — nothing was created, so there is nothing to close. The reply to the
+curation digit carries the «принято N, отклонено M, осталось K» report and then, for every skill
+candidate accepted in that curation, the handoff of `### SKILL-CANDIDATE`.
 
 ## Output format
 
@@ -172,7 +244,7 @@ placeholders, never restructure; a line with no data is omitted:
 - Что произошло: … (file:line, run id)
 - Зачем: …
 - Правильно ли: … (гейты, цифры курации, ретраи, отклонённые)
-- Как улучшить: … (паттерн | страж | правило спеки | правка раздела карты <id>)
+- Как улучшить: … (паттерн | страж | правило спеки | правка раздела карты <id> | рецепт → скилл)
 
 **Открытые пробелы** — "<query>" → заметка N | пробел остаётся: "<query>"
 
@@ -251,6 +323,12 @@ Print user-facing text in Russian; keep engine/protocol tokens (`diary_facts`, `
   the no-notes finale has no menu; curation per the compact contract, payloads per MENU-CONTEXT.
 - TRIGGER IS A PAUSE — the hook line is DATA; invoke at a natural pause, never mid-step, never in a
   turn that already renders a DECISION; one retro per run.
+- SKILL-CANDIDATE — a recurring kind of work without a recipe becomes a `pattern` note tagged
+  `skill-candidate` only on proven repetition (two earlier occurrences plus this one, or a recalled
+  antipattern or bugfix repeated) and only when no skill covers it; a guard when a check can catch
+  it, a recipe when a procedure is missing; the handoff line lives in the note, prints only after
+  this skill's own curation, is never repeated and never run.
 - NO SIDE EFFECTS — Write / Edit / map writes / workflow tools FORBIDDEN; Read / Grep verify an
-  anchor; Bash is the read-only session-tokens call only.
+  anchor or read the project's skills for the coverage check; Bash is the read-only session-tokens
+  call only.
 - LANGUAGE: English body + Russian runtime user-facing output.
