@@ -80,6 +80,9 @@
 //       carry the engine parser's line forms: the `**SPEC-LINE-SHAPES` definition at a line start,
 //       the executable, agent-judged and task markers, and a check of the draft against the forms
 //       in their review step. Twice a draft reached `workflow_migrate` in a form the parser refuses.
+//       (r4) dep edges: a spec is a chain (the parser links each phase to the one before), so plan's
+//       REAL-DEP-SMOKE-RULE paragraph names both title marks — `(потребляет фазу` and
+//       `(order-only после фазы` — and no skill text promises a «deps line» or «deps list».
 //
 // Dev tooling: lives at the repo ROOT, never inside plugin/ (same rule as the other check-*).
 //
@@ -539,6 +542,21 @@ for (const [name, reviewStepHeading] of Object.entries(SPEC_REVIEW_STEP_HEADINGS
   }
 }
 
+// (r4) dep edges: a spec is a chain, so an edge's kind is a mark in the phase title, never a deps form
+const REAL_DEP_SMOKE_RULE_START = /^\*\*REAL-DEP-SMOKE-RULE\b/m;
+const DEP_EDGE_MARKS = ['(order-only после фазы', '(потребляет фазу'];
+const UNWRITABLE_DEPS_FORM = /\bdeps (?:line|list)\b/i;
+
+const planText = skillText('plan');
+const realDepSmokeRuleStart = planText.search(REAL_DEP_SMOKE_RULE_START);
+const realDepSmokeRule = realDepSmokeRuleStart === -1 ? '' : planText.slice(realDepSmokeRuleStart).split(/\n\s*\n/)[0];
+for (const mark of DEP_EDGE_MARKS.filter((literal) => !realDepSmokeRule.includes(literal))) {
+  failures.push(`plan: REAL-DEP-SMOKE-RULE does not name the title mark «${mark}…» — the drafter would invent a form the spec parser refuses`);
+}
+for (const name of skillDirectories.filter((skill) => UNWRITABLE_DEPS_FORM.test(skillText(skill)))) {
+  failures.push(`${name}: the text promises a «${skillText(name).match(UNWRITABLE_DEPS_FORM)[0]}» — a spec has none, the parser chains each phase to the one before; mark the edge in the phase title`);
+}
+
 if (failures.length > 0) {
   console.error('Handoff-finale sync check FAILED:');
   for (const failure of failures) console.error(`  - ${failure}`);
@@ -546,5 +564,5 @@ if (failures.length > 0) {
 }
 
 console.log(
-  'Handoff-finale sync check passed: finale classes declared, handoff menus in place, staging grants curated, contract replicas aligned, no stale markers, MENU-CONTEXT replicas aligned and unweakened, SPEC-REVIEW-MENU replicas aligned with self-endorsement barred, invoked bundle scripts present, allowed-tools grants matching their contracts, the handoff phrase shared by design and plan, resume free of event-log markers, RESOLVE-INDEX replicas aligned and never retried, the map contract anchored where it is consumed, the model-invocable registry pinned to exactly the diary and prompt skills, the diary contract anchored in dev\'s terminal and the diary skill with its skill-candidate rule, and every command the skills name and hand over resolved to the bundle\'s own — real names, route templates shaped like their targets\' arguments, handoff lines byte-identical across finales, prompt\'s triggers and self-check labels, every entry named in setup\'s finale, and the spec line shapes replicated in plan and fix, each checked in its review step.',
+  'Handoff-finale sync check passed: finale classes declared, handoff menus in place, staging grants curated, contract replicas aligned, no stale markers, MENU-CONTEXT replicas aligned and unweakened, SPEC-REVIEW-MENU replicas aligned with self-endorsement barred, invoked bundle scripts present, allowed-tools grants matching their contracts, the handoff phrase shared by design and plan, resume free of event-log markers, RESOLVE-INDEX replicas aligned and never retried, the map contract anchored where it is consumed, the model-invocable registry pinned to exactly the diary and prompt skills, the diary contract anchored in dev\'s terminal and the diary skill with its skill-candidate rule, and every command the skills name and hand over resolved to the bundle\'s own — real names, route templates shaped like their targets\' arguments, handoff lines byte-identical across finales, prompt\'s triggers and self-check labels, every entry named in setup\'s finale, and the spec line shapes replicated in plan and fix, each checked in its review step, with the dep-edge marks in the phase title.',
 );

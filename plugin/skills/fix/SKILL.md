@@ -122,7 +122,9 @@ whole migration (Baseline, Stack and Conventions stay free prose). The forms, ex
   text) goes as indented lines under its bullet, never as an unindented block.
 - `# Gameplan` before the first phase — a preamble, customarily an HTML comment.
 - A phase heading — `### Phase <N>: <id> — <title>`, the id at most 64 characters: a lowercase
-  Latin letter first, then lowercase letters, digits and single hyphens.
+  Latin letter first, then lowercase letters, digits and single hyphens. A dep-edge mark rides the
+  title, after « — » — `(потребляет фазу N: <что берёт>)` or `(order-only после фазы N)`; written
+  before « — » it would fold into the id.
 - A task — `- [ ] <task>`; its continuation is indented and follows with NO blank line: a blank
   line closes the item, and an indented line after it is an error.
 - Executable criteria — the line `**Done when (EXECUTABLE):**` with the first fence on the very next

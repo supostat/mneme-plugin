@@ -333,7 +333,9 @@ whole migration (Baseline, Stack and Conventions stay free prose). The forms, ex
   text) goes as indented lines under its bullet, never as an unindented block.
 - `# Gameplan` before the first phase — a preamble, customarily an HTML comment.
 - A phase heading — `### Phase <N>: <id> — <title>`, the id at most 64 characters: a lowercase
-  Latin letter first, then lowercase letters, digits and single hyphens.
+  Latin letter first, then lowercase letters, digits and single hyphens. A dep-edge mark rides the
+  title, after « — » — `(потребляет фазу N: <что берёт>)` or `(order-only после фазы N)`; written
+  before « — » it would fold into the id.
 - A task — `- [ ] <task>`; its continuation is indented and follows with NO blank line: a blank
   line closes the item, and an indented line after it is an error.
 - Executable criteria — the line `**Done when (EXECUTABLE):**` with the first fence on the very next
@@ -350,10 +352,12 @@ whole migration (Baseline, Stack and Conventions stay free prose). The forms, ex
 Step 6 checks the draft against these forms before the menu; Step 7's format repair is the safety
 net for a parser change this list has not caught up with, never the plan.
 
-**Multi-phase is native:** `/mneme:dev` takes the WHOLE phase graph in one run and the engine's
-reducer orders execution by dependencies; `until <phase-id>` boundaries give staged entry. Do NOT
-warn about one-phase-at-a-time — that limit is gone. Write the graph the task actually needs and
-let the map's boundary candidates suggest the `until` points.
+**Multi-phase is native:** `/mneme:dev` takes the WHOLE set of phases in one run, and `until
+<phase-id>` boundaries give staged entry. Do NOT warn about one-phase-at-a-time — that limit is
+gone. A spec yields a CHAIN: the engine's spec parser makes every phase depend on the one before
+it, so the order of phases in the Gameplan IS the order of the run — choose it deliberately, and
+let the map's boundary candidates suggest the `until` points. What each edge carries is a mark in
+the phase title (REAL-DEP-SMOKE-RULE); a spec has no line of dependencies to write.
 
 **TYPECHECK-CRITERION-RULE — the done-when generator's rule:** every CODE phase automatically gets
 the project's typecheck criterion as an ADDITIONAL executable done-when — IF the project carries a
@@ -363,9 +367,10 @@ ask for it, and a code phase missing the project's typecheck gate is a generator
 choice. Non-code phases (docs, prose skills) do not get it.
 
 **WIRE-PHASE-RULE — the integration-phase generator's rule:** every Gameplan with 2+ CODE phases
-automatically ENDS with a terminal `wire` phase whose deps list ALL the code phases. The GENERATOR
-holds this rule, not the author (the TYPECHECK-CRITERION-RULE precedent): unit gates look INSIDE
-their module by construction, so wiring — the imports, the composition in the entrypoint — is work
+automatically ENDS with a terminal `wire` phase — the last link of the chain, its title marked
+`(потребляет фазы 1-N)` over all the code phases. The GENERATOR holds this rule, not the author
+(the TYPECHECK-CRITERION-RULE precedent): unit gates look INSIDE their module by construction, so
+wiring — the imports, the composition in the entrypoint — is work
 that belongs to NO phase unless one is generated for it; a multi-phase spec whose gates are all
 green while the application does not start is a generator bug, not an author lapse. The wire
 phase's content is the e2e scenario of the MAIN PATH: an end-to-end test assembling the REAL
@@ -394,15 +399,17 @@ same token, must survive the move to tokens. The GENERATOR holds
 this rule, not the author (the TYPECHECK-CRITERION-RULE precedent); it is a HUMAN acceptance
 procedure, never disguised as an agent-judged criterion.
 
-**REAL-DEP-SMOKE-RULE — honest dep edges:** in a multi-phase Gameplan every dep edge must declare
-what it carries. An edge that carries CODE CONSUMPTION ("phase B uses X from phase A") gives the
-CONSUMER phase an ADDITIONAL executable done-when criterion that exercises the REAL X — importing
-the actual upstream module; a mock in THIS criterion is forbidden. An edge that is pure ordering
-is explicitly marked `order-only` in the phase's deps line. The generator makes the distinction at
-draft time — plan has just designed who consumes whom, so an unmarked, criterion-less dep edge is
-a generator bug. This keeps `deps` from lying about connectivity: bare "deps [phase 3]" means
-execution order only, and an agent can honestly finish phase 4 without importing anything from
-phase 3 — a failure the wire phase alone would catch only at the very end, while the smoke
+**REAL-DEP-SMOKE-RULE — honest dep edges:** a spec's phases form a chain — each depends on the one
+before it — and in a multi-phase Gameplan every edge must declare what it carries, as a mark in the
+consumer phase's heading title, after « — ». An edge that carries CODE CONSUMPTION ("phase B uses X
+from phase A") is marked `(потребляет фазу N: <что берёт>)` — `(потребляет фазы N-M: …)` for
+several — and gives the CONSUMER phase an ADDITIONAL executable done-when criterion that exercises
+the REAL X — importing the actual upstream module; a mock in THIS criterion is forbidden. An edge
+that is pure ordering is marked `(order-only после фазы N)`. The generator makes the distinction at
+draft time — plan has just designed who consumes whom, so an unmarked, criterion-less edge is a
+generator bug. This keeps the chain from lying about connectivity: `(order-only после фазы 3)`
+means execution order only, and an agent can honestly finish phase 4 without importing anything
+from phase 3 — a failure the wire phase alone would catch only at the very end, while the smoke
 criterion catches it fail-fast at the consumer's own gate.
 
 **VERSION-BUMP-RULE — the version-phase generator's rule:** a phase that raises the PROJECT's
@@ -637,12 +644,14 @@ of the existing specs in that directory.
   multi-phase. Multi-phase is native to dev (one run, until boundaries) — no warning needed.
 - TYPECHECK-CRITERION-RULE — the generator, not the author, adds the project's typecheck criterion
   to every code phase when the project carries a typecheck script.
-- WIRE-PHASE-RULE — the generator, not the author, appends a terminal `wire` phase (real-module
-  e2e of the main path, mocks only at the network/system boundary, definite-target executable
-  done-when) to every Gameplan with 2+ code phases; removal is the user's Step 6 move.
-- REAL-DEP-SMOKE-RULE — the generator, not the author, makes every dep edge honest: a
-  code-consuming edge adds a real-module executable smoke criterion to the consumer phase, and a
-  pure-ordering edge is explicitly marked `order-only`.
+- WIRE-PHASE-RULE — the generator, not the author, appends a terminal `wire` phase (the last link
+  of the chain, titled `(потребляет фазы 1-N)`; real-module e2e of the main path, mocks only at
+  the network/system boundary, definite-target executable done-when) to every Gameplan with 2+ code
+  phases; removal is the user's Step 6 move.
+- REAL-DEP-SMOKE-RULE — the generator, not the author, makes every edge of the chain honest by a
+  mark in the consumer phase's title: a code-consuming edge is `(потребляет фазу N: …)` and adds a
+  real-module executable smoke criterion to the consumer phase, a pure-ordering edge is
+  `(order-only после фазы N)`.
 - VERSION-BUMP-RULE — the generator, not the author, decides whether a version-bump phase exists: it
   is generated ONLY when the recon (Step 2.5, release automation included) found no automation that
   bumps the project itself; evidence found → no phase, and Baseline names the automation. Where the
