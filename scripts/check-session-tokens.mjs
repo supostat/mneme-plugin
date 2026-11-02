@@ -392,9 +392,9 @@ function setMtime(path, msAgo) {
 rmSync(fixtureRoot, { recursive: true, force: true });
 
 const behaviorOnly = process.argv.includes('--behavior');
+const REPLICA_SKILLS = ['plan', 'fix', 'migrate', 'setup', 'design', 'grill-agent', 'map', 'diary', 'prompt'];
 if (!behaviorOnly) {
   const skillText = (name) => readFileSync(join(repoRoot, 'plugin', 'skills', name, 'SKILL.md'), 'utf8');
-  const REPLICA_SKILLS = ['plan', 'fix', 'migrate', 'setup', 'design', 'grill-agent', 'map', 'diary'];
 
   // Shared anchor lines: present in the dev norm AND in every replica, byte-for-byte (the
   // diverged-replica detector, the check-skill-handoff (d) pattern).
@@ -533,4 +533,4 @@ if (failures.length > 0) {
   for (const failure of failures) console.error(`  - ${failure}`);
   process.exit(1);
 }
-console.log(`check-session-tokens OK (behavior: 23 cases${behaviorOnly ? '' : ', anchors: norm + RUN-COST bearers + 8 replicas + carve-outs + negation guards'})`);
+console.log(`check-session-tokens OK (behavior: 23 cases${behaviorOnly ? '' : `, anchors: norm + RUN-COST bearers + ${REPLICA_SKILLS.length} replicas + carve-outs + negation guards`})`);

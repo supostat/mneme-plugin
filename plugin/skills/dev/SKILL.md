@@ -589,8 +589,9 @@ Every user-facing message of every mneme skill is assembled ONLY from these bloc
   commands — does NOT replace the menu: the announcement is the REASON for the menu, and X
   becomes the text of option 1. INFORMATIONAL finales are EXEMPT by the criterion «the turn
   created nothing — it only showed», enumerated explicitly: arch and resume (orient-and-stop
-  contracts), setup, grill and design-server (the launcher's URL is DATA — the turn shows what the
-  script did and stops), and terminal turns (`RUN COMPLETE` / `RUN FAILED` /
+  contracts), setup, grill, design-server (the launcher's URL is DATA — the turn shows what the
+  script did and stops) and prompt (the composed command is DATA — the turn shows a line and
+  stops), and terminal turns (`RUN COMPLETE` / `RUN FAILED` /
   `RUN ESCALATED` / abandoned) — there a suggested command is DATA, not a menu, and a finished
   run has nothing to continue. Launch is ALWAYS manual: `/mneme:dev` carries
   `disable-model-invocation`, so a menu option about running promises only «выдать готовую
@@ -621,7 +622,7 @@ a header of the DECISION block, never an option: chips, vertical layout, the sin
 «← рекомендую» and silence = pause are untouched. The norm is GENERATIVE: it covers every
 DECISION anywhere (boundary menus, commit menus, clarifying questions), not just the templates
 below. Replicas live in the menu-template-owning skills (plan, fix, migrate, setup, design,
-grill-agent, map); arch/resume/grill carry none — their rare clarifying menus are covered by this
+grill-agent, map, diary, prompt); arch/resume/grill carry none — their rare clarifying menus are covered by this
 norm. design-server carries none either, and for a stronger reason: it renders no DECISION block
 at all, so there is no header for the line to head.
 

@@ -13,9 +13,9 @@ path (`diary_facts` is read-only by construction); the skill writes only through
 the human decides by digit. The diary is memory about HOW the work went, not a second copy of the
 work: a note here says what happened, why, whether it was right, and what to change next time.
 
-This is the ONE skill the model may invoke on its own: its frontmatter carries no
-`disable-model-invocation`, and the MODEL-INVOCABLE registry in `check-skill-handoff` pins that
-exception to exactly this skill. The hook line is the signal; `## TRIGGER` says when the signal
+This is one of the TWO skills the model may invoke on its own (the other is `/mneme:prompt`): its
+frontmatter carries no `disable-model-invocation`, and the MODEL-INVOCABLE registry in
+`check-skill-handoff` pins those exceptions to exactly these two skills. The hook line is the signal; `## TRIGGER` says when the signal
 may be acted on.
 
 ## Arguments

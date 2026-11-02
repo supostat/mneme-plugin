@@ -122,17 +122,18 @@ memory store cannot assemble between them.
   session resumes exactly where the last one stopped.
 - **Machine-verified phases** — `done-when` gates are real commands run by the
   engine, not checkbox prose.
-- **Twelve bundled skills** — `/mneme:setup`, `/mneme:grill`, `/mneme:grill-agent`,
-  `/mneme:arch`, `/mneme:plan`, `/mneme:design`, `/mneme:fix`, `/mneme:migrate`,
-  `/mneme:dev`, `/mneme:resume`, `/mneme:map`, `/mneme:diary`: a one-run
-  onboarding checkup as the entry, then raw idea → interrogated protocol (asked
-  of you, or of a code-grounded respondent) → spec → UI etalons where a page is
-  involved → phases → gated execution, a diagnosis entry for bugs whose gate is
-  the regression test, a project map of domains and flows that narrows every
-  recall, and a diary that turns a finished run or this session's memory gaps
+- **Thirteen bundled skills** — `/mneme:prompt`, `/mneme:setup`, `/mneme:grill`,
+  `/mneme:grill-agent`, `/mneme:arch`, `/mneme:plan`, `/mneme:design`, `/mneme:fix`,
+  `/mneme:migrate`, `/mneme:dev`, `/mneme:resume`, `/mneme:map`, `/mneme:diary`: a
+  composer the agent invokes on its own to turn your words into the right command
+  in that command's form, a one-run onboarding checkup as the entry, then raw idea
+  → interrogated protocol (asked of you, or of a code-grounded respondent) → spec
+  → UI etalons where a page is involved → phases → gated execution, a diagnosis
+  entry for bugs whose gate is the regression test, a project map of domains and
+  flows that narrows every recall, and a diary that turns a finished run or this session's memory gaps
   into staged notes. `/mneme:design` has one optional companion,
   `/mneme:design-server` — a launcher for the Melete design server,
-  infrastructure of that verb rather than a thirteenth verb of its own.
+  infrastructure of that verb rather than a fourteenth verb of its own.
 
 ## Quick start
 

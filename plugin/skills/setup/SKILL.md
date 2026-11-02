@@ -136,10 +136,12 @@ MENU-CONTEXT — compact replica (norm: dev's `### MENU-CONTEXT`):
 Everything setup created was already curated by digit in Step 4 — by this finale the turn leaves
 nothing undecided, so the map is informational and carries no HANDOFF-DECISION.
 
-Short, four lines, no re-telling of every skill: фича начинается с `/mneme:grill` (вскрыть
-несформулированные решения) или сразу `/mneme:plan` (веер вариантов → спека → фазы) → прогон
-`/mneme:dev` (гейты, harvest в staging); ориентация в графе задач — `/mneme:resume`; карта
-проекта — `/mneme:map` (домены сужают подборки, вопросы об устройстве — через recall). Re-run
+Short, six lines, every entry named once: фича начинается с `/mneme:grill` (вскрыть
+несформулированные решения) или `/mneme:grill-agent` (то же, факты отвечает код); вопрос
+устройства — `/mneme:arch`; новая страница — `/mneme:design`; понятное изменение — `/mneme:plan`
+(веер → спека → фазы); сбой — `/mneme:fix`; чужая спека — `/mneme:migrate`; прогон — `/mneme:dev`
+(гейты, harvest в staging); ориентация — `/mneme:resume`; карта — `/mneme:map`; ретро —
+`/mneme:diary`; не знаешь какую — опиши словами, агент составит её через `/mneme:prompt`. Re-run
 hint: `/mneme:setup` идемпотентен — повторный запуск в настроенном проекте даёт короткий зелёный
 отчёт.
 

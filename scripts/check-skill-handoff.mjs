@@ -9,7 +9,7 @@
 // TEST, not the next live episode. The same argument covers every other fact a skill's text
 // states about itself — the finale class it claims, the bundle script it invokes, the tools it is
 // granted — and each of those facts is pinned by ONE map here, never by a second copy elsewhere.
-// Sixteen checks:
+// Seventeen checks:
 //
 //   (a) every non-dev skill declares its expected FINALE-CLASS token — and never both;
 //   (b) handoff finales (plan, fix, migrate) reference HANDOFF-DECISION and carry a closing
@@ -58,13 +58,21 @@
 //       plan names recall_domains and domains; arch opens with map_list {}; migrate's convention
 //       names the optional domains <a,b> tail;
 //   (o) MODEL-INVOCABLE — the registry of skills the model may invoke on its own is exactly
-//       [diary]: its frontmatter carries no `disable-model-invocation: true`, every other skill
-//       directory does. The skill list comes from plugin/skills/ itself, not from a table, so a
-//       skill forgotten in every registry is still checked; a registry entry without a directory
+//       [diary, prompt]: their frontmatter carries no `disable-model-invocation: true`, every other
+//       skill directory does. The skill list comes from plugin/skills/ itself, not from a table, so
+//       a skill forgotten in every registry is still checked; a registry entry without a directory
 //       fails too;
 //   (p) DIARY — the diary contract stands where it is consumed: dev's RUN COMPLETE terminal hands
 //       over `/mneme:diary run <run_id>`, and the diary skill carries the four question labels,
-//       the `run:<run_id>` tag and the `diary:` hook-line prefix in its description.
+//       the `run:<run_id>` tag and the `diary:` hook-line prefix in its description;
+//   (q) PROMPT — the commands a skill text names, and the command lines it hands over, are the
+//       bundle's real ones: every `/mneme:<id>` in every skill is a skill directory; every template
+//       of prompt's ROUTE-TABLE takes its argument the way the target's `## Arguments` does, no
+//       template composes dev or `diary run`, and every skill but dev and prompt has a row; each
+//       handoff template is byte-identical in prompt and in every finale that prints it; prompt's
+//       description carries its trigger phrases and its body the five self-check labels; setup's
+//       «what's next» names every entry. The defects this pins were live: a nonexistent command
+//       typed into a prompt, a failure report sent to plan, a finale that knew only some entries.
 //
 // Dev tooling: lives at the repo ROOT, never inside plugin/ (same rule as the other check-*).
 //
@@ -96,6 +104,7 @@ const EXPECTED_FINALE_CLASS = {
   grill: INFORMATIONAL,
   'design-server': INFORMATIONAL,
   map: INFORMATIONAL,
+  prompt: INFORMATIONAL,
 };
 const CONTRACT_REPLICAS = ['dev', 'plan', 'fix', 'diary'];
 const CONTRACT_ANCHORS = ['прими все', 'поштучный разбор', 'отклони все', 'NEVER tell the user'];
@@ -254,7 +263,8 @@ const TOOL_TOKEN_EXPECTATIONS = [
       'mcp__plugin_mneme_memory__staging_resolve',
     ],
   },
-  ...['dev', 'resume', 'design-server', 'fix', 'setup', 'diary'].map((skill) => ({ skill, rule: 'never', tools: MAP_WRITE_TOOLS })),
+  { skill: 'prompt', rule: 'exactly', tools: ['Read', 'Grep', 'Bash'] },
+  ...['dev', 'resume', 'design-server', 'fix', 'setup', 'diary', 'prompt'].map((skill) => ({ skill, rule: 'never', tools: MAP_WRITE_TOOLS })),
 ];
 
 for (const { skill, rule, tools } of TOOL_TOKEN_EXPECTATIONS) {
@@ -339,7 +349,7 @@ for (const [name, anchors] of Object.entries(MAP_ANCHORS)) {
 
 // (o) MODEL-INVOCABLE: exactly the registered skills may be invoked by the model; every other skill
 // directory carries the disabling key. The list comes from the directory, never from a table.
-const MODEL_INVOCABLE_SKILLS = ['diary'];
+const MODEL_INVOCABLE_SKILLS = ['diary', 'prompt'];
 const DISABLE_MODEL_INVOCATION = 'disable-model-invocation: true';
 const skillDirectories = readdirSync(join(repoRoot, 'plugin', 'skills'), { withFileTypes: true })
   .filter((entry) => entry.isDirectory())
@@ -378,6 +388,123 @@ if (!diaryDescription.includes(DIARY_HOOK_PREFIX)) {
   failures.push(`diary: the description does not name the hook-line prefix «${DIARY_HOOK_PREFIX}» — the model would not know when to invoke the skill`);
 }
 
+// (q) PROMPT: the commands a skill text names and hands over are the bundle's real ones
+const sectionOf = (text, heading) => {
+  const start = text.search(heading);
+  if (start === -1) return null;
+  const level = text.slice(start).match(/^#+/)[0].length;
+  const bodyStart = text.indexOf('\n', start) + 1;
+  const nextHeading = new RegExp(`^#{1,${level}} `, 'm').exec(text.slice(bodyStart));
+  return text.slice(start, nextHeading === null ? undefined : bodyStart + nextHeading.index);
+};
+const commandPattern = (name) => new RegExp(`/mneme:${name}(?![a-z0-9-])`);
+const codeSpans = (text) => [...text.matchAll(/`([^`\n]+)`/g)].map(([, span]) => span);
+const leadingCommandOf = (span) => span.match(/^\/mneme:([a-z][a-z0-9-]*)/)?.[1];
+const COMMAND_TOKEN = /\/mneme:([a-z][a-z0-9-]*)/g;
+const argumentKindOf = (template, name) => {
+  const rest = template.slice(`/mneme:${name}`.length);
+  if (rest === '' || rest.startsWith(' [')) return 'no argument';
+  if (rest.startsWith(' "')) return 'quoted text';
+  if (rest.startsWith(' <')) return 'a positional value';
+  return `the keyword «${rest.trim().split(/\s/)[0]}»`;
+};
+
+// (q1) every named command is a skill directory
+for (const name of skillDirectories) {
+  const unknownCommands = new Set(
+    [...skillText(name).matchAll(COMMAND_TOKEN)].map(([, id]) => id).filter((id) => !skillDirectories.includes(id)),
+  );
+  for (const id of unknownCommands) {
+    failures.push(`${name}: names /mneme:${id}, which is no skill of the bundle — fix the name or drop the reference`);
+  }
+}
+
+// (q2) every route template takes its argument the way its target's ## Arguments does
+const NEVER_COMPOSED = [/^\/mneme:dev(?![a-z0-9-])/, /^\/mneme:diary run/];
+const UNROUTED_SKILLS = ['dev', 'prompt'];
+const promptText = skillText('prompt');
+const routeTable = sectionOf(promptText, /^## ROUTE-TABLE\b/m);
+
+if (routeTable === null) {
+  failures.push('prompt: no `## ROUTE-TABLE` section — the command would be picked by guesswork');
+} else {
+  const routedSkills = new Set();
+  for (const template of codeSpans(routeTable).filter((span) => leadingCommandOf(span) !== undefined)) {
+    const name = leadingCommandOf(template);
+    routedSkills.add(name);
+    if (NEVER_COMPOSED.some((pattern) => pattern.test(template))) {
+      failures.push(`prompt: ROUTE-TABLE composes «${template}» — dev and diary run come only from a finale or resume's survey`);
+      continue;
+    }
+    if (!skillDirectories.includes(name)) continue;
+    const argumentsSection = sectionOf(skillText(name), /^## Arguments\b/m);
+    if (argumentsSection === null) {
+      failures.push(`${name}: no \`## Arguments\` section — prompt's route template for it cannot be checked`);
+      continue;
+    }
+    const targetKinds = new Set(
+      codeSpans(argumentsSection)
+        .filter((span) => leadingCommandOf(span) === name)
+        .map((form) => argumentKindOf(form, name)),
+    );
+    const templateKind = argumentKindOf(template, name);
+    if (!targetKinds.has(templateKind)) {
+      failures.push(
+        `prompt: ROUTE-TABLE template «${template}» takes ${templateKind}, but /mneme:${name} takes ${[...targetKinds].join(' or ')} — copy the form from plugin/skills/${name}/SKILL.md`,
+      );
+    }
+  }
+  for (const name of skillDirectories.filter((skill) => !UNROUTED_SKILLS.includes(skill) && !routedSkills.has(skill))) {
+    failures.push(`prompt: ROUTE-TABLE has no row for /mneme:${name} — every skill but dev and prompt must be reachable from the user's words`);
+  }
+}
+
+// (q3) each handoff template is one literal, byte-identical in every text that prints it
+const GRILL_PROTOCOL_TRIGGER = 'по протоколу docs/GRILL-';
+const HANDOFF_TEMPLATES = [
+  { literal: `/mneme:plan "<задача> ${GRILL_PROTOCOL_TRIGGER}<slug>.md"`, carriers: ['grill', 'grill-agent', 'prompt'] },
+  {
+    literal: '/mneme:plan "<изменение>. Решено в /mneme:arch: <выбранный вариант своими словами> — <почему он>. Решить: <что осталось открытым>"',
+    carriers: ['arch', 'prompt'],
+  },
+  { literal: `${HANDOFF_PHRASE}<slug>.<html|json>"`, carriers: ['design', 'prompt'] },
+  { literal: '/mneme:fix "<симптом: что делал, что ожидал, что получил; текст ошибки дословно>"', carriers: ['plan', 'prompt'] },
+  { literal: '/mneme:design "<страница или фича: для кого она и что на ней делают>"', carriers: ['plan', 'prompt'] },
+  { literal: '/mneme:migrate <путь>', carriers: ['plan', 'prompt'] },
+];
+
+for (const { literal, carriers } of HANDOFF_TEMPLATES) {
+  for (const carrier of carriers.filter((name) => !skillText(name).includes(literal))) {
+    failures.push(`${carrier}: does not carry the handoff template «${literal}» byte for byte — copy it from prompt's ROUTE-TABLE`);
+  }
+}
+if (!skillText('plan').includes(GRILL_PROTOCOL_TRIGGER)) {
+  failures.push(`plan: GRILL-READ does not quote the trigger «${GRILL_PROTOCOL_TRIGGER}» — the protocol grill hands over would not be read`);
+}
+
+// (q4) prompt's description carries its triggers, its body the five self-check labels
+const PROMPT_TRIGGERS = ['дай промпт для mneme:', 'сделаем через mneme'];
+const SELF_CHECK_LABELS = ['одна задача', 'только принятые решения', 'нет фаз и шагов', 'контекст раскрыт', 'команда существует'];
+const promptDescription = promptText.match(/^description:.*$/m)?.[0] ?? '';
+const promptBody = promptText.slice(frontmatterOf(promptText).length);
+
+for (const trigger of PROMPT_TRIGGERS.filter((phrase) => !promptDescription.includes(phrase))) {
+  failures.push(`prompt: the description does not carry the trigger «${trigger}» — the model would not know when to invoke the skill`);
+}
+for (const label of SELF_CHECK_LABELS.filter((phrase) => !promptBody.includes(phrase))) {
+  failures.push(`prompt: the self-check label «${label}» is missing from the body — the line would be printed unchecked on that point`);
+}
+
+// (q5) setup's «what's next» names every entry of the bundle
+const SETUP_UNNAMED = ['setup', 'design-server'];
+const setupFinale = sectionOf(skillText('setup'), /^### Step 5\b/m) ?? '';
+
+for (const name of skillDirectories.filter((skill) => !SETUP_UNNAMED.includes(skill))) {
+  if (!commandPattern(name).test(setupFinale)) {
+    failures.push(`setup: Step 5 «what's next» does not name /mneme:${name} — a new user would never learn that entry`);
+  }
+}
+
 if (failures.length > 0) {
   console.error('Handoff-finale sync check FAILED:');
   for (const failure of failures) console.error(`  - ${failure}`);
@@ -385,5 +512,5 @@ if (failures.length > 0) {
 }
 
 console.log(
-  'Handoff-finale sync check passed: finale classes declared, handoff menus in place, staging grants curated, contract replicas aligned, no stale markers, MENU-CONTEXT replicas aligned and unweakened, SPEC-REVIEW-MENU replicas aligned with self-endorsement barred, invoked bundle scripts present, allowed-tools grants matching their contracts, the handoff phrase shared by design and plan, resume free of event-log markers, RESOLVE-INDEX replicas aligned and never retried, the map contract anchored where it is consumed, the model-invocable registry pinned to exactly the diary skill, the diary contract anchored in dev\'s terminal and the diary skill.',
+  'Handoff-finale sync check passed: finale classes declared, handoff menus in place, staging grants curated, contract replicas aligned, no stale markers, MENU-CONTEXT replicas aligned and unweakened, SPEC-REVIEW-MENU replicas aligned with self-endorsement barred, invoked bundle scripts present, allowed-tools grants matching their contracts, the handoff phrase shared by design and plan, resume free of event-log markers, RESOLVE-INDEX replicas aligned and never retried, the map contract anchored where it is consumed, the model-invocable registry pinned to exactly the diary and prompt skills, the diary contract anchored in dev\'s terminal and the diary skill, and every command the skills name and hand over resolved to the bundle\'s own — real names, route templates shaped like their targets\' arguments, handoff lines byte-identical across finales, prompt\'s triggers and self-check labels, every entry named in setup\'s finale.',
 );
