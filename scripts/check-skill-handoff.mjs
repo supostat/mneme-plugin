@@ -76,6 +76,10 @@
 //       description carries its trigger phrases and its body the five self-check labels; setup's
 //       «what's next» names every entry. The defects this pins were live: a nonexistent command
 //       typed into a prompt, a failure report sent to plan, a finale that knew only some entries.
+//   (r) SPEC-LINE-SHAPES — both skills that author a spec (plan owns the rule, fix replicates it)
+//       carry the engine parser's line forms: the `**SPEC-LINE-SHAPES` definition at a line start,
+//       the executable, agent-judged and task markers, and a check of the draft against the forms
+//       in their review step. Twice a draft reached `workflow_migrate` in a form the parser refuses.
 //
 // Dev tooling: lives at the repo ROOT, never inside plugin/ (same rule as the other check-*).
 //
@@ -516,6 +520,25 @@ for (const name of skillDirectories.filter((skill) => !SETUP_UNNAMED.includes(sk
   }
 }
 
+// (r) SPEC-LINE-SHAPES: both spec authors carry the parser's line forms and check the draft in their review step
+const SPEC_LINE_SHAPES_DEFINITION = /^\*\*SPEC-LINE-SHAPES\b/m;
+const SPEC_LINE_SHAPES_MARKERS = ['**Done when (EXECUTABLE):**', '**Done when (AGENT-JUDGED):**', '- [ ] '];
+const SPEC_REVIEW_STEP_HEADINGS = { plan: /^### Step 6\b/m, fix: /^### Step 5\b/m };
+
+for (const [name, reviewStepHeading] of Object.entries(SPEC_REVIEW_STEP_HEADINGS)) {
+  const text = skillText(name);
+  if (!SPEC_LINE_SHAPES_DEFINITION.test(text)) {
+    failures.push(`${name}: no **SPEC-LINE-SHAPES definition at a line start — drafts would meet the parser's line forms only in the repair after approval`);
+    continue;
+  }
+  for (const marker of SPEC_LINE_SHAPES_MARKERS.filter((literal) => !text.includes(literal))) {
+    failures.push(`${name}: SPEC-LINE-SHAPES lost the marker «${marker.trim()}» — restore the forms list (plan owns it, fix replicates it)`);
+  }
+  if (!(sectionOf(text, reviewStepHeading) ?? '').includes('SPEC-LINE-SHAPES')) {
+    failures.push(`${name}: the review step does not check the draft against SPEC-LINE-SHAPES — the rule would stand unused before the menu`);
+  }
+}
+
 if (failures.length > 0) {
   console.error('Handoff-finale sync check FAILED:');
   for (const failure of failures) console.error(`  - ${failure}`);
@@ -523,5 +546,5 @@ if (failures.length > 0) {
 }
 
 console.log(
-  'Handoff-finale sync check passed: finale classes declared, handoff menus in place, staging grants curated, contract replicas aligned, no stale markers, MENU-CONTEXT replicas aligned and unweakened, SPEC-REVIEW-MENU replicas aligned with self-endorsement barred, invoked bundle scripts present, allowed-tools grants matching their contracts, the handoff phrase shared by design and plan, resume free of event-log markers, RESOLVE-INDEX replicas aligned and never retried, the map contract anchored where it is consumed, the model-invocable registry pinned to exactly the diary and prompt skills, the diary contract anchored in dev\'s terminal and the diary skill with its skill-candidate rule, and every command the skills name and hand over resolved to the bundle\'s own — real names, route templates shaped like their targets\' arguments, handoff lines byte-identical across finales, prompt\'s triggers and self-check labels, every entry named in setup\'s finale.',
+  'Handoff-finale sync check passed: finale classes declared, handoff menus in place, staging grants curated, contract replicas aligned, no stale markers, MENU-CONTEXT replicas aligned and unweakened, SPEC-REVIEW-MENU replicas aligned with self-endorsement barred, invoked bundle scripts present, allowed-tools grants matching their contracts, the handoff phrase shared by design and plan, resume free of event-log markers, RESOLVE-INDEX replicas aligned and never retried, the map contract anchored where it is consumed, the model-invocable registry pinned to exactly the diary and prompt skills, the diary contract anchored in dev\'s terminal and the diary skill with its skill-candidate rule, and every command the skills name and hand over resolved to the bundle\'s own — real names, route templates shaped like their targets\' arguments, handoff lines byte-identical across finales, prompt\'s triggers and self-check labels, every entry named in setup\'s finale, and the spec line shapes replicated in plan and fix, each checked in its review step.',
 );

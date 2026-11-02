@@ -107,10 +107,42 @@ Stack / Conventions / Knowledge / Gameplan), ONE phase, small by nature:
   as an ADDITIONAL criterion; it never replaces the targeted one. If no executable criterion can
   name the bug (visual outcome, external service), the done-when is explicitly MARKED agent-judged
   WITH a stated justification of why executable is impossible.
-- Knowledge carries the diagnosis: the red run's output, the confirmed hypothesis, the rejected
-  ones — this is what dev's harvest will distill into `resolved_error`.
+- Knowledge carries the diagnosis: the red run's output (indented lines under its bullet), the
+  confirmed hypothesis, the rejected ones — this is what dev's harvest will distill into
+  `resolved_error`.
+
+**SPEC-LINE-SHAPES — the line forms the engine's spec parser accepts** (a replica of plan's rule:
+a skill sees no other skill at run time, so fix carries its own text): `workflow_migrate` reads only
+`# Knowledge` and `# Gameplan`, and over both it is TOTAL — one line no rule covers refuses the
+whole migration (Baseline, Stack and Conventions stay free prose). The forms, exhaustively:
+
+- `# Knowledge` — after its first bullet every non-blank line is a top-level bullet `- …`, a
+  continuation line indented under the bullet above, or an HTML comment. A paragraph with a bold
+  label is written as a bullet, `- **Label.** …`; multi-line text (the red run's output, an error
+  text) goes as indented lines under its bullet, never as an unindented block.
+- `# Gameplan` before the first phase — a preamble, customarily an HTML comment.
+- A phase heading — `### Phase <N>: <id> — <title>`, the id at most 64 characters: a lowercase
+  Latin letter first, then lowercase letters, digits and single hyphens.
+- A task — `- [ ] <task>`; its continuation is indented and follows with NO blank line: a blank
+  line closes the item, and an indented line after it is an error.
+- Executable criteria — the line `**Done when (EXECUTABLE):**` with the first fence on the very next
+  line, then the criteria back to back with no blank line between them, each one: an opening fence
+  of three backticks (optionally `timeout=<N>s`, N from 1 to 3600), exactly one command line, the
+  closing fence, then a line describing it; a blank line closes the block — a line right after the
+  description (a marker, a task, a comment) is glued into it silently. The command is ONE argv that
+  starts with a program, not a flag: no quotes, no `$(`, `&&`, `||`, `|`, `;`.
+- `**Done when (AGENT-JUDGED):** <criterion and its justification>` — ONE line.
+- `**Done when:** <acceptance prose>` — ONE line.
+- Blank lines and HTML comments — between elements.
+- Every phase carries at least one task and at least one executable criterion — so an agent-judged
+  regression criterion (FIX-REGRESSION-GATE's exception) still rides with an executable one, the
+  repo-wide suite at the least.
 
 ### Step 5: review the draft (HARD STOP), then Write
+
+Before showing it, walk the draft's `# Knowledge` and `# Gameplan` line by line against
+SPEC-LINE-SHAPES (Step 4) and repair every line outside those forms — the spec the user approves
+must migrate on the first call.
 
 Show the DRAFT spec in the chat and CLOSE THE TURN with the `### SPEC-REVIEW-MENU` block (Output
 format) — that menu is where the approval digit comes from. Only on digit `1`: `Write` it to
@@ -306,6 +338,9 @@ MENU-CONTEXT — compact replica (norm: dev's `### MENU-CONTEXT`):
   repaired in place, meaning goes back to the user; ends at the finale map + its closing
   HANDOFF-DECISION menu (FINALE-CLASS-HANDOFF). Launch is always manual — `/mneme:dev` carries
   `disable-model-invocation`; the menu only hands over the ready command.
+- SPEC-LINE-SHAPES — every line of the draft's Knowledge and Gameplan takes one of the forms the
+  engine's spec parser accepts (Step 4, a replica of plan's rule); Step 5 checks the draft against
+  them before the menu, and FIX-AUTOMIGRATE's format repair stays the safety net, never the plan.
 - TWO HARD STOPS — the hypothesis fan and the spec review; continuing past either without an
   explicit user digit is a VIOLATION = ABORT.
 - SPEC-REVIEW-MENU — the Step 5 stop is CLOSED BY THE MENU (`### SPEC-REVIEW-MENU`, a replica of

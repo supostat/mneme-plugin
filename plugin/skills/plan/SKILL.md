@@ -203,6 +203,10 @@ later takes the kit from the registry.
 
 ### Step 6: SPEC-REVIEW-HARD-STOP — review, then Write only on approval
 
+Before showing it, walk the draft's `# Knowledge` and `# Gameplan` line by line against
+SPEC-LINE-SHAPES (Output format) and repair every line outside those forms — the spec the user
+approves must migrate on the first call.
+
 Show the DRAFT spec in the chat and CLOSE THE TURN with the `### SPEC-REVIEW-MENU` block (Output
 format) — that numbered menu IS the stop, and the turn ends there. `Write` into `docs/` fires ONLY
 on digit `1`; digits `2` / `3` / `4` and silence all leave the disk untouched. Closing this stop
@@ -318,6 +322,33 @@ Five sections, matching the project's existing `docs/SPEC-*.md` delta format:
   `grep -q MARKER path`), NOT a bare `bun test`. Use when the outcome is machine-verifiable.
 - **agent-judged** — explicitly MARKED as agent-judged. Use only when the outcome is visual or
   otherwise not machine-checkable.
+
+**SPEC-LINE-SHAPES — the line forms the engine's spec parser accepts:** `workflow_migrate` reads
+only `# Knowledge` and `# Gameplan`, and over both it is TOTAL — one line no rule covers refuses the
+whole migration (Baseline, Stack and Conventions stay free prose). The forms, exhaustively:
+
+- `# Knowledge` — after its first bullet every non-blank line is a top-level bullet `- …`, a
+  continuation line indented under the bullet above, or an HTML comment. A paragraph with a bold
+  label is written as a bullet, `- **Label.** …`; multi-line text (a command's output, an error
+  text) goes as indented lines under its bullet, never as an unindented block.
+- `# Gameplan` before the first phase — a preamble, customarily an HTML comment.
+- A phase heading — `### Phase <N>: <id> — <title>`, the id at most 64 characters: a lowercase
+  Latin letter first, then lowercase letters, digits and single hyphens.
+- A task — `- [ ] <task>`; its continuation is indented and follows with NO blank line: a blank
+  line closes the item, and an indented line after it is an error.
+- Executable criteria — the line `**Done when (EXECUTABLE):**` with the first fence on the very next
+  line, then the criteria back to back with no blank line between them, each one: an opening fence
+  of three backticks (optionally `timeout=<N>s`, N from 1 to 3600), exactly one command line, the
+  closing fence, then a line describing it; a blank line closes the block — a line right after the
+  description (a marker, a task, a comment) is glued into it silently. The command is ONE argv that
+  starts with a program, not a flag: no quotes, no `$(`, `&&`, `||`, `|`, `;`.
+- `**Done when (AGENT-JUDGED):** <criterion and its justification>` — ONE line.
+- `**Done when:** <acceptance prose>` — ONE line.
+- Blank lines and HTML comments — between elements.
+- Every phase carries at least one task and at least one executable criterion.
+
+Step 6 checks the draft against these forms before the menu; Step 7's format repair is the safety
+net for a parser change this list has not caught up with, never the plan.
 
 **Multi-phase is native:** `/mneme:dev` takes the WHOLE phase graph in one run and the engine's
 reducer orders execution by dependencies; `until <phase-id>` boundaries give staged entry. Do NOT
@@ -565,6 +596,9 @@ of the existing specs in that directory.
   pass; a FORMAT error is fixed by the skill itself in the hot context (re-Write + re-migrate,
   meaning untouched), a MEANING-level fix goes back to the user; the finale is the GRAPH-MAP
   (shared convention, defined in the `mneme:migrate` skill) plus a ready dev command.
+- SPEC-LINE-SHAPES — every line of the draft's Knowledge and Gameplan takes one of the forms the
+  engine's spec parser accepts (Output format); Step 6 checks the draft against them before the
+  menu, and Step 7's format repair stays the safety net, never the plan.
 - FAN IS MANDATORY — at least 2 options with honest trade-offs; a genuine single-option task is
   stated explicitly as "one option, confirm", never resolved silently. Even trivial tasks pass
   through confirmation.
