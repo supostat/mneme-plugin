@@ -8,7 +8,9 @@
 # from release.json (machine-generated, fixed flat layout — the parse contract),
 # serve the binary from ~/.mneme/bin/<engine_version>/ or download it from the
 # pinned GitHub Release, verifying its SHA256 BEFORE chmod +x and installing
-# with an atomic mv.
+# with an atomic mv. A download cut short by INT, TERM or HUP kills curl and
+# removes its temp file; every production start first removes the temp files
+# left by launchers that are no longer alive (SIGKILL cannot be trapped).
 #
 # --warm: walk the same path up to and including the cache fill, but never
 # exec — the SessionStart hook uses it so the first MCP start does not wait for
@@ -91,12 +93,35 @@ checksum=$(pin_value "$target")
 cache_dir="$HOME/.mneme/bin/$engine_version"
 cache_bin="$cache_dir/mneme-$target"
 
+remove_orphan_downloads() {
+  for orphan in "$cache_dir/.mneme-$target".*; do
+    orphan_pid=${orphan#"$cache_dir/.mneme-$target."}
+    case "$orphan_pid" in
+      '' | *[!0-9]*) continue ;;
+    esac
+    kill -0 "$orphan_pid" 2>/dev/null || rm -f "$orphan" 2>/dev/null || true
+  done
+}
+
+abandon_download() {
+  kill "$curl_pid" 2>/dev/null || true
+  wait "$curl_pid" 2>/dev/null || true
+  rm -f "$tmp_bin"
+  fail "download interrupted by a signal; the partial file was removed: $url"
+}
+
+remove_orphan_downloads
+
 if [ ! -x "$cache_bin" ]; then
   command -v curl >/dev/null 2>&1 || fail "curl not found — cannot download the engine binary"
   mkdir -p "$cache_dir"
   tmp_bin="$cache_dir/.mneme-$target.$$"
   url="$base_url/mneme-$target"
-  if ! curl -fsSL --retry 2 -o "$tmp_bin" "$url"; then
+  curl_pid=''
+  trap abandon_download INT TERM HUP
+  curl -fsSL --retry 2 -o "$tmp_bin" "$url" &
+  curl_pid=$!
+  if ! wait "$curl_pid"; then
     rm -f "$tmp_bin"
     fail "download failed (no network or missing release asset): $url"
   fi
@@ -110,6 +135,7 @@ if [ ! -x "$cache_bin" ]; then
   fi
   chmod +x "$tmp_bin"
   mv -f "$tmp_bin" "$cache_bin"
+  trap - INT TERM HUP
 fi
 
 if [ "$warm" -eq 1 ]; then

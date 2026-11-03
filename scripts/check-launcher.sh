@@ -1,10 +1,13 @@
 #!/bin/sh
 #
-# Gate for plugin/bin/launch.sh: ten behavioural scenarios run against
+# Gate for plugin/bin/launch.sh: fourteen behavioural scenarios run against
 # fixtures in a temporary directory (mocked curl / sha tools / uname) — the
 # five resolution paths (dev, cache-hit, download, mismatch, platform), argv
-# forwarding to the binary in dev and cache-hit mode, and --warm in dev,
-# cache-fill and no-pin mode (exit 0, never an exec) — plus the git-ignore
+# forwarding to the binary in dev and cache-hit mode, --warm in dev,
+# cache-fill and no-pin mode (exit 0, never an exec), the sweep of temp files
+# left by dead launchers (never blocking a start), and a download interrupted
+# by TERM or HUP (INT cannot be sent: an asynchronous list ignores SIGINT) —
+# plus the git-ignore
 # regression check: the old `bin/` ignore pattern silently dropped the
 # launcher from the bundle, and must never come back.
 #
@@ -75,6 +78,33 @@ printf 'called\n' >>"$(dirname "$0")/curl.log"
 printf '#!/bin/sh\necho DOWNLOAD-OK\n' >"$out"
 EOF
   chmod +x "$1/curl"
+}
+
+write_slow_curl() {
+  cat >"$1/curl" <<'EOF'
+#!/bin/sh
+out=''
+while [ $# -gt 0 ]; do
+  if [ "$1" = '-o' ]; then
+    out="$2"
+    shift
+  fi
+  shift
+done
+printf 'partial' >"$out"
+printf '%s' "$$" >"$(dirname "$0")/curl.pid"
+exec sleep 30
+EOF
+  chmod +x "$1/curl"
+}
+
+wait_for_file() {
+  ticks=0
+  while [ ! -e "$1" ] && [ "$ticks" -lt 50 ]; do
+    sleep 0.1
+    ticks=$((ticks + 1))
+  done
+  [ -e "$1" ]
 }
 
 write_mock_sha() {
@@ -200,6 +230,90 @@ write_mock_curl "$dir/mockbin"
 out=$(run_launcher "$dir" --warm 2>&1) || say_fail 'warm-nopin: non-zero exit'
 [ -z "$out" ] || say_fail "warm-nopin: expected no output, got: $out"
 [ ! -f "$dir/mockbin/curl.log" ] || say_fail 'warm-nopin: curl was called without a pin'
+
+# Scenario 11: orphan sweep on a cache hit — a dead launcher's temp file goes,
+# a live launcher's and a non-pid one stay, the cached binary runs as usual.
+dir=$(scenario_dir orphan-sweep)
+write_pin "$dir/plugin/bin" 'cafe1234'
+write_mock_curl "$dir/mockbin"
+write_mock_sha "$dir/mockbin" 'cafe1234'
+cache="$dir/home/.mneme/bin/9.9.9"
+mkdir -p "$cache"
+write_fake_binary "$cache/mneme-$target" 'CACHE-OK'
+sh -c 'exit 0' &
+dead_pid=$!
+wait "$dead_pid"
+: >"$cache/.mneme-$target.$dead_pid"
+: >"$cache/.mneme-$target.$$"
+: >"$cache/.mneme-$target.partial"
+: >"$cache/.mneme-$target.x.$dead_pid"
+out=$(run_launcher "$dir" 2>&1) || say_fail 'orphan-sweep: non-zero exit'
+[ "$out" = 'CACHE-OK' ] || say_fail "orphan-sweep: expected CACHE-OK, got: $out"
+[ ! -f "$dir/mockbin/curl.log" ] || say_fail 'orphan-sweep: curl was called on a warm cache'
+[ ! -e "$cache/.mneme-$target.$dead_pid" ] || say_fail 'orphan-sweep: the temp file of a dead launcher was left'
+[ -e "$cache/.mneme-$target.$$" ] || say_fail 'orphan-sweep: the temp file of a live launcher was removed'
+[ -e "$cache/.mneme-$target.partial" ] || say_fail 'orphan-sweep: a temp file without a pid suffix was removed'
+[ -e "$cache/.mneme-$target.x.$dead_pid" ] || say_fail 'orphan-sweep: a file outside the .mneme-<target>.<pid> form was removed'
+
+# Scenario 12: the sweep never blocks a start — a dead launcher's temp file in
+# a cache directory the user cannot write leaves the cached binary running.
+dir=$(scenario_dir orphan-sweep-readonly)
+write_pin "$dir/plugin/bin" 'cafe1234'
+write_mock_curl "$dir/mockbin"
+write_mock_sha "$dir/mockbin" 'cafe1234'
+cache="$dir/home/.mneme/bin/9.9.9"
+mkdir -p "$cache"
+write_fake_binary "$cache/mneme-$target" 'CACHE-OK'
+: >"$cache/.mneme-$target.$dead_pid"
+chmod a-w "$cache"
+out=$(run_launcher "$dir" 2>&1) || say_fail 'orphan-sweep-readonly: a temp file that cannot be removed blocked the start'
+[ "$out" = 'CACHE-OK' ] || say_fail "orphan-sweep-readonly: expected CACHE-OK, got: $out"
+chmod u+w "$cache"
+
+# Scenarios 13-14: a download interrupted by TERM and by HUP — curl is killed,
+# the temp file is removed, the error is named, nothing is installed. The
+# launcher's pid is the suffix of its temp file, and its exit is read from a
+# status file: an exited but unreaped child would still pass `kill -0`.
+for signal in TERM HUP; do
+  scenario="interrupt-$signal"
+  dir=$(scenario_dir "$scenario")
+  write_pin "$dir/plugin/bin" 'feedbeef'
+  write_slow_curl "$dir/mockbin"
+  write_mock_sha "$dir/mockbin" 'feedbeef'
+  cache="$dir/home/.mneme/bin/9.9.9"
+  (
+    HOME="$dir/home" PATH="$dir/mockbin:$PATH" "$dir/plugin/bin/launch.sh" >/dev/null 2>"$dir/stderr" &
+    printf '%s' "$!" >"$dir/launcher.pid"
+    wait "$!"
+    printf '%s' "$?" >"$dir/exit_status"
+  ) &
+  wrapper_pid=$!
+  if ! wait_for_file "$dir/mockbin/curl.pid"; then
+    say_fail "$scenario: the download never started"
+    kill -KILL "$(cat "$dir/launcher.pid" 2>/dev/null)" 2>/dev/null || true
+    wait "$wrapper_pid" 2>/dev/null || true
+    kill -KILL "$(cat "$dir/mockbin/curl.pid" 2>/dev/null)" 2>/dev/null || true
+    continue
+  fi
+  curl_pid=$(cat "$dir/mockbin/curl.pid")
+  temp_file=$(find "$cache" -name ".mneme-$target.*" | head -n 1)
+  launcher_pid=${temp_file##*.}
+  kill "-$signal" "$launcher_pid"
+  if ! wait_for_file "$dir/exit_status"; then
+    say_fail "$scenario: the launcher did not exit after the signal"
+    kill -KILL "$launcher_pid" "$curl_pid" 2>/dev/null || true
+  fi
+  wait "$wrapper_pid" 2>/dev/null || true
+  [ "$(cat "$dir/exit_status" 2>/dev/null)" != '0' ] || say_fail "$scenario: launcher exited 0 on an interrupted download"
+  leftovers=$(find "$cache" -name ".mneme-$target.*" 2>/dev/null)
+  [ -z "$leftovers" ] || say_fail "$scenario: the temp file was left"
+  if kill -0 "$curl_pid" 2>/dev/null; then
+    say_fail "$scenario: curl outlived the launcher"
+  fi
+  grep -q 'download interrupted' "$dir/stderr" || say_fail "$scenario: stderr does not name the interrupted download"
+  [ ! -e "$cache/mneme-$target" ] || say_fail "$scenario: a binary was installed after the interrupt"
+  kill -KILL "$curl_pid" 2>/dev/null || true
+done
 
 # Git-ignore regression: the launcher and the pin MUST be trackable, the
 # binary itself MUST stay ignored.
