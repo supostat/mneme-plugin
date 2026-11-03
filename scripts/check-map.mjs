@@ -1,8 +1,9 @@
 #!/usr/bin/env node
 //
 // Gate of the project map's plugin side (spec-map-plugin, phase map-skill): the real
-// plugin/scripts/project-graph.mjs against its fixture, a temporary git history, a non-git
-// directory and this repository itself, plus the load-bearing anchors of plugin/skills/map/SKILL.md.
+// plugin/scripts/project-graph.mjs against its two fixtures (Ruby and TypeScript in graph-project,
+// Dart in graph-dart), a temporary git history, a non-git directory and this repository itself,
+// plus the load-bearing anchors of plugin/skills/map/SKILL.md.
 //
 // Usage: node scripts/check-map.mjs   (also runs as part of npm test)
 
@@ -15,13 +16,14 @@ import { fileURLToPath } from 'node:url';
 const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const graphScript = join(repoRoot, 'plugin', 'scripts', 'project-graph.mjs');
 const fixtureRoot = join(repoRoot, 'scripts', 'fixtures', 'graph-project');
+const dartFixtureRoot = join(repoRoot, 'scripts', 'fixtures', 'graph-dart');
 const skillPath = join(repoRoot, 'plugin', 'skills', 'map', 'SKILL.md');
 const bundleScripts = new Set(readdirSync(join(repoRoot, 'plugin', 'scripts')));
 const scratch = mkdtempSync(join(tmpdir(), 'mneme-check-map-'));
 
 const EXIT_MISMATCH = 1;
 const EXIT_USAGE = 2;
-const GRAPH_EXTENSIONS = new Set(['rb', 'erb', 'ts', 'tsx', 'js', 'jsx', 'mjs']);
+const GRAPH_EXTENSIONS = new Set(['rb', 'erb', 'ts', 'tsx', 'js', 'jsx', 'mjs', 'dart']);
 const SECTION_ID_PATTERN = /^[a-z0-9][a-z0-9_-]{0,63}$/;
 const MAX_TERMS = 24;
 const MAX_TERM_LENGTH = 32;
@@ -96,9 +98,10 @@ function codePoints(text) {
   return Array.from(text).length;
 }
 
-// (a) the fixture matches both stored expectations, and a wrong expectation is refused
+// (a) both fixtures match their stored expectations, and a wrong expectation is refused
 {
   expectExit('fixture-expect', runGraph('--root', fixtureRoot, '--expect', join(fixtureRoot, 'expected.json')), 0);
+  expectExit('fixture-dart-expect', runGraph('--root', dartFixtureRoot, '--expect', join(dartFixtureRoot, 'expected.json')), 0);
   expectExit(
     'fixture-expect-changed',
     runGraph('--root', fixtureRoot, '--changed', 'app/models/invoice.rb', '--expect', join(fixtureRoot, 'expected-changed.json')),
@@ -246,4 +249,4 @@ if (failures.length > 0) {
   for (const failure of failures) console.error(`  - ${failure}`);
   process.exit(1);
 }
-console.log('check-map OK (fixture expectations, --since on a temporary history, non-git refusal, skill anchors, the real repository)');
+console.log('check-map OK (Ruby/TypeScript and Dart fixture expectations, --since on a temporary history, non-git refusal, skill anchors, the real repository)');

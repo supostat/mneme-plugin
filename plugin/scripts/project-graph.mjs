@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 //
 // Static project graph for /mneme:map: files that git sees, the edges a parser can read
-// (imports, requires, Ruby constants, ActiveRecord associations, routes, frontend→API seams),
+// (imports, requires, Dart directives, Ruby constants, ActiveRecord associations, routes, frontend→API seams),
 // clusters seeded by the project's domain directories, and a map-section draft per cluster.
 // No language server and no network: metaprogramming stays invisible by design.
 //
@@ -20,9 +20,13 @@ const LANGUAGE_BY_EXTENSION = {
   js: 'javascript',
   jsx: 'javascript',
   mjs: 'javascript',
+  dart: 'dart',
 };
 const SCRIPT_LANGUAGES = new Set(['typescript', 'javascript']);
 const RUBY_LANGUAGES = new Set(['ruby', 'erb']);
+const DART_LANGUAGES = new Set(['dart']);
+const PUBSPEC_FILE = 'pubspec.yaml';
+const DART_PACKAGE_SCHEME = 'package:';
 const SCRIPT_EXTENSIONS = ['.ts', '.tsx', '.js', '.jsx', '.mjs'];
 const GROUP_DIRECTORIES = new Set(['services', 'apps', 'domains', 'modules', 'packages', 'features', 'lib']);
 const MAX_GROUP_DEPTH = 3;
@@ -323,6 +327,48 @@ function scriptSymbols(source) {
   return symbols;
 }
 
+function buildPackageIndex(root, files) {
+  const packageDirectories = new Map();
+  for (const file of files) {
+    if (posix.basename(file) !== PUBSPEC_FILE || !existsSync(resolve(root, file))) continue;
+    const declaredName = /^name:[ \t]*(['"]?)([A-Za-z_]\w*)\1[ \t]*(?:#.*)?$/m.exec(readFileSync(resolve(root, file), 'utf8'));
+    if (declaredName !== null) packageDirectories.set(declaredName[2], posix.dirname(file));
+  }
+  return packageDirectories;
+}
+
+function dartTargetOf(uri, fromFile, packageDirectories) {
+  if (uri.startsWith(DART_PACKAGE_SCHEME)) {
+    const [packageName, ...path] = uri.slice(DART_PACKAGE_SCHEME.length).split('/');
+    const packageDirectory = packageDirectories.get(packageName);
+    return packageDirectory === undefined ? null : posix.join(packageDirectory, 'lib', ...path);
+  }
+  if (uri.includes(':')) return null;
+  return posix.join(posix.dirname(fromFile), uri);
+}
+
+function dartEdges(file, source, nodeSet, packageDirectories) {
+  const edges = [];
+  for (const match of source.matchAll(/^\s*(?:import|export|part(?:\s+of)?)\s+(['"])([^'"]+)\1/gm)) {
+    const target = dartTargetOf(match[2], file, packageDirectories);
+    if (target !== null && target !== file && nodeSet.has(target)) edges.push({ from: file, to: target, kind: 'import' });
+  }
+  return edges;
+}
+
+function dartSymbols(source) {
+  const declarations = [
+    /^\s*(?:(?:abstract|sealed|base|final|interface|mixin)\s+)*class\s+([\w$]+)/gm,
+    /^\s*(?:base\s+)?mixin\s+(?!class\b)([\w$]+)/gm,
+    /^\s*enum\s+([\w$]+)/gm,
+    /^\s*extension\s+(?:type\s+(?:const\s+)?)?(?!on\b)([\w$]+)/gm,
+    /^\s*typedef\s+([\w$]+)\s*(?:<.*>)?\s*=/gm,
+  ];
+  return declarations
+    .flatMap((pattern) => [...source.matchAll(pattern)].map((match) => match[1]))
+    .filter((name) => !name.startsWith('_'));
+}
+
 function dedupeEdges(edges) {
   const seen = new Set();
   return edges.filter((edge) => {
@@ -546,6 +592,7 @@ function buildGraph(root, options) {
   const sources = new Map(nodes.map((file) => [file, readFileSync(resolve(root, file), 'utf8')]));
   const tsconfig = readTsconfig(root, warnings);
   const autoloadIndex = buildAutoloadIndex(nodes);
+  const packageDirectories = buildPackageIndex(root, visible);
   const routes = sources.has(ROUTES_FILE) ? parseRoutes(sources.get(ROUTES_FILE)) : [];
   const routesByPath = new Map(routes.map((route) => [route.path, route]));
   const languages = {};
@@ -565,6 +612,10 @@ function buildGraph(root, options) {
       edges.push(...found.edges);
       seams.push(...found.seams);
       symbolsByFile.set(file, scriptSymbols(source));
+    }
+    if (DART_LANGUAGES.has(language)) {
+      edges.push(...dartEdges(file, source, nodeSet, packageDirectories));
+      symbolsByFile.set(file, dartSymbols(source));
     }
   }
   for (const route of routes) {

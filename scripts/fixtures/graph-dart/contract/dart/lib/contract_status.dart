@@ -1,0 +1,1 @@
+enum ContractStatus { open, closed }

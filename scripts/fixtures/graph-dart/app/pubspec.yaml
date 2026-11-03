@@ -1,0 +1,19 @@
+name: shop_app
+publish_to: none
+
+environment:
+  sdk: ^3.5.0
+
+workspace:
+  - packages/shop_session
+
+dependencies:
+  flutter:
+    sdk: flutter
+  shop_contract:
+    path: ../contract/dart
+  shop_session:
+    path: packages/shop_session
+
+dev_dependencies:
+  test: ^1.25.0

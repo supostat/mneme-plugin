@@ -1,0 +1,148 @@
+{
+  "languages": {
+    "dart": 16
+  },
+  "warnings": [],
+  "clusters": [
+    {
+      "id": "catalog",
+      "dirs": [
+        "app/lib/catalog"
+      ],
+      "files": [
+        "app/lib/catalog/catalog.dart",
+        "app/lib/catalog/catalog_page.dart",
+        "app/lib/catalog/catalog_tile.dart"
+      ],
+      "symbols": [
+        "CatalogFilter",
+        "CatalogPage",
+        "CatalogSort",
+        "CatalogTile"
+      ],
+      "edges_out": {
+        "lib": 1,
+        "orders": 1,
+        "shop_session": 1
+      },
+      "seams": [],
+      "draft": {
+        "id": "catalog",
+        "anchors": [
+          "app/lib/catalog"
+        ],
+        "terms": [
+          "CatalogFilter",
+          "CatalogPage",
+          "CatalogSort",
+          "CatalogTile"
+        ]
+      }
+    },
+    {
+      "id": "lib",
+      "dirs": [
+        "contract/dart/lib",
+        "contract/dart/test"
+      ],
+      "files": [
+        "contract/dart/lib/contract_client.dart",
+        "contract/dart/lib/contract_status.dart",
+        "contract/dart/lib/shop_contract.dart",
+        "contract/dart/test/contract_matchers.dart",
+        "contract/dart/test/contract_test.dart"
+      ],
+      "symbols": [
+        "ContractClient",
+        "ContractStatus",
+        "ContractVersion"
+      ],
+      "edges_out": {},
+      "seams": [],
+      "draft": {
+        "id": "lib",
+        "anchors": [
+          "contract/dart/lib",
+          "contract/dart/test/contract_test.dart",
+          "contract/dart/test/contract_matchers.dart"
+        ],
+        "terms": [
+          "ContractVersion",
+          "ContractStatus",
+          "ContractClient"
+        ]
+      }
+    },
+    {
+      "id": "orders",
+      "dirs": [
+        "app/lib/orders",
+        "app/test/orders"
+      ],
+      "files": [
+        "app/lib/orders/order_list.dart",
+        "app/lib/orders/order_row.dart",
+        "app/lib/orders/order_row.g.dart",
+        "app/test/orders/order_list_steps.dart",
+        "app/test/orders/order_list_test.dart"
+      ],
+      "symbols": [
+        "OrderList",
+        "OrderListView",
+        "OrderRow",
+        "OrderRowJson"
+      ],
+      "edges_out": {
+        "lib": 1,
+        "shop_session": 1
+      },
+      "seams": [],
+      "draft": {
+        "id": "orders",
+        "anchors": [
+          "app/lib/orders",
+          "app/test/orders/order_list_steps.dart",
+          "app/test/orders/order_list_test.dart"
+        ],
+        "terms": [
+          "OrderRow",
+          "OrderList",
+          "OrderListView",
+          "OrderRowJson"
+        ]
+      }
+    },
+    {
+      "id": "shop_session",
+      "dirs": [
+        "app/packages/shop_session/lib",
+        "app/packages/shop_session/lib/src",
+        "app/packages/shop_session/test"
+      ],
+      "files": [
+        "app/packages/shop_session/lib/session.dart",
+        "app/packages/shop_session/lib/src/token.dart",
+        "app/packages/shop_session/test/session_test.dart"
+      ],
+      "symbols": [
+        "SessionScope",
+        "Token",
+        "TokenId"
+      ],
+      "edges_out": {},
+      "seams": [],
+      "draft": {
+        "id": "shop_session",
+        "anchors": [
+          "app/packages/shop_session"
+        ],
+        "terms": [
+          "SessionScope",
+          "Token",
+          "TokenId"
+        ]
+      }
+    }
+  ],
+  "seams": []
+}

@@ -1,0 +1,5 @@
+name: 'shop_session'
+resolution: workspace
+
+environment:
+  sdk: ^3.5.0

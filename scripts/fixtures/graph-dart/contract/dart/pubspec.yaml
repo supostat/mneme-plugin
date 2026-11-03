@@ -1,0 +1,4 @@
+name: shop_contract # path dependency of shop_app
+
+environment:
+  sdk: ^3.5.0
