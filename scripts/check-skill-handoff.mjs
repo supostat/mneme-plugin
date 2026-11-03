@@ -9,7 +9,7 @@
 // TEST, not the next live episode. The same argument covers every other fact a skill's text
 // states about itself — the finale class it claims, the bundle script it invokes, the tools it is
 // granted — and each of those facts is pinned by ONE map here, never by a second copy elsewhere.
-// Nineteen checks:
+// Twenty checks:
 //
 //   (a) every non-dev skill declares its expected FINALE-CLASS token — and never both;
 //   (b) handoff finales (plan, fix, migrate) reference HANDOFF-DECISION and carry a closing
@@ -93,6 +93,20 @@
 //       «any other Bash stays FORBIDDEN», with no stale «ONE carve-out». Each rule closes a live
 //       hole: a self-test whose cases skipped four of its tool's rules, a fan that rejected an
 //       option on a reading of one function the real run then contradicted.
+//   (t) HARVEST EVIDENCE — dev's two harvest rules stand where they act and the check before an
+//       accept recommendation stands in both curations that stage notes of their own. (t1) the
+//       `- OBSERVED-CLAIMS` bullet inside the harvest branch: an artifact «states only what THIS
+//       phase observed», a line read or «the output of a command run in» execute_step, and «a cause
+//       the phase did not observe stays out of the artifact»; (t2) the `- ONE-MUTATION-PER-RUN`
+//       bullet there: «exactly one mutation» per spec run, the artifact naming «which mutation broke
+//       which check», «A run with two mutations applied proves neither»; (t3) the `- HARVEST
+//       EVIDENCE` line in Rules repeating both triggers; (t4) the `- VERIFY-BEFORE-ACCEPT` bullet in
+//       dev's BOUNDARY-CURATION and in diary's Curation contract, the two replicas sharing three
+//       anchors whitespace-normalized; (t5) the rule named in dev's Rules, diary's Permissions (the
+//       Read it needs) and diary's Rules. plan and fix carry no replica by design: plan's note is a
+//       choice already marked «не проверено», fix stages its diagnosis as is. Each rule closes a live
+//       hole: in corpus boss on 2026-11-03 curation rejected two harvest notes — one explained a test
+//       by a cause nobody read, one credited a failure to one of two mutations run together.
 //
 // Dev tooling: lives at the repo ROOT, never inside plugin/ (same rule as the other check-*).
 //
@@ -626,6 +640,91 @@ if (STALE_CARVE_OUT_COUNT.test(planPermissions)) {
   failures.push('plan: Permissions still counts «ONE carve-out» — the SUFFICIENCY-RUN-RULE run is the second one');
 }
 
+// (t) HARVEST EVIDENCE: an artifact claims only what its phase observed, a mutation proof runs one
+// mutation per spec run, and a curation recommends accept only on lines it read
+const devText = skillText('dev');
+const diaryText = skillText('diary');
+const OBSERVED_CLAIMS_START = /^- OBSERVED-CLAIMS\b/m;
+const OBSERVED_CLAIMS_ANCHORS = [
+  'states only what THIS phase observed',
+  'the output of a command run in',
+  'a cause the phase did not observe stays out of the artifact',
+];
+const ONE_MUTATION_START = /^- ONE-MUTATION-PER-RUN\b/m;
+const ONE_MUTATION_ANCHORS = [
+  'exactly one mutation',
+  'which mutation broke which check',
+  'A run with two mutations applied proves neither',
+];
+const HARVEST_EVIDENCE_START = /^- HARVEST EVIDENCE\b/m;
+const HARVEST_EVIDENCE_TRIGGERS = ['states only what THIS phase observed', 'exactly one mutation'];
+const VERIFY_BEFORE_ACCEPT = 'VERIFY-BEFORE-ACCEPT';
+const VERIFY_BEFORE_ACCEPT_START = /^- VERIFY-BEFORE-ACCEPT\b/m;
+const VERIFY_BEFORE_ACCEPT_ANCHORS = [
+  'Read every `file:line` the queued notes cite',
+  'moves the recommendation off accept',
+  'counts as verified only when the note quotes that output',
+];
+const VERIFY_BEFORE_ACCEPT_REPLICAS = [
+  { name: 'dev', text: devText, heading: /^### BOUNDARY-CURATION\b/m, section: 'BOUNDARY-CURATION' },
+  { name: 'diary', text: diaryText, heading: /^### Curation contract\b/m, section: 'the Curation contract' },
+];
+const devRules = sectionOf(devText, /^## Rules$/m) ?? '';
+
+// (t1)
+const harvestBranch = sectionOf(devText, /^### harvest branch$/m) ?? '';
+const observedClaims = paragraphOpenedBy(harvestBranch, OBSERVED_CLAIMS_START);
+if (observedClaims === null) {
+  failures.push('dev: no OBSERVED-CLAIMS bullet in the harvest branch — an artifact could again explain a test by a cause nobody read');
+} else {
+  for (const anchor of OBSERVED_CLAIMS_ANCHORS.filter((literal) => !normalize(observedClaims).includes(literal))) {
+    failures.push(`dev: OBSERVED-CLAIMS does not say «${anchor}» — restore the clause in its bullet`);
+  }
+}
+
+// (t2)
+const oneMutation = paragraphOpenedBy(harvestBranch, ONE_MUTATION_START);
+if (oneMutation === null) {
+  failures.push('dev: no ONE-MUTATION-PER-RUN bullet in the harvest branch — a failure could again be credited to one of two mutations run together');
+} else {
+  for (const anchor of ONE_MUTATION_ANCHORS.filter((literal) => !normalize(oneMutation).includes(literal))) {
+    failures.push(`dev: ONE-MUTATION-PER-RUN does not say «${anchor}» — restore the clause in its bullet`);
+  }
+}
+
+// (t3)
+const harvestEvidence = paragraphOpenedBy(devRules, HARVEST_EVIDENCE_START);
+if (harvestEvidence === null) {
+  failures.push('dev: no HARVEST EVIDENCE line in Rules — the summary of the harvest evidence rules is gone');
+} else {
+  for (const trigger of HARVEST_EVIDENCE_TRIGGERS.filter((literal) => !normalize(harvestEvidence).includes(literal))) {
+    failures.push(`dev: the HARVEST EVIDENCE rule line does not repeat «${trigger}» — a summary repeats its rule's trigger in full`);
+  }
+}
+
+// (t4)
+for (const { name, text, heading, section } of VERIFY_BEFORE_ACCEPT_REPLICAS) {
+  const verifyBeforeAccept = paragraphOpenedBy(sectionOf(text, heading) ?? '', VERIFY_BEFORE_ACCEPT_START);
+  if (verifyBeforeAccept === null) {
+    failures.push(`${name}: no VERIFY-BEFORE-ACCEPT bullet in ${section} — a recommendation on accept would rest on authorship again`);
+    continue;
+  }
+  for (const anchor of VERIFY_BEFORE_ACCEPT_ANCHORS.filter((literal) => !normalize(verifyBeforeAccept).includes(literal))) {
+    failures.push(`${name}: VERIFY-BEFORE-ACCEPT does not say «${anchor}» — the dev and diary replicas must say the same thing`);
+  }
+}
+
+// (t5)
+if (!devRules.includes(VERIFY_BEFORE_ACCEPT)) {
+  failures.push('dev: Rules does not name VERIFY-BEFORE-ACCEPT — the BOUNDARY-CURATION summary lost the check before accept');
+}
+if (!(sectionOf(diaryText, /^## Permissions\b/m) ?? '').includes(VERIFY_BEFORE_ACCEPT)) {
+  failures.push('diary: Permissions does not grant the Read of VERIFY-BEFORE-ACCEPT — the curation check would have no tool');
+}
+if (!(sectionOf(diaryText, /^## Rules$/m) ?? '').includes(VERIFY_BEFORE_ACCEPT)) {
+  failures.push('diary: Rules does not name VERIFY-BEFORE-ACCEPT — the finale summary lost the check before accept');
+}
+
 if (failures.length > 0) {
   console.error('Handoff-finale sync check FAILED:');
   for (const failure of failures) console.error(`  - ${failure}`);
@@ -633,5 +732,5 @@ if (failures.length > 0) {
 }
 
 console.log(
-  'Handoff-finale sync check passed: finale classes declared, handoff menus in place, staging grants curated, contract replicas aligned, no stale markers, MENU-CONTEXT replicas aligned and unweakened, SPEC-REVIEW-MENU replicas aligned with self-endorsement barred, invoked bundle scripts present, allowed-tools grants matching their contracts, the handoff phrase shared by design and plan, resume free of event-log markers, RESOLVE-INDEX replicas aligned and never retried, the map contract anchored where it is consumed, the model-invocable registry pinned to exactly the diary and prompt skills, the diary contract anchored in dev\'s terminal and the diary skill with its skill-candidate rule, and every command the skills name and hand over resolved to the bundle\'s own — real names, route templates shaped like their targets\' arguments, handoff lines byte-identical across finales, prompt\'s triggers and self-check labels, every entry named in setup\'s finale, and the spec line shapes replicated in plan and fix, each checked in its review step, with the dep-edge marks in the phase title, and plan\'s evidence rules — a tool\'s self-test cases derived from its rules one to one and compared in Step 6, a sufficiency claim backed by a run in Step 3 or marked unverified.',
+  'Handoff-finale sync check passed: finale classes declared, handoff menus in place, staging grants curated, contract replicas aligned, no stale markers, MENU-CONTEXT replicas aligned and unweakened, SPEC-REVIEW-MENU replicas aligned with self-endorsement barred, invoked bundle scripts present, allowed-tools grants matching their contracts, the handoff phrase shared by design and plan, resume free of event-log markers, RESOLVE-INDEX replicas aligned and never retried, the map contract anchored where it is consumed, the model-invocable registry pinned to exactly the diary and prompt skills, the diary contract anchored in dev\'s terminal and the diary skill with its skill-candidate rule, and every command the skills name and hand over resolved to the bundle\'s own — real names, route templates shaped like their targets\' arguments, handoff lines byte-identical across finales, prompt\'s triggers and self-check labels, every entry named in setup\'s finale, and the spec line shapes replicated in plan and fix, each checked in its review step, with the dep-edge marks in the phase title, and plan\'s evidence rules — a tool\'s self-test cases derived from its rules one to one and compared in Step 6, a sufficiency claim backed by a run in Step 3 or marked unverified, and dev\'s harvest evidence rules — an artifact claiming only what its phase observed, one mutation per spec run named against the check it broke — with the lines read before an accept recommendation in the dev and diary curations.',
 );

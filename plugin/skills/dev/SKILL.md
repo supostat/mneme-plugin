@@ -268,6 +268,15 @@ is the set of DECISION-block properties, and the render is the staging-очер�
 - SHOW the queue as a NUMBERED list — one line per note: number, `[type]`, a one-line essence, its
   anchors. NEVER tell the user to "сделай staging_resolve" — forcing the curator to operate tools
   (call staging_list, read raw ids, copy them) turns a curator into an operator.
+- VERIFY-BEFORE-ACCEPT — before «← рекомендую» lands on `прими все` or on a note's `прими`, Read
+  every `file:line` the queued notes cite and check that the line says what the note claims. A
+  line that says otherwise, a claimed cause with no place, or a failure credited to a mutation
+  without its mutation → check pair or from a run that carried two mutations
+  moves the recommendation off accept: to `поштучный разбор` in the batch menu, to `отклони` for
+  that note in per-note mode, the reason naming the line. A claim resting on a command's output
+  counts as verified only when the note quotes that output — the curation runs no command to
+  verify a claim. A recommendation on accept names the lines it verified; authorship alone is no
+  reason — after a resume the agent at the boundary did not write these notes.
 - ASK with the BATCH digit menu — exactly these options, answered by DIGIT ONLY:
   `1 — прими все · 2 — поштучный разбор · 3 — отклони все · 4 — дальше` (everything stays queued;
   staging is a queue, not an ultimatum). EXACTLY ONE option carries «← рекомендую: <причина одной
@@ -470,6 +479,21 @@ appeal.
   Never use concept strings, absolute paths, or cross-repo paths as anchors.
 - A note about not-yet-written code carries tags, not invented anchors; path anchors are for files
   this phase actually touched.
+- OBSERVED-CLAIMS — an artifact states only what THIS phase observed: a line read in this phase
+  (`file:line`) or the output of a command run in `execute_step`. Every cause it claims — why a
+  test is built the way it is, how two parts of the code are linked, what turned a check red —
+  carries that place; a cause the phase did not observe stays out of the artifact, never written
+  as a fact. Before writing, the harvest may Read the line a claim rests on; it runs nothing (Bash
+  and Grep are phase work only), so an output not seen during the work cannot be cited now. Live
+  episode: corpus boss, 2026-11-03 — a note explained a test's setup by «the shared Select is not
+  tied to the label» while the code showed the opposite, and curation rejected it.
+- ONE-MUTATION-PER-RUN — when the phase proves a spec by mutating the code it covers (a change
+  that must turn a check red), every spec run carries exactly one mutation and the code is
+  restored before the next; the artifact names each pair — which mutation broke which check. A run
+  with two mutations applied proves neither: its failures cannot be credited to one of them. The
+  runs are phase work in `execute_step` — the harvest cannot rerun a spec. Live episode: corpus
+  boss, 2026-11-03 — a note credited a failing example to one of two mutations applied in the same
+  spec run, and curation rejected it.
 
 ### Terminals branch
 
@@ -809,10 +833,15 @@ line is DATA of the block, not the menu header)
   call): id — только из бандла ЭТОЙ фазы, notes only — id раздела карты запрещён (the engine
   refuses the call), and each evidence names the place of influence —
   «a declaration that cannot name a place is not a use»; `[]` — честный ответ, не провал.
+- HARVEST EVIDENCE — an artifact states only what THIS phase observed (a line read, a command's
+  output) and a cause the phase did not observe stays out of it (OBSERVED-CLAIMS); a spec proven
+  by mutations runs exactly one mutation per spec run, and the artifact names which mutation broke
+  which check (ONE-MUTATION-PER-RUN).
 - SOFT-NONSTOP at intermediate boundaries: empty staging passes SILENTLY, non-empty STOPS the turn;
   movement only on the user's DIGIT, silence = pause. BOUNDARY-CURATION = DIGIT-CHOICE at ANY
   boundary stop: notes as a numbered list, ALL decisions by digit menus, exactly one option carries
-  «← рекомендую: <причина>» and the recommendation never shifts the default; the commit block
+  «← рекомендую: <причина>» and the recommendation never shifts the default; a recommendation on
+  accept comes only after VERIFY-BEFORE-ACCEPT read every cited `file:line`; the commit block
   never shares a message with the notes menu and closes the same response as the
   «принято/отклонено/осталось» report (COMMIT-TURN-SPLIT), never deferred «следующим сообщением».
 - MENU-CONTEXT — filling the menu payload is a PROPERTY of the deciding call, never a separate
