@@ -9,7 +9,7 @@
 // TEST, not the next live episode. The same argument covers every other fact a skill's text
 // states about itself — the finale class it claims, the bundle script it invokes, the tools it is
 // granted — and each of those facts is pinned by ONE map here, never by a second copy elsewhere.
-// Seventeen checks:
+// Nineteen checks:
 //
 //   (a) every non-dev skill declares its expected FINALE-CLASS token — and never both;
 //   (b) handoff finales (plan, fix, migrate) reference HANDOFF-DECISION and carry a closing
@@ -83,6 +83,16 @@
 //       (r4) dep edges: a spec is a chain (the parser links each phase to the one before), so plan's
 //       REAL-DEP-SMOKE-RULE paragraph names both title marks — `(потребляет фазу` and
 //       `(order-only после фазы` — and no skill text promises a «deps line» or «deps list».
+//   (s) EVIDENCE — plan's two evidence rules stand where they act. (s1) the `**SELF-TEST-CASES-RULE`
+//       definition at a line start, its paragraph deriving a tool's self-test cases from its rules
+//       «one to one» and naming the rule «without a case», and Step 6 comparing both lists;
+//       (s2) the `**SUFFICIENCY-RUN-RULE` definition at a line start inside Step 3, its paragraph
+//       marking an unrun claim «не проверено» and «never a reason to reject»; (s3) the fan
+//       template's option carrying the «Проверка довода» field; (s4) the choice decision note
+//       keeping the mark; (s5) Permissions granting the run as a Bash carve-out, still saying
+//       «any other Bash stays FORBIDDEN», with no stale «ONE carve-out». Each rule closes a live
+//       hole: a self-test whose cases skipped four of its tool's rules, a fan that rejected an
+//       option on a reading of one function the real run then contradicted.
 //
 // Dev tooling: lives at the repo ROOT, never inside plugin/ (same rule as the other check-*).
 //
@@ -411,6 +421,10 @@ const sectionOf = (text, heading) => {
   const nextHeading = new RegExp(`^#{1,${level}} `, 'm').exec(text.slice(bodyStart));
   return text.slice(start, nextHeading === null ? undefined : bodyStart + nextHeading.index);
 };
+const paragraphOpenedBy = (text, opening) => {
+  const start = text.search(opening);
+  return start === -1 ? null : text.slice(start).split(/\n\s*\n/)[0];
+};
 const commandPattern = (name) => new RegExp(`/mneme:${name}(?![a-z0-9-])`);
 const codeSpans = (text) => [...text.matchAll(/`([^`\n]+)`/g)].map(([, span]) => span);
 const leadingCommandOf = (span) => span.match(/^\/mneme:([a-z][a-z0-9-]*)/)?.[1];
@@ -548,13 +562,68 @@ const DEP_EDGE_MARKS = ['(order-only после фазы', '(потребляе�
 const UNWRITABLE_DEPS_FORM = /\bdeps (?:line|list)\b/i;
 
 const planText = skillText('plan');
-const realDepSmokeRuleStart = planText.search(REAL_DEP_SMOKE_RULE_START);
-const realDepSmokeRule = realDepSmokeRuleStart === -1 ? '' : planText.slice(realDepSmokeRuleStart).split(/\n\s*\n/)[0];
+const realDepSmokeRule = paragraphOpenedBy(planText, REAL_DEP_SMOKE_RULE_START) ?? '';
 for (const mark of DEP_EDGE_MARKS.filter((literal) => !realDepSmokeRule.includes(literal))) {
   failures.push(`plan: REAL-DEP-SMOKE-RULE does not name the title mark «${mark}…» — the drafter would invent a form the spec parser refuses`);
 }
 for (const name of skillDirectories.filter((skill) => UNWRITABLE_DEPS_FORM.test(skillText(skill)))) {
   failures.push(`${name}: the text promises a «${skillText(name).match(UNWRITABLE_DEPS_FORM)[0]}» — a spec has none, the parser chains each phase to the one before; mark the edge in the phase title`);
+}
+
+// (s) EVIDENCE: a tool's self-test cases come from its rules, a sufficiency claim from a run
+const SELF_TEST_CASES_RULE_START = /^\*\*SELF-TEST-CASES-RULE\b/m;
+const SELF_TEST_CASES_ANCHORS = ['one to one', 'without a case'];
+const SUFFICIENCY_RUN_RULE_START = /^\*\*SUFFICIENCY-RUN-RULE\b/m;
+const UNVERIFIED_MARK = 'не проверено';
+const SUFFICIENCY_RUN_ANCHORS = [UNVERIFIED_MARK, 'never a reason to reject'];
+const OPTION_TEMPLATE_START = /^### Option A: <name>$/m;
+const CLAIM_CHECK_FIELD = 'Проверка довода';
+const OTHER_BASH_FORBIDDEN = 'any other Bash stays FORBIDDEN';
+const STALE_CARVE_OUT_COUNT = /\bONE carve-out\b/;
+
+// (s1)
+const selfTestCasesRule = paragraphOpenedBy(planText, SELF_TEST_CASES_RULE_START);
+if (selfTestCasesRule === null) {
+  failures.push('plan: no **SELF-TEST-CASES-RULE definition at a line start — a tool\'s self-test would get the cases its author happens to list, not one per rule');
+} else {
+  for (const anchor of SELF_TEST_CASES_ANCHORS.filter((literal) => !selfTestCasesRule.includes(literal))) {
+    failures.push(`plan: SELF-TEST-CASES-RULE does not say «${anchor}» — restore the rule-to-case derivation in its paragraph`);
+  }
+}
+if (!(sectionOf(planText, /^### Step 6\b/m) ?? '').includes('SELF-TEST-CASES-RULE')) {
+  failures.push('plan: Step 6 does not compare the two lists of SELF-TEST-CASES-RULE — a rule without a case would reach the menu');
+}
+
+// (s2)
+const sufficiencyRunRule = paragraphOpenedBy(sectionOf(planText, /^### Step 3\b/m) ?? '', SUFFICIENCY_RUN_RULE_START);
+if (sufficiencyRunRule === null) {
+  failures.push('plan: no **SUFFICIENCY-RUN-RULE definition at a line start in Step 3 — the fan would reject an option on a reading again');
+} else {
+  for (const anchor of SUFFICIENCY_RUN_ANCHORS.filter((literal) => !sufficiencyRunRule.includes(literal))) {
+    failures.push(`plan: SUFFICIENCY-RUN-RULE does not say «${anchor}» — an unrun sufficiency claim must stay marked and never reject an option`);
+  }
+}
+
+// (s3)
+if (!(paragraphOpenedBy(planText, OPTION_TEMPLATE_START) ?? '').includes(CLAIM_CHECK_FIELD)) {
+  failures.push(`plan: the fan template's option carries no «${CLAIM_CHECK_FIELD}» field — a sufficiency claim would have nowhere to show its run`);
+}
+
+// (s4)
+if (!(sectionOf(planText, /^### The choice decision note \(Step 8\)/m) ?? '').includes(UNVERIFIED_MARK)) {
+  failures.push(`plan: the choice decision note does not keep the «${UNVERIFIED_MARK}» mark — an unrun claim would enter memory as a fact`);
+}
+
+// (s5)
+const planPermissions = sectionOf(planText, /^## Permissions\b/m) ?? '';
+if (!planPermissions.includes('SUFFICIENCY-RUN-RULE')) {
+  failures.push('plan: Permissions grants no Bash carve-out for the SUFFICIENCY-RUN-RULE run — the fan could not run the mechanism it cites');
+}
+if (!planPermissions.includes(OTHER_BASH_FORBIDDEN)) {
+  failures.push(`plan: Permissions lost «${OTHER_BASH_FORBIDDEN}» — the carve-outs would no longer close Bash`);
+}
+if (STALE_CARVE_OUT_COUNT.test(planPermissions)) {
+  failures.push('plan: Permissions still counts «ONE carve-out» — the SUFFICIENCY-RUN-RULE run is the second one');
 }
 
 if (failures.length > 0) {
@@ -564,5 +633,5 @@ if (failures.length > 0) {
 }
 
 console.log(
-  'Handoff-finale sync check passed: finale classes declared, handoff menus in place, staging grants curated, contract replicas aligned, no stale markers, MENU-CONTEXT replicas aligned and unweakened, SPEC-REVIEW-MENU replicas aligned with self-endorsement barred, invoked bundle scripts present, allowed-tools grants matching their contracts, the handoff phrase shared by design and plan, resume free of event-log markers, RESOLVE-INDEX replicas aligned and never retried, the map contract anchored where it is consumed, the model-invocable registry pinned to exactly the diary and prompt skills, the diary contract anchored in dev\'s terminal and the diary skill with its skill-candidate rule, and every command the skills name and hand over resolved to the bundle\'s own — real names, route templates shaped like their targets\' arguments, handoff lines byte-identical across finales, prompt\'s triggers and self-check labels, every entry named in setup\'s finale, and the spec line shapes replicated in plan and fix, each checked in its review step, with the dep-edge marks in the phase title.',
+  'Handoff-finale sync check passed: finale classes declared, handoff menus in place, staging grants curated, contract replicas aligned, no stale markers, MENU-CONTEXT replicas aligned and unweakened, SPEC-REVIEW-MENU replicas aligned with self-endorsement barred, invoked bundle scripts present, allowed-tools grants matching their contracts, the handoff phrase shared by design and plan, resume free of event-log markers, RESOLVE-INDEX replicas aligned and never retried, the map contract anchored where it is consumed, the model-invocable registry pinned to exactly the diary and prompt skills, the diary contract anchored in dev\'s terminal and the diary skill with its skill-candidate rule, and every command the skills name and hand over resolved to the bundle\'s own — real names, route templates shaped like their targets\' arguments, handoff lines byte-identical across finales, prompt\'s triggers and self-check labels, every entry named in setup\'s finale, and the spec line shapes replicated in plan and fix, each checked in its review step, with the dep-edge marks in the phase title, and plan\'s evidence rules — a tool\'s self-test cases derived from its rules one to one and compared in Step 6, a sufficiency claim backed by a run in Step 3 or marked unverified.',
 );

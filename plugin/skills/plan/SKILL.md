@@ -48,8 +48,10 @@ task.
   VIOLATION.
 - Edit files / Bash / any code change: FORBIDDEN — plan plans, it never implements. It does not
   write code and does not call `/mneme:dev`. Its artifact ENDS at the migrated phases plus the map.
-  ONE carve-out: Bash ТОЛЬКО for the read-only session-tokens call before rendering a
-  DECISION block (the TOKEN-LINE replica in Output format) — any other Bash stays FORBIDDEN.
+  TWO carve-outs, Bash ТОЛЬКО for: (1) the read-only session-tokens call before rendering a
+  DECISION block (the TOKEN-LINE replica in Output format); (2) the SUFFICIENCY-RUN-RULE run of
+  Step 3 — an existing mechanism of the project run as it is on the goal's real input, its entry
+  point read first, with no flag or step that writes and no network; any other Bash stays FORBIDDEN.
 - `mcp__plugin_mneme_memory__workflow_migrate`: YES, but ONLY in Step 7 (PLAN-AUTOMIGRATE), AFTER
   the Step 6 approval and Write — never on a draft. The TOOL writes the phase files; the skill
   itself writes nothing outside the approved spec (and its Step 7 format repairs).
@@ -156,11 +158,30 @@ Present a fan of **2-3 options**. Each option carries:
 - a short summary and how it works (concrete file paths / module names);
 - honest **trade-offs** (specific pros and cons, effort small/medium/large, risk);
 - a **done-when sketch** — how this option would be verified (see Output format for the two kinds);
-- whether it triggers any antipattern surfaced by recall.
+- whether it triggers any antipattern surfaced by recall;
+- when a sufficiency claim rejects it, or turns the recommendation away from it, that claim's check
+  (SUFFICIENCY-RUN-RULE below).
 
 Make recall findings VISIBLE in the fan as "prior experience: …" so the user sees what memory
 contributed. A recommendation IS allowed (say which option and why), but it is a suggestion — the
 choice is the user's.
+
+**SUFFICIENCY-RUN-RULE — a sufficiency claim is proven by a run, not by a reading:** when an
+option is rejected, or the recommendation leans away from it, on the claim «the existing mechanism
+already handles the goal» — code the project already has (a script, a CLI, a function, a test)
+would give the same or nearly the same result; a function counts only as called by a driver that
+does nothing else, a test only under a runner that writes no cache or coverage — the fan attaches
+that mechanism's RUN on the goal's REAL input: the command line and the deciding part of its
+output, verbatim, in the option's «Проверка довода» field. Reading one of its functions is not a
+run: in run df97db26 a reading of `seedOf` promised «почти то же» for jsmbars, and the run after
+the code showed the seeds merged by slug in `mergeSameSlugSeeds`. The run rides the second Bash
+carve-out in Permissions — the mechanism as it is, its entry point read first, no flag or step
+that writes, no network. When no such run is possible (the mechanism writes by construction, the
+input is not on this machine, the run needs a service), the claim is marked «не проверено» and is
+never a reason to reject: the option stays in the fan on its other trade-offs, the RECOMMENDATION
+does not cite the claim, and the spec (its Knowledge and its header comment alike) and the Step 8
+note quote it only with its mark, never as a fact. A claim about a skill's own rule text is not a
+mechanism — no input runs it, and this rule does not cover it.
 
 If the task is genuinely single-option, do NOT skip the fan silently: state explicitly "one option,
 here it is — confirm", with its trade-offs and done-when sketch. Even a trivial task passes through
@@ -205,7 +226,10 @@ later takes the kit from the registry.
 
 Before showing it, walk the draft's `# Knowledge` and `# Gameplan` line by line against
 SPEC-LINE-SHAPES (Output format) and repair every line outside those forms — the spec the user
-approves must migrate on the first call.
+approves must migrate on the first call. When a phase requires a self-test or a fixture of a tool,
+compare the two Knowledge lists of SELF-TEST-CASES-RULE (Output format) — every rule of the tool
+has a case, every case names its rule — and repair a rule left uncovered before the menu with a
+case for it; only a rule no case can exercise becomes a named limit.
 
 Show the DRAFT spec in the chat and CLOSE THE TURN with the `### SPEC-REVIEW-MENU` block (Output
 format) — that numbered menu IS the stop, and the turn ends there. `Write` into `docs/` fires ONLY
@@ -285,7 +309,9 @@ Display as plain markdown (NOT inside a code fence):
 
 ### Option A: <name>
 <summary> · **How** (files/modules) · **Trade-offs** (pros / cons / effort / risk) · **Done-when
-sketch** · **Antipattern?** · **Prior experience** (from recall, if any)
+sketch** · **Antipattern?** · **Prior experience** (from recall, if any) · **Проверка довода**
+(SUFFICIENCY-RUN-RULE: the run's command and output, or «не проверено»; only when a sufficiency
+claim rejects the option or turns the recommendation away from it)
 
 ### Option B / C: <same structure>
 
@@ -411,6 +437,21 @@ generator bug. This keeps the chain from lying about connectivity: `(order-only 
 means execution order only, and an agent can honestly finish phase 4 without importing anything
 from phase 3 — a failure the wire phase alone would catch only at the very end, while the smoke
 criterion catches it fail-fast at the consumer's own gate.
+
+**SELF-TEST-CASES-RULE — the self-test generator's rule:** when a phase requires a self-test or a
+fixture of a tool (a script, a checker, a guard, a parser), the spec's Knowledge carries two lists
+and derives the second from the first one to one. The tool's RULES: every guarantee its contract
+states — what it refuses, what it counts only under a condition, its exit codes, its flags and
+modes, what it restores, compares or leaves untouched; for a new tool that is what the spec itself
+says of it, for an existing one its header and usage. The CASES, each written as
+`<правило> → <случай, который падает без него>`: every rule has at least one case, and every case
+names the rule it proves. A rule without a case is a hole only a reviewer finds later, by
+corrupting a copy of the tool: in run dc9ade0c the spec gave the self-test of prove-guard-mutations
+7 cases, four of the script's rules got none, the reviewer's corruptions landed exactly there, and
+the self-test grew to 18. A rule no case can exercise is named in the Knowledge's limit note,
+visible at the review — never dropped silently (the UI-limit honesty of WIRE-PHASE-RULE). The
+GENERATOR holds this rule, not the author (the TYPECHECK-CRITERION-RULE precedent); Step 6
+compares both lists before the menu.
 
 **VERSION-BUMP-RULE — the version-phase generator's rule:** a phase that raises the PROJECT's
 version is generated ONLY when the recon found NO automation that already does it (a CI bump job, a
@@ -549,6 +590,8 @@ Staged via `remember(type: "decision", body, anchors, menu)` — `menu` is the p
 defined in Step 8:
 - **body** — the fork distilled: the CHOSEN option, the REJECTED options each with compressed
   trade-offs, and WHY the choice won. This is the ADR moment from the fan, compressed into one note.
+  A sufficiency claim the fan marked «не проверено» keeps that mark in the body and is never the
+  WHY of a rejection (SUFFICIENCY-RUN-RULE).
 - **anchors** — the affected files, and they MUST be repo-relative AND git-tracked (an untracked
   anchor is a dead-anchor sink that drops the note to the bottom of recall). A plan often touches
   files that do not exist yet — anchor to the already-tracked files it affects, never to
@@ -618,6 +661,10 @@ of the existing specs in that directory.
   neighbour and never the spec.
 - EVIDENCE-BASED — every option references a specific file or recalled note; name files and
   modules, not "consider separating concerns".
+- SUFFICIENCY-RUN-RULE — a rejection, or a recommendation turned away, on «the existing mechanism
+  already handles the goal» carries that mechanism's run on the goal's real input (the second Bash
+  carve-out); without a run the
+  claim is «не проверено», never a reason to reject, and keeps its mark in the spec and the note.
 - ETALON-READ — an implement-by-etalon `.json` task reads the etalon file at Step 2, before the
   fan: proposal nodes become tasks, the registry components it uses are brought to the etalon in
   the same task list, the design book's proposals build the base kit first, before any page, and
@@ -652,6 +699,9 @@ of the existing specs in that directory.
   mark in the consumer phase's title: a code-consuming edge is `(потребляет фазу N: …)` and adds a
   real-module executable smoke criterion to the consumer phase, a pure-ordering edge is
   `(order-only после фазы N)`.
+- SELF-TEST-CASES-RULE — the generator, not the author, derives a tool's self-test or fixture
+  cases in Knowledge from the tool's rules one to one (rule → the case that fails without it);
+  Step 6 compares both lists before the menu, and a rule no case can exercise is a named limit.
 - VERSION-BUMP-RULE — the generator, not the author, decides whether a version-bump phase exists: it
   is generated ONLY when the recon (Step 2.5, release automation included) found no automation that
   bumps the project itself; evidence found → no phase, and Baseline names the automation. Where the
