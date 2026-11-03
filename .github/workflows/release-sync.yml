@@ -51,7 +51,7 @@ jobs:
       - name: Validate the result
         run: npm test
 
-      - name: Commit and tag on main
+      - name: Commit and push to main
         env:
           ENGINE_VERSION: ${{ github.event.client_payload.version }}
         run: |
@@ -60,5 +60,4 @@ jobs:
           git add plugin/.claude-plugin/plugin.json plugin/bin/release.json
           plugin_version=$(node -p 'require("./plugin/.claude-plugin/plugin.json").version')
           git commit -m "Pin engine $ENGINE_VERSION and bump the plugin to $plugin_version"
-          git tag "v$plugin_version"
-          git push origin main --follow-tags
+          git push origin main

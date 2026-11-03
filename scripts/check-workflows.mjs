@@ -4,7 +4,7 @@
 // and locally unreproducible, so this gate pins what IS machine-checkable: the
 // triggers, the presence of every load-bearing step, and the ORDER that makes
 // release-sync safe — the integrity guard strictly before pin generation,
-// and pin generation strictly before commit/tag.
+// and pin generation strictly before the commit.
 //
 // Dev tooling: lives at the repo ROOT, never inside plugin/, so it is not
 // shipped in the installed bundle.
@@ -36,6 +36,12 @@ function requireMarker(relativePath, text, marker, why) {
   }
 }
 
+function forbidMarker(relativePath, text, marker, why) {
+  if (text !== null && text.includes(marker)) {
+    failures.push(`${relativePath}: must not carry "${marker}" — ${why}`);
+  }
+}
+
 function requireOrder(relativePath, text, earlier, later, why) {
   if (text === null) return;
   const earlierIndex = text.indexOf(earlier);
@@ -53,7 +59,19 @@ requireMarker(releaseSyncPath, releaseSync, 'engine-release', 'the dispatch type
 requireMarker(releaseSyncPath, releaseSync, 'check-release-integrity.mjs', 'the integrity guard step is load-bearing');
 requireMarker(releaseSyncPath, releaseSync, 'generate-release-pin.mjs', 'the pin generation step is load-bearing');
 requireMarker(releaseSyncPath, releaseSync, '--restamp', 'the version bump must restamp plugin_version into the pin');
-requireMarker(releaseSyncPath, releaseSync, 'git tag', 'the sync must tag the bumped version');
+requireMarker(releaseSyncPath, releaseSync, 'git commit', 'the sync must commit the bumped version');
+forbidMarker(
+  releaseSyncPath,
+  releaseSync,
+  'git tag',
+  "no reader consumes a v* tag, and engine-v* tags come from the engine's GitHub release",
+);
+forbidMarker(
+  releaseSyncPath,
+  releaseSync,
+  '--follow-tags',
+  'it pushes annotated tags only, so a lightweight tag silently stays on the runner',
+);
 requireOrder(
   releaseSyncPath,
   releaseSync,
@@ -65,8 +83,8 @@ requireOrder(
   releaseSyncPath,
   releaseSync,
   'generate-release-pin.mjs',
-  'git tag',
-  'commit/tag must be the LAST thing that happens, after every check',
+  'git commit',
+  'the commit must be the LAST thing that happens, after every check',
 );
 
 const ciPath = '.github/workflows/ci.yml';
