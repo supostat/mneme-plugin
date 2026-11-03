@@ -11,8 +11,11 @@ figura/bin/d2
 # dev-workflow / engram runtime + session data (machine-local, not distribution)
 .engram/
 
-# dev-workflow tooling (machine-specific settings + synced/version-locked skills)
-.claude/
+# dev-workflow tooling (machine-specific settings) stays local; the project's own
+# skills in .claude/skills/ are versioned — a tool that syncs skills there shows
+# them as untracked rather than hiding them.
+.claude/*
+!.claude/skills/
 
 # Local MCP registration — absolute developer paths, does not register mneme
 .mcp.json
