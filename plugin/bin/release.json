@@ -1,6 +1,6 @@
 {
   "engine_version": "0.1.17",
-  "plugin_version": "0.2.54",
+  "plugin_version": "0.2.55",
   "base_url": "https://github.com/supostat/mneme-plugin/releases/download/engine-v0.1.17",
   "sha256": {
     "darwin-arm64": "57b35dc72681a71fd2eb773e4b514eb7c54db87c70cc23f25687cf97e51b4ff6",
