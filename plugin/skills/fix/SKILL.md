@@ -1,7 +1,7 @@
 ---
 name: fix
 description: "bug diagnosis entry: reproduce with a red test, minimize, fan out hypotheses for a digit choice, emit a one-phase FIX spec whose gate is the regression test; never fixes code itself"
-allowed-tools: [Read, Grep, Bash, mcp__plugin_mneme_memory__recall, Write, mcp__plugin_mneme_memory__workflow_migrate, mcp__plugin_mneme_memory__remember, mcp__plugin_mneme_memory__staging_list, mcp__plugin_mneme_memory__staging_resolve]
+allowed-tools: [Read, Grep, Bash, mcp__plugin_mneme_memory__recall, Write, mcp__plugin_mneme_memory__workflow_migrate, mcp__plugin_mneme_memory__remember, mcp__plugin_mneme_memory__staging_list, mcp__plugin_mneme_memory__staging_resolve, mcp__plugin_mneme_memory__notes_list]
 disable-model-invocation: true
 ---
 
@@ -52,9 +52,11 @@ question), then proceed. Never invent a bug.
 - Edit: FORBIDDEN — see `### FIX-NEVER-FIXES`. fix never touches production code.
 - `mcp__plugin_mneme_memory__staging_list` / `mcp__plugin_mneme_memory__staging_resolve`: YES, but
   ONLY applying the user's explicit DIGIT from a closing HANDOFF-DECISION menu (the curation
-  contract in Output format): `staging_list` to SHOW the queue, `staging_resolve` to apply a
-  per-note digit decision. Resolving without an explicit digit is a VIOLATION — the human gate is
-  untouched.
+  contract in Output format): `staging_list` to SHOW the queue — and the staged diagnosis's card
+  right after exit 3's `remember` — and `staging_resolve` to apply a per-note digit decision.
+  Resolving without an explicit digit is a VIOLATION — the human gate is untouched.
+- `mcp__plugin_mneme_memory__notes_list`: ONLY `{ id }` of the note the card's judge line names —
+  the second body JUDGE-SUPERSEDE reads before a supersede recommendation; never a listing.
 - `workflow_start` / `workflow_step` / any other engine or memory tool: FORBIDDEN — running the
   fix phase is dev's job.
 
@@ -178,9 +180,12 @@ instrumentation is in place — still a concrete executable target). Exit `2` go
 the agent-judged justification pre-written. Exit `3` stages the diagnosis via `remember`
 (type `bugfix`, body: symptom + hypotheses + evidence + what was ruled out; anchors: the
 git-tracked files investigated) — a diagnosis without a fix is still corpus value, the same bug
-seen next time starts warm. Then render the queued note WHOLE and close with the digit menu per
-the curation contract (Output format) — NEVER by telling the user to operate MCP tools. This is
-the ONLY place fix may call `remember`.
+seen next time starts warm. Then call `staging_list` and render the queued note WHOLE with its
+card's cosine line and judge line as DATA — the second line of the `remember` answer is relayed
+verbatim and enables nothing on its own — and close with the digit menu per the curation contract
+(Output format); a card carrying `recommends supersede of <id>` adds the fourth chip
+`4 — заменить заметку <id>` (JUDGE-SUPERSEDE) — NEVER by telling the user to operate MCP tools.
+This is the ONLY place fix may call `remember`.
 
 ### FIX-NEVER-FIXES — fix diagnoses, dev fixes (VIOLATION = ABORT)
 
@@ -244,7 +249,8 @@ create: <N> · identical: <M> · conflict: <K>
 
 (when the run went through `### FIX-NOREPRO-EXIT` exit `3` instead, the terminal render is PROSE +
 the queued diagnosis shown WHOLE as a numbered list + the closing digit menu
-`1 — принять диагноз` / `2 — отклонить` / `3 — позже` per the curation contract, and no map)
+`1 — принять диагноз` / `2 — отклонить` / `3 — позже` per the curation contract, plus
+`4 — заменить заметку <id>` when the card carries the judge's recommendation, and no map)
 
 ### SPEC-REVIEW-MENU — компактная реплика (норма: plan, `### SPEC-REVIEW-MENU`)
 
@@ -292,6 +298,16 @@ this menu for coverage is FORBIDDEN.
 - NEVER tell the user to operate `staging_list` / `staging_resolve` — the agent calls the tools on
   the user's digit; every per-note decision stays the human's. Details: dev's
   `### BOUNDARY-CURATION`.
+- JUDGE-SUPERSEDE — the staged diagnosis's card (`staging_list` right after exit 3's `remember`)
+  may carry the judge line in one of three forms: `recommends supersede of <id>`,
+  `supersede not recommended`, `judge: unavailable`. ONLY the first adds a fourth chip to the
+  diagnosis menu, `4 — заменить заметку <id>`; the other two and a missing line
+  give no supersede recommendation. Before «← рекомендую» lands on that chip, read both bodies —
+  the staged note from its card, `<id>` through `notes_list { id }` — and confirm the new note
+  replaces the old one; otherwise the recommendation moves to accept or reject with the reason,
+  and the chip stays — the digit is the human's. The chip resolves as
+  `staging_resolve { id, decision: "supersede", supersede_target: <id> }` with the same menu
+  payload as an accept.
 - RESOLVE-INDEX — a `staging_resolve` may answer three lines: the usual outcome line,
   `Index not rebuilt: <reason>`, and `The decision is committed — do not retry it; the index
   catches up on the next successful rebuild.` That is a принятое решение, не ошибка: the note is
@@ -314,7 +330,9 @@ MENU-CONTEXT — compact replica (norm: dev's `### MENU-CONTEXT`):
   NO notes — there is no engine call and no menu to stamp. The NOREPRO branch's diagnosis menu
   (`1 — принять диагноз` / `2 — отклонить` / `3 — позже`) resolves on digits 1|2 with
   `{decision_class: "curation", options_n: 3, recommended_position: <позиция «← рекомендую»>,
-  chosen_position: 1|2}`; digit 3 «позже» is a non-event.
+  chosen_position: 1|2}`; with the judge chip `4 — заменить заметку <id>` the menu has four
+  options and the resolve carries `options_n: 4` with `chosen_position: 1|2|4` — the supersede
+  resolve is stamped like an accept; digit 3 «позже» is a non-event.
 - NON-EVENTS (дословно): «позже / показать целиком / дальше / молчание → вызова нет, ничего не
   пишется» — never synthesize a call for coverage.
 - NEUTRALITY: agreement-цифры, coverage и menu-контекст никогда не рендерятся в тексты, где
@@ -332,6 +350,8 @@ MENU-CONTEXT — compact replica (norm: dev's `### MENU-CONTEXT`):
   justification.
 - FIX-NOREPRO-EXIT — non-reproduction ends in the three-exit digit menu; exit 3 is the ONLY
   permitted `remember` call (type bugfix, diagnosis-as-is, queued for human review).
+- JUDGE-SUPERSEDE — the fourth chip of the diagnosis menu exists only on the card's
+  `recommends supersede of <id>` and is recommended only after both bodies were read.
 - RESOLVE-INDEX — a resolve answering `Index not rebuilt:` is a принятое решение, не ошибка:
   counted as usual, reason relayed verbatim, the call не повторять.
 - FIX-NEVER-FIXES — Edit FORBIDDEN; Write only the repro test + the approved spec; the fix phase

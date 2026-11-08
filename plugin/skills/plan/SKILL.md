@@ -1,7 +1,7 @@
 ---
 name: plan
 description: turn a task described in words into a reviewed delta-spec through option fan and user confirmation
-allowed-tools: [Read, Grep, Bash, mcp__plugin_mneme_memory__recall, mcp__plugin_mneme_memory__map_list, mcp__plugin_mneme_memory__remember, mcp__plugin_mneme_memory__workflow_migrate, mcp__plugin_mneme_memory__staging_list, mcp__plugin_mneme_memory__staging_resolve, Write]
+allowed-tools: [Read, Grep, Bash, mcp__plugin_mneme_memory__recall, mcp__plugin_mneme_memory__map_list, mcp__plugin_mneme_memory__remember, mcp__plugin_mneme_memory__workflow_migrate, mcp__plugin_mneme_memory__staging_list, mcp__plugin_mneme_memory__staging_resolve, mcp__plugin_mneme_memory__notes_list, Write]
 disable-model-invocation: true
 ---
 
@@ -60,9 +60,12 @@ task.
   before approval is FORBIDDEN.
 - `mcp__plugin_mneme_memory__staging_list` / `mcp__plugin_mneme_memory__staging_resolve`: YES, but
   ONLY applying the user's explicit DIGIT from the finale's HANDOFF-DECISION menu (per the
-  curation contract in Output format): `staging_list` to SHOW the queue, `staging_resolve` to
-  apply a per-note digit decision. Resolving without an explicit digit is a VIOLATION — the human
-  gate is untouched. ANY other memory tool is FORBIDDEN.
+  curation contract in Output format): `staging_list` to SHOW the queue — and the staged note's
+  card right after Step 8's `remember` — and `staging_resolve` to apply a per-note digit decision.
+  Resolving without an explicit digit is a VIOLATION — the human gate is untouched.
+- `mcp__plugin_mneme_memory__notes_list`: ONLY `{ id }` of the note the card's judge line names —
+  the second body JUDGE-SUPERSEDE reads before a supersede recommendation; never a listing. ANY
+  other memory tool is FORBIDDEN.
 
 ## Procedure
 
@@ -272,8 +275,12 @@ artifacts. Call `mcp__plugin_mneme_memory__remember` with `type: "decision"`, a 
 the fork (the CHOSEN option, the REJECTED options each with compressed trade-offs, and WHY the
 choice won), and `anchors` set to the affected files (see Output format for how body and anchors are
 built). `remember` only QUEUES the note — it does not publish and the skill never assumes
-acceptance. The queue is then curated BY DIGIT through the finale's HANDOFF-DECISION menu (the
-curation contract in Output format) — NEVER by telling the user to operate MCP tools.
+acceptance. Right after it, `staging_list` shows the note's card: its cosine line and, when a
+judge is configured, its judge line ride the finale's queue entry as DATA. The second line of the
+`remember` answer is relayed verbatim and enables nothing on its own — the finale's judge chip
+comes from the card alone (JUDGE-SUPERSEDE in the curation contract). The queue is then curated
+BY DIGIT through the finale's HANDOFF-DECISION menu (the curation contract in Output format) —
+NEVER by telling the user to operate MCP tools.
 
 This remember is the plan-fan door of MENU-CONTEXT — the ONE point where the menu payload rides
 `remember` instead of `staging_resolve`: it carries
@@ -519,7 +526,8 @@ note rendered WHOLE as a numbered queue + the closing HANDOFF-DECISION menu (dev
 `## OUTPUT-GRAMMAR`, layer 2): this turn just CREATED unlaunched phases and a queued note, so the
 message MUST close with the menu — a prose list of next commands, or naming `staging_list` /
 `staging_resolve` to the user, is a VIOLATION. Menu composition (2-4 items): early boundary = the
-FIRST boundary candidate from GRAPH-MAP + the full run to the terminal + note curation. The
+FIRST boundary candidate from GRAPH-MAP + the full run to the terminal + note curation, plus the
+judge chip when the card carries the judge's recommendation (JUDGE-SUPERSEDE). The
 combined item «принять заметку и выдать команду …» is legal by COMBINE-VISIBILITY — the note is
 shown whole in this same message. Launch is ALWAYS manual (`disable-model-invocation`): on a digit
 the skill resolves the note itself and prints the chosen ready command as a fenced block — the
@@ -535,14 +543,19 @@ create: <N> · identical: <M> · conflict: <K>
 В staging 1 заметка (показана целиком):
 
 1. [decision] <суть выбора одной строкой> — якоря: <anchors>
+   <строка косинуса и строка судьи с карточки staging_list, дословно>
 
 `1 — принять заметку и выдать команду полного прогона`
 `2 — принять заметку и выдать команду until <первый-кандидат>`
 `3 — отклонить заметку`
+`4 — заменить заметку <id> и выдать команду полного прогона`
 ```
 
-(the «← рекомендую: <причина одной строкой>» suffix rides exactly ONE option; silence = pause —
-plan does not move without a digit)
+(the fourth chip is present ONLY when the card carries `recommends supersede of <id>` —
+JUDGE-SUPERSEDE in the curation contract; digit `4` resolves
+`{ decision: "supersede", supersede_target: <id> }` and prints the full-run command. The
+«← рекомендую: <причина одной строкой>» suffix rides exactly ONE option; silence = pause — plan
+does not move without a digit)
 
 ### Curation contract — compact replica (full protocol: dev's `### BOUNDARY-CURATION`)
 
@@ -556,6 +569,16 @@ plan does not move without a digit)
   the user's digit; every per-note decision stays the human's.
 - Per-note mode and the mandatory full-body branch live in dev's `### BOUNDARY-CURATION`; this
   replica defers to it for details.
+- JUDGE-SUPERSEDE — the staged note's card (`staging_list` right after Step 8's `remember`) may
+  carry the judge line in one of three forms: `recommends supersede of <id>`,
+  `supersede not recommended`, `judge: unavailable`. ONLY the first adds a fourth chip to the
+  finale menu, `4 — заменить заметку <id> и выдать команду полного прогона`; the other two and a
+  missing line give no supersede recommendation. Before «← рекомендую» lands on that chip,
+  read both bodies — the staged note from its card, `<id>` through `notes_list { id }` — and
+  confirm the new note replaces the old one; otherwise the recommendation moves to accept or
+  reject with the reason, and the chip stays — the digit is the human's. The chip resolves as
+  `staging_resolve { id, decision: "supersede", supersede_target: <id> }` with the same menu
+  payload as an accept.
 - RESOLVE-INDEX — a `staging_resolve` may answer three lines: the usual outcome line,
   `Index not rebuilt: <reason>`, and `The decision is committed — do not retry it; the index
   catches up on the next successful rebuild.` That is a принятое решение, не ошибка: the note is
@@ -576,7 +599,9 @@ MENU-CONTEXT — compact replica (norm: dev's `### MENU-CONTEXT`):
   PRESENTED digit menu MUST carry the menu payload; resolve после меню без menu-поля = VIOLATION.
 - plan's finale payload (literal): the note resolve after the finale menu carries
   `{decision_class: "curation", options_n: 3, recommended_position: <позиция «← рекомендую»>,
-  chosen_position: <фактическая цифра>}`. Combined options (COMBINE-VISIBILITY) change NOTHING:
+  chosen_position: <фактическая цифра>}`; with the judge chip the menu has four options, so the
+  payload is `options_n: 4` and chosen_position stays the actual digit — the supersede resolve is
+  stamped like an accept. Combined options (COMBINE-VISIBILITY) change NOTHING:
   menu describes the PRESENTED menu, not the actions — the resolve is the only engine call of the
   option; the handed-over command has no call and never enters menu.
 - NON-EVENTS (дословно): «позже / показать целиком / дальше / молчание → вызова нет, ничего не
@@ -642,6 +667,8 @@ of the existing specs in that directory.
   (early boundary / terminal / note curation, 2-4 items); a prose list of next commands, or naming
   MCP tools to the user, is a VIOLATION; curation follows the compact contract (replica of dev's
   `### BOUNDARY-CURATION`).
+- JUDGE-SUPERSEDE — the fourth chip of the finale exists only on the card's
+  `recommends supersede of <id>` and is recommended only after both bodies were read.
 - PLAN-AUTOMIGRATE FAIL-FAST — Step 7 drives `workflow_migrate` validate → apply-if-clean in one
   pass; a FORMAT error is fixed by the skill itself in the hot context (re-Write + re-migrate,
   meaning untouched), a MEANING-level fix goes back to the user; the finale is the GRAPH-MAP
