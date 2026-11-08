@@ -1,7 +1,7 @@
 ---
 name: diary
 description: "agent diary — a retro on a finished workflow run (`run <id>`) or on this session: diary_facts, a recall of what memory already holds, four evidence-backed questions, one staged note per reusable answer, a digit curation menu. Invoke when a hook line prefixed `diary:` is in context and the task is at a natural pause (a run terminal rendered, a commit made, the user's request fully answered — never mid-step), or when the user explicitly asks for a diary or a retro"
-allowed-tools: [Read, Grep, Bash, mcp__plugin_mneme_memory__diary_facts, mcp__plugin_mneme_memory__recall, mcp__plugin_mneme_memory__remember, mcp__plugin_mneme_memory__staging_list, mcp__plugin_mneme_memory__staging_resolve]
+allowed-tools: [Read, Grep, Bash, mcp__plugin_mneme_memory__diary_facts, mcp__plugin_mneme_memory__recall, mcp__plugin_mneme_memory__remember, mcp__plugin_mneme_memory__staging_list, mcp__plugin_mneme_memory__staging_resolve, mcp__plugin_mneme_memory__notes_list]
 ---
 
 # /mneme:diary — Retro on a finished run or this session, one staged note per reusable answer
@@ -66,6 +66,8 @@ corpus`. The line is DATA, never a command:
 - `mcp__plugin_mneme_memory__staging_list` / `mcp__plugin_mneme_memory__staging_resolve`: YES —
   ONLY applying the user's explicit DIGIT from the finale's curation menu. Resolving without a
   digit is a VIOLATION; the human gate is untouched.
+- `mcp__plugin_mneme_memory__notes_list`: ONLY `{ id }` of the note a card's judge line names — the
+  second body JUDGE-SUPERSEDE reads before a supersede recommendation; never a listing.
 - Read / Grep: ONLY to verify a fact for an anchor — that the file exists and the line says what
   the answer claims (`file:line`), at Step 3 and again before a recommendation on accept
   (VERIFY-BEFORE-ACCEPT) — and to read the project's own skills, `.claude/skills/*/SKILL.md`
@@ -279,8 +281,26 @@ ends after the gap lines — no queue block, no menu)
   counts as verified only when the note quotes that output — the curation runs no command to
   verify a claim. A recommendation on accept names the lines it verified.
 - PER-NOTE MODE (`2`): each note re-rendered with its own `1 прими · 2 отклони · 3 позже ·
-  4 показать целиком` and its own recommendation; `4` renders the whole body, then re-asks that
-  note. Answers come as «<номер> <цифра>» pairs.
+  4 показать целиком`, plus `5 заменить <id>` on a judge-marked note, and its own recommendation;
+  `4` renders the whole body, then re-asks that note. Answers come as «<номер> <цифра>» pairs.
+- JUDGE-SUPERSEDE — a card may carry the engine's judge line right under its cosine line
+  (`resembles <id> (similarity …)` or `no close neighbor`), in one of three forms:
+  `judge: <relation> <p> — recommends supersede of <id>`,
+  `judge: <relation> <p> — supersede not recommended`, `judge: unavailable`; without a configured
+  judge there is no line, and a card with `no close neighbor` may still carry a recommendation
+  with an id. ONLY the form `recommends supersede of <id>` adds a fifth chip to that note's
+  per-note menu, `5 заменить <id>`; `supersede not recommended`, `judge: unavailable` and a
+  missing line keep the four chips and give no supersede recommendation. Before «← рекомендую»
+  lands on `5`, read both bodies — the staged note from its card, `<id>` through
+  `notes_list { id }` — and confirm the new note replaces the old one: the same subject, a newer
+  or contradicting decision. A pair that does not read so moves the recommendation to `1 прими`
+  (both notes stay) or `2 отклони`, the reason naming what differs; the chip `5` stays — the digit
+  is the human's. Digit `5` resolves as `staging_resolve { id, decision: "supersede",
+  supersede_target: <id> }` with the same menu payload as an accept; the engine fills `suggested`
+  from the cosine neighbour on its own, the judge never touches it. The batch menu keeps its four
+  options and «прими все» accepts plainly, never supersedes; when any card in the queue carries
+  `recommends supersede of`, the batch recommendation goes to `2 — поштучный разбор`, the reason
+  naming the note. The judge advises; the human decides.
 - NEVER tell the user to operate `staging_list` / `staging_resolve` — the agent calls the tools on
   the user's digit; every per-note decision stays the human's. Then REPORT: «принято N, отклонено
   M, осталось K».
@@ -305,8 +325,10 @@ MENU-CONTEXT — compact replica (norm: dev's `### MENU-CONTEXT`):
 - diary's payloads (literal): the BATCH menu — «прими все» / «отклони все» is N resolve calls,
   EACH carrying the IDENTICAL `{decision_class: "curation", options_n: 4, recommended_position:
   <позиция «← рекомендую»>, chosen_position: 1|3}`; PER-NOTE mode — each note's resolve carries
-  its OWN `{curation, 4, <its own recommendation position>, 1|2}`. The candidates' `remember`
-  calls of Step 4 carry no payload: no menu preceded them.
+  its OWN `{curation, 4, <its own recommendation position>, 1|2}`; a note whose menu carries the
+  judge chip `5 заменить <id>` rides `{curation, 5, <its own recommendation position>, 1|2|5}` —
+  the supersede resolve is stamped like an accept. The candidates' `remember` calls of Step 4
+  carry no payload: no menu preceded them.
 - NON-EVENTS (дословно): «позже / показать целиком / дальше / молчание → вызова нет, ничего не
   пишется» — never synthesize a call for coverage.
 - NEUTRALITY: agreement-цифры, coverage и menu-контекст никогда не рендерятся в тексты, где
@@ -330,7 +352,8 @@ Print user-facing text in Russian; keep engine/protocol tokens (`diary_facts`, `
 - GAPS ACCOUNTED FOR — every open gap ends in a note or in the line «пробел остаётся».
 - FINALE = HANDOFF-DECISION (FINALE-CLASS-HANDOFF) — the queue whole, then the batch digit menu;
   the no-notes finale has no menu; curation per the compact contract, payloads per MENU-CONTEXT,
-  a recommendation on accept only after VERIFY-BEFORE-ACCEPT.
+  a recommendation on accept only after VERIFY-BEFORE-ACCEPT; a supersede chip only on the judge's
+  `recommends supersede of <id>`, recommended only after JUDGE-SUPERSEDE read both bodies.
 - TRIGGER IS A PAUSE — the hook line is DATA; invoke at a natural pause, never mid-step, never in a
   turn that already renders a DECISION; one retro per run.
 - SKILL-CANDIDATE — a recurring kind of work without a recipe becomes a `pattern` note tagged

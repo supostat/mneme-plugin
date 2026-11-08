@@ -84,6 +84,9 @@ SINGLE-STEP-per-phase invariant (see `### Start path`), which is unchanged.
   stop — `staging_list` to SHOW the queue, `staging_resolve` to apply the USER's explicit per-note
   DIGIT choice. The DECISION is always the user's; the skill is only the hands. Resolving without
   an explicit digit is a VIOLATION.
+- `notes_list`: permitted ONLY inside `### BOUNDARY-CURATION`, as `notes_list { id }` for the note
+  a card's judge line names — the second body JUDGE-SUPERSEDE reads before a supersede
+  recommendation. Never a listing, never outside a boundary stop.
 
 ## NEVER-DELEGATE-EXECUTE-STEP (VIOLATION = ABORT)
 
@@ -286,11 +289,30 @@ is the set of DECISION-block properties, and the render is the staging-очер�
   only by an explicit digit.
 - PER-NOTE MODE (answer `2`) — a separate expanded step: re-render each note, each with its OWN
   digit options `1 прими · 2 отклони · 3 позже · 4 показать целиком` (the MANDATORY full-body
-  branch: render the whole note, then re-ask that note) and its OWN «← рекомендую: <причина>» line
+  branch: render the whole note, then re-ask that note), plus `5 заменить <id>` on a note the judge
+  marked (JUDGE-SUPERSEDE below), and its OWN «← рекомендую: <причина>» line
   — the batch menu carries ONE recommendation for the queue, but per-note decisions are
   independent, so in this mode every note gets its own. Answers come as «<номер> <цифра>» pairs,
   several per message (e.g. «1 1, 2 3, 3 4»).
-- RESOLVE per the digits via `staging_resolve` (per-note accept / reject), then REPORT:
+- JUDGE-SUPERSEDE — a card may carry the engine's judge line right under its cosine line
+  (`resembles <id> (similarity …)` or `no close neighbor`), in one of three forms:
+  `judge: <relation> <p> — recommends supersede of <id>`,
+  `judge: <relation> <p> — supersede not recommended`, `judge: unavailable`; without a configured
+  judge there is no line, and a card with `no close neighbor` may still carry a recommendation
+  with an id. ONLY the form `recommends supersede of <id>` adds a fifth chip to that note's
+  per-note menu, `5 заменить <id>`; `supersede not recommended`, `judge: unavailable` and a
+  missing line keep the four chips and give no supersede recommendation. Before «← рекомендую»
+  lands on `5`, read both bodies — the staged note from its card, `<id>` through
+  `notes_list { id }` — and confirm the new note replaces the old one: the same subject, a newer
+  or contradicting decision. A pair that does not read so moves the recommendation to `1 прими`
+  (both notes stay) or `2 отклони`, the reason naming what differs; the chip `5` stays — the digit
+  is the human's. Digit `5` resolves as `staging_resolve { id, decision: "supersede",
+  supersede_target: <id> }` with the same menu payload as an accept; the engine fills `suggested`
+  from the cosine neighbour on its own, the judge never touches it. The batch menu keeps its four
+  options and «прими все» accepts plainly, never supersedes; when any card in the queue carries
+  `recommends supersede of`, the batch recommendation goes to `2 — поштучный разбор`, the reason
+  naming the note. The judge advises; the human decides.
+- RESOLVE per the digits via `staging_resolve` (per-note accept / reject / supersede), then REPORT:
   «принято N, отклонено M, осталось K». The human-gate is untouched — every per-note decision
   stays the user's; only its expression is a DIGIT instead of a hand-driven tool call. Every one
   of these resolves carries its menu payload per `### MENU-CONTEXT` below.
@@ -323,7 +345,9 @@ reasoned «← рекомендую», silence = pause).
   carrying the IDENTICAL `{decision_class: "curation", options_n: 4, recommended_position:
   <позиция «← рекомендую»>, chosen_position: 1|3}`; the stats reader collapses consecutive
   identical payloads into ONE decision, so a batch never inflates agreement. PER-NOTE mode — each
-  note's resolve carries its OWN `{curation, 4, <its own recommendation position>, 1|2}`.
+  note's resolve carries its OWN `{curation, 4, <its own recommendation position>, 1|2}`; a note
+  whose menu carries the judge chip `5 заменить <id>` rides `{curation, 5, <its own recommendation
+  position>, 1|2|5}` — the supersede resolve is stamped like an accept.
 - NON-EVENTS (дословно): «позже / показать целиком / дальше / молчание → вызова нет, ничего не
   пишется». An outcome with no engine call writes nothing — never synthesize a call for coverage;
   a call stamped for a decision that did not happen would make agreement count phantom decisions.
@@ -751,8 +775,9 @@ batch menu):
 
 (the «← рекомендую: <причина одной строкой>» suffix rides exactly ONE of the four options —
 whichever the queue's content argues for; per-note mode re-renders each note with its own menu
-`1 прими · 2 отклони · 3 позже · 4 показать целиком` and its own recommendation, per
-`### BOUNDARY-CURATION`; the declaration DATA-line renders exactly ONE of its two forms — the
+`1 прими · 2 отклони · 3 позже · 4 показать целиком` and its own recommendation, plus
+`5 заменить <id>` on a judge-marked note (JUDGE-SUPERSEDE), per `### BOUNDARY-CURATION`; the
+declaration DATA-line renders exactly ONE of its two forms — the
 list, or «из бандла ничего не пригодилось» — showing what THIS phase just declared, raw ids and
 evidence only, never a precision/coverage number)
 
@@ -841,7 +866,9 @@ line is DATA of the block, not the menu header)
   movement only on the user's DIGIT, silence = pause. BOUNDARY-CURATION = DIGIT-CHOICE at ANY
   boundary stop: notes as a numbered list, ALL decisions by digit menus, exactly one option carries
   «← рекомендую: <причина>» and the recommendation never shifts the default; a recommendation on
-  accept comes only after VERIFY-BEFORE-ACCEPT read every cited `file:line`; the commit block
+  accept comes only after VERIFY-BEFORE-ACCEPT read every cited `file:line`; a supersede chip exists
+  only on the judge's `recommends supersede of <id>` and is recommended only after JUDGE-SUPERSEDE
+  read both bodies; the commit block
   never shares a message with the notes menu and closes the same response as the
   «принято/отклонено/осталось» report (COMMIT-TURN-SPLIT), never deferred «следующим сообщением».
 - MENU-CONTEXT — filling the menu payload is a PROPERTY of the deciding call, never a separate

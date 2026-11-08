@@ -295,6 +295,7 @@ const TOOL_TOKEN_EXPECTATIONS = [
       'mcp__plugin_mneme_memory__remember',
       'mcp__plugin_mneme_memory__staging_list',
       'mcp__plugin_mneme_memory__staging_resolve',
+      'mcp__plugin_mneme_memory__notes_list',
     ],
   },
   { skill: 'prompt', rule: 'exactly', tools: ['Read', 'Grep', 'Bash'] },
