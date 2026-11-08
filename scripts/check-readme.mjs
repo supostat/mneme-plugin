@@ -51,6 +51,7 @@ const ROOT_README_REQUIRED = [
   ['unsupported platform', 'the unsupported-platform troubleshooting entry'],
   ['no local build and no release pin', 'the pre-release troubleshooting entry'],
   ['https://supostat.github.io/mneme-plugin/', 'the published landing link'],
+  ['MNEME_JUDGE_API_KEY', 'the judge key, forwarded like MNEME_CONTEXT_WINDOW'],
 ];
 
 const rootReadme = load('README.md');

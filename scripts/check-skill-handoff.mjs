@@ -9,7 +9,7 @@
 // TEST, not the next live episode. The same argument covers every other fact a skill's text
 // states about itself — the finale class it claims, the bundle script it invokes, the tools it is
 // granted — and each of those facts is pinned by ONE map here, never by a second copy elsewhere.
-// Twenty checks:
+// Twenty-one checks:
 //
 //   (a) every non-dev skill declares its expected FINALE-CLASS token — and never both;
 //   (b) handoff finales (plan, fix, migrate) reference HANDOFF-DECISION and carry a closing
@@ -107,6 +107,15 @@
 //       choice already marked «не проверено», fix stages its diagnosis as is. Each rule closes a live
 //       hole: in corpus boss on 2026-11-03 curation rejected two harvest notes — one explained a test
 //       by a cause nobody read, one credited a failure to one of two mutations run together.
+//   (u) JUDGE — the dedup judge's contract stands where the skills consume it. (u1) dev, diary,
+//       plan, fix and setup quote the three card forms the engine renders, and setup also the adopt
+//       report's `judge flags `; (u2) the `- JUDGE-SUPERSEDE` bullet in the curation of dev and
+//       diary (the fifth chip) and of plan and fix (the fourth chip) says that only the
+//       recommendation adds the chip, that both bodies are read before recommending it and that the
+//       other forms give no recommendation; (u3) their MENU-CONTEXT stamps the judge chip; (u4)
+//       setup's Step 3 says where the key lives, that setup never asks for it and that note bodies
+//       go to the provider, and its ADOPT mode retires nothing on its own; (u5) plan, fix and setup
+//       carry the tools that contract needs.
 //
 // Dev tooling: lives at the repo ROOT, never inside plugin/ (same rule as the other check-*).
 //
@@ -282,7 +291,13 @@ const TOOL_TOKEN_EXPECTATIONS = [
     rule: 'exactly',
     tools: ['Read', 'Grep', 'mcp__plugin_mneme_memory__recall', 'mcp__plugin_mneme_memory__remember', 'mcp__plugin_mneme_memory__map_list'],
   },
-  { skill: 'plan', rule: 'carries', tools: ['mcp__plugin_mneme_memory__map_list'] },
+  { skill: 'plan', rule: 'carries', tools: ['mcp__plugin_mneme_memory__map_list', 'mcp__plugin_mneme_memory__notes_list'] },
+  { skill: 'fix', rule: 'carries', tools: ['mcp__plugin_mneme_memory__notes_list'] },
+  {
+    skill: 'setup',
+    rule: 'carries',
+    tools: ['mcp__plugin_mneme_memory__notes_list', 'mcp__plugin_mneme_memory__corpus_adopt', 'mcp__plugin_mneme_memory__note_retire'],
+  },
   {
     skill: 'diary',
     rule: 'exactly',
@@ -726,6 +741,111 @@ if (!(sectionOf(diaryText, /^## Rules$/m) ?? '').includes(VERIFY_BEFORE_ACCEPT))
   failures.push('diary: Rules does not name VERIFY-BEFORE-ACCEPT — the finale summary lost the check before accept');
 }
 
+// (u) JUDGE: the card forms are quoted, the supersede chip is ruled and stamped, setup asks consent and never retires alone
+const fixText = skillText('fix');
+const setupText = skillText('setup');
+const blockUntilNextHeading = (text, opening) => {
+  const start = text.search(opening);
+  if (start === -1) return null;
+  const bodyStart = text.indexOf('\n', start) + 1;
+  const nextHeading = /^#{1,6} /m.exec(text.slice(bodyStart));
+  return text.slice(start, nextHeading === null ? undefined : bodyStart + nextHeading.index);
+};
+const JUDGE_CARD_FORMS = ['recommends supersede of', 'supersede not recommended', 'judge: unavailable'];
+const JUDGE_LITERALS = {
+  dev: JUDGE_CARD_FORMS,
+  diary: JUDGE_CARD_FORMS,
+  plan: JUDGE_CARD_FORMS,
+  fix: JUDGE_CARD_FORMS,
+  setup: [...JUDGE_CARD_FORMS, 'judge flags '],
+};
+const JUDGE_SUPERSEDE_START = /^- JUDGE-SUPERSEDE\b/m;
+const FIFTH_CHIP_ANCHORS = [
+  'adds a fifth chip to that note',
+  'give no supersede recommendation',
+  'read both bodies',
+  'the chip `5` stays',
+  'never supersedes',
+  'goes to `2 — поштучный разбор`',
+];
+const FOURTH_CHIP_ANCHORS = ['adds a fourth chip', 'read both bodies', 'give no supersede recommendation'];
+const JUDGE_SUPERSEDE_REPLICAS = [
+  { name: 'dev', curation: sectionOf(devText, /^### BOUNDARY-CURATION\b/m), section: 'BOUNDARY-CURATION', anchors: FIFTH_CHIP_ANCHORS },
+  { name: 'diary', curation: sectionOf(diaryText, /^### Curation contract\b/m), section: 'the Curation contract', anchors: FIFTH_CHIP_ANCHORS },
+  { name: 'plan', curation: sectionOf(planText, /^### Curation contract\b/m), section: 'the Curation contract', anchors: FOURTH_CHIP_ANCHORS },
+  {
+    name: 'fix',
+    curation: blockUntilNextHeading(fixText, /^\*\*Контракт курирования\*\*/m),
+    section: 'the Контракт курирования',
+    anchors: FOURTH_CHIP_ANCHORS,
+  },
+];
+const JUDGE_CHIP_STAMPS = [
+  { name: 'dev', text: devText, stamps: ['{curation, 5,', '1|2|5'] },
+  { name: 'diary', text: diaryText, stamps: ['{curation, 5,', '1|2|5'] },
+  { name: 'plan', text: planText, stamps: ['options_n: 4'] },
+  { name: 'fix', text: fixText, stamps: ['options_n: 4', '1|2|4'] },
+];
+const SETUP_JUDGE_SECTIONS = [
+  {
+    heading: /^### Step 3\b/m,
+    section: 'Step 3',
+    anchors: [
+      'MNEME_JUDGE_API_KEY',
+      'sends the body of every staged note and of its nearest neighbour to the provider',
+      'the engine refuses `judge.api_key`',
+      'never asks for the key value',
+    ],
+    repair: 'the judge offer says where the key lives, that setup never takes it and that note bodies go to the provider',
+  },
+  {
+    heading: /^### ADOPT\b/m,
+    section: 'ADOPT',
+    anchors: ['judge flags ', 'note_retire', 'retires nothing on its own', 'rides WITHOUT menu'],
+    repair: 'the adopt mode turns each judge flag into a candidate and retires nothing without a digit',
+  },
+];
+
+// (u1)
+for (const [name, literals] of Object.entries(JUDGE_LITERALS)) {
+  const flat = normalize(skillText(name));
+  for (const literal of literals.filter((form) => !flat.includes(form))) {
+    failures.push(`${name}: judge literal «${literal}» missing — the card form the engine renders must be quoted as is`);
+  }
+}
+
+// (u2)
+for (const { name, curation, section, anchors } of JUDGE_SUPERSEDE_REPLICAS) {
+  const judgeSupersede = paragraphOpenedBy(curation ?? '', JUDGE_SUPERSEDE_START);
+  if (judgeSupersede === null) {
+    failures.push(`${name}: no JUDGE-SUPERSEDE bullet in ${section} — the supersede chip would appear on any neighbour or never`);
+    continue;
+  }
+  for (const anchor of anchors.filter((literal) => !normalize(judgeSupersede).includes(literal))) {
+    failures.push(`${name}: JUDGE-SUPERSEDE does not say «${anchor}» — restore the clause in its bullet`);
+  }
+}
+
+// (u3)
+for (const { name, text, stamps } of JUDGE_CHIP_STAMPS) {
+  const menuContext = normalize(sectionOf(text, /^### MENU-CONTEXT\b/m) ?? blockUntilNextHeading(text, /^MENU-CONTEXT — compact replica\b/m) ?? '');
+  for (const stamp of stamps.filter((literal) => !menuContext.includes(literal))) {
+    failures.push(`${name}: MENU-CONTEXT does not stamp the judge chip («${stamp}» missing) — the supersede resolve rides the payload of an accept`);
+  }
+}
+
+// (u4)
+for (const { heading, section, anchors, repair } of SETUP_JUDGE_SECTIONS) {
+  const block = sectionOf(setupText, heading);
+  if (block === null) {
+    failures.push(`setup: no \`### ${section}\` section — ${repair}`);
+    continue;
+  }
+  for (const anchor of anchors.filter((literal) => !normalize(block).includes(literal))) {
+    failures.push(`setup: ${section} does not say «${anchor}» — ${repair}`);
+  }
+}
+
 if (failures.length > 0) {
   console.error('Handoff-finale sync check FAILED:');
   for (const failure of failures) console.error(`  - ${failure}`);
@@ -733,5 +853,5 @@ if (failures.length > 0) {
 }
 
 console.log(
-  'Handoff-finale sync check passed: finale classes declared, handoff menus in place, staging grants curated, contract replicas aligned, no stale markers, MENU-CONTEXT replicas aligned and unweakened, SPEC-REVIEW-MENU replicas aligned with self-endorsement barred, invoked bundle scripts present, allowed-tools grants matching their contracts, the handoff phrase shared by design and plan, resume free of event-log markers, RESOLVE-INDEX replicas aligned and never retried, the map contract anchored where it is consumed, the model-invocable registry pinned to exactly the diary and prompt skills, the diary contract anchored in dev\'s terminal and the diary skill with its skill-candidate rule, and every command the skills name and hand over resolved to the bundle\'s own — real names, route templates shaped like their targets\' arguments, handoff lines byte-identical across finales, prompt\'s triggers and self-check labels, every entry named in setup\'s finale, and the spec line shapes replicated in plan and fix, each checked in its review step, with the dep-edge marks in the phase title, and plan\'s evidence rules — a tool\'s self-test cases derived from its rules one to one and compared in Step 6, a sufficiency claim backed by a run in Step 3 or marked unverified, and dev\'s harvest evidence rules — an artifact claiming only what its phase observed, one mutation per spec run named against the check it broke — with the lines read before an accept recommendation in the dev and diary curations.',
+  'Handoff-finale sync check passed: finale classes declared, handoff menus in place, staging grants curated, contract replicas aligned, no stale markers, MENU-CONTEXT replicas aligned and unweakened, SPEC-REVIEW-MENU replicas aligned with self-endorsement barred, invoked bundle scripts present, allowed-tools grants matching their contracts, the handoff phrase shared by design and plan, resume free of event-log markers, RESOLVE-INDEX replicas aligned and never retried, the map contract anchored where it is consumed, the model-invocable registry pinned to exactly the diary and prompt skills, the diary contract anchored in dev\'s terminal and the diary skill with its skill-candidate rule, and every command the skills name and hand over resolved to the bundle\'s own — real names, route templates shaped like their targets\' arguments, handoff lines byte-identical across finales, prompt\'s triggers and self-check labels, every entry named in setup\'s finale, and the spec line shapes replicated in plan and fix, each checked in its review step, with the dep-edge marks in the phase title, and plan\'s evidence rules — a tool\'s self-test cases derived from its rules one to one and compared in Step 6, a sufficiency claim backed by a run in Step 3 or marked unverified, and dev\'s harvest evidence rules — an artifact claiming only what its phase observed, one mutation per spec run named against the check it broke — with the lines read before an accept recommendation in the dev and diary curations, and the dedup judge\'s contract — its card forms quoted, the supersede chip ruled and stamped in four curations, setup\'s consent and adopt anchors, and the tools they need.',
 );
