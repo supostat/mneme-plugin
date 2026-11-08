@@ -117,7 +117,8 @@ memory store cannot assemble between them.
   re-anchor and 2 retire requests across our corpora, and 19 notes had been
   superseded; `stats` prints the same counters for yours.
 - **Local-first** — the corpus lives in `~/.mneme/`, embeddings come from your
-  local Ollama; nothing leaves the machine.
+  local Ollama; nothing leaves the machine; the optional judge is the one
+  exception, and you enable it yourself.
 - **Event-sourced** — runs are rebuilt from an append-only JSONL log; a new
   session resumes exactly where the last one stopped.
 - **Machine-verified phases** — `done-when` gates are real commands run by the
@@ -211,6 +212,27 @@ Several models are comma-separated and names must match exactly. A declaration
 is still checked against observation — one smaller than a window actually seen
 is dropped. The reverse is not detectable: declare 1M and then switch to a 200k
 model, and the percentage will understate how full the context is.
+
+The dedup judge is optional and off until you give it a key. It reads each
+staged note against its nearest accepted neighbour and may recommend replacing
+that older note: the staging card then carries a judge line under the
+similarity line, and the replacement stays your digit. The key goes into
+`MNEME_JUDGE_API_KEY` in the same `env` block of the user-level
+`~/.claude/settings.json` — never the project's `.claude/settings.json`, which
+may be committed:
+
+```json
+"env": { "MNEME_JUDGE_API_KEY": "<your provider key>" }
+```
+
+With the key set, the body of every staged note and of its nearest neighbour
+is sent to the judge's provider, and so is every note a corpus adopt merges,
+in every repository on this machine; setting the key is that consent. The
+default gateway is TypeSafe; put `judge { base_url, model }` in `.mneme.json`
+only for another gateway, such as OpenRouter. The engine refuses
+`judge.api_key` in that file. `/mneme:setup` explains the switch and offers
+the config without ever asking for the key. Restart Claude Code after adding
+it: the engine reads its environment when it starts.
 
 ## figura
 

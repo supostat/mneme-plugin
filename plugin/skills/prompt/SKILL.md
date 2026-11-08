@@ -75,8 +75,10 @@ template is filled, never re-shaped.
 - **A raw idea whose unknowns are the user's intentions** → `/mneme:grill "<сырая идея словами пользователя>"`;
   **a raw idea whose unknowns are mostly facts the existing code can answer** →
   `/mneme:grill-agent "<тема>"`
-- **The project map** → `/mneme:map`; **first setup of a repository** → `/mneme:setup`; **a retro
-  of this session** → `/mneme:diary`; **the design server** → `/mneme:design-server`
+- **The project map** → `/mneme:map`; **first setup of a repository** → `/mneme:setup`;
+  **merging a corpus that drifted apart (a second working copy's notes)** →
+  `/mneme:setup adopt <source_corpus_dir>`; **a retro of this session** → `/mneme:diary`; **the
+  design server** → `/mneme:design-server`
 
 In the plan templates a section with nothing in it drops out whole, label included — «нет» is never
 written; the first sentence is mandatory. Unaccepted assumptions of the agent go into «Решить:», so
