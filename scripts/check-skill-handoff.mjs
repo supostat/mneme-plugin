@@ -147,6 +147,17 @@
 //       green»; (w2) Permissions grants the third carve-out by name, counts «THREE carve-outs»,
 //       no longer «TWO carve-outs», and keeps its «no flag that rewrites files»; (w3) the
 //       SPEC-REVIEW-MENU shows a HEAD-LINT-RUN line and Rules carry the bullet.
+//   (x) ANCHORS-ONE-CALL — dev, map and plan read the map's anchors with `map_list { anchors: true }`
+//       and a section's body only where it is consumed. (x1) dev's MAP-HANDOFF calls it and calls
+//       neither `map_list {}` nor `map_list { id }`, and its map_list permission names
+//       `{ anchors: true }` and grants no `{ id }`; (x2) map's Step 0 reads no section whole,
+//       COVERED-SKIP and the merge chip read the section a cluster rewrites with `map_list { id }`,
+//       and its permission names `{ anchors: true }` (the first call itself is check-map's (d));
+//       (x3) plan's DOMAINS-PICK calls it and reads no candidate whole, and its permission and its
+//       DOMAINS rule name `{ anchors: true }` with no `{ id }`; (x4) map's ANCHOR-LIST paragraph
+//       opens a line in Step 0, Rules carry its bullet, and the norm and its replicas in MAP-HANDOFF
+//       and DOMAINS-PICK say «never split», «whole element» and «never a miss». A list item ends at
+//       the next item or a blank line, so a `notes_list { id }` beside a permission is not its text.
 //
 // Dev tooling: lives at the repo ROOT, never inside plugin/ (same rule as the other check-*).
 //
@@ -1060,6 +1071,93 @@ if (!/^- HEAD-LINT-RUN\b/m.test(sectionOf(planText, /^## Rules$/m) ?? '')) {
   failures.push('plan: no `- HEAD-LINT-RUN` bullet in Rules');
 }
 
+// (x) ANCHORS-ONE-CALL: dev, map and plan read the map's anchors in one call and a body only where it is consumed
+const listItemOpenedBy = (text, opening) => {
+  const start = text.search(opening);
+  if (start === -1) return null;
+  const [firstLine, ...followingLines] = text.slice(start).split('\n');
+  const end = followingLines.findIndex((line) => line.trim() === '' || /^(?:- |\d+\. )/.test(line));
+  return [firstLine, ...(end === -1 ? followingLines : followingLines.slice(0, end))].join('\n');
+};
+const ANCHORS_CALL = 'map_list { anchors: true }';
+const ANCHORS_FORM = '{ anchors: true }';
+const OVERVIEW_CALL = 'map_list {}';
+const WHOLE_READ_CALL = 'map_list { id }';
+const WHOLE_READ_FORM = '{ id }';
+const ANCHOR_LIST_LITERALS = ['never split', 'whole element', 'never a miss'];
+const MAP_LIST_PERMISSION = /^- `mcp__plugin_mneme_memory__map_list`:/m;
+const mapStepZero = sectionOf(mapText, /^### Step 0\b/m) ?? '';
+const domainsPick = listItemOpenedBy(planText, /^4\. DOMAINS-PICK\b/m);
+
+// (x1) (x3) the one anchors call, and the calls it replaces
+const ONE_CALL_AREAS = [
+  { name: 'dev', area: 'MAP-HANDOFF', text: mapHandoff ?? '', replacedCalls: [OVERVIEW_CALL, WHOLE_READ_CALL] },
+  { name: 'plan', area: 'DOMAINS-PICK', text: domainsPick ?? '', replacedCalls: [WHOLE_READ_CALL] },
+];
+for (const { name, area, text, replacedCalls } of ONE_CALL_AREAS) {
+  const normalizedArea = normalize(text);
+  if (!normalizedArea.includes(ANCHORS_CALL)) {
+    failures.push(`${name}: ${area} does not call «${ANCHORS_CALL}» — every section's commit and anchors come from that one call`);
+  }
+  for (const call of replacedCalls.filter((literal) => normalizedArea.includes(literal))) {
+    failures.push(`${name}: ${area} still calls «${call}» — the anchors call alone carries what it needs, and no section is read whole`);
+  }
+}
+
+// (x2) map reads a section whole only where a cluster rewrites it
+if (normalize(mapStepZero).includes(WHOLE_READ_CALL)) {
+  failures.push(`map: Step 0 still calls «${WHOLE_READ_CALL}» — a section is read whole only when a cluster rewrites it`);
+}
+const WHOLE_READ_PLACES = [
+  { area: 'COVERED-SKIP', text: paragraphOpenedBy(mapText, /^COVERED-SKIP:/m), loss: 'the spawn would get no previous version of the section it rewrites' },
+  { area: 'the merge chip', text: listItemOpenedBy(mapText, /^- `3 — слить с <соседний домен>`/m), loss: "the merged draft would lack the stored neighbour's body and terms" },
+];
+for (const { area, text, loss } of WHOLE_READ_PLACES.filter((place) => !normalize(place.text ?? '').includes(WHOLE_READ_CALL))) {
+  failures.push(`map: ${area} does not read the section with «${WHOLE_READ_CALL}» — ${loss}`);
+}
+
+// (x1) (x2) (x3) the map_list permission of each skill
+const MAP_LIST_GRANTS = [
+  { name: 'dev', text: devText, readsSectionsWhole: false },
+  { name: 'map', text: mapText, readsSectionsWhole: true },
+  { name: 'plan', text: planText, readsSectionsWhole: false },
+];
+for (const { name, text, readsSectionsWhole } of MAP_LIST_GRANTS) {
+  const permission = normalize(listItemOpenedBy(sectionOf(text, /^## Permissions\b/m) ?? '', MAP_LIST_PERMISSION) ?? '');
+  if (!permission.includes(ANCHORS_FORM)) {
+    failures.push(`${name}: the map_list permission does not name «${ANCHORS_FORM}» — the skill would run a call its grant does not describe`);
+  }
+  if (!readsSectionsWhole && permission.includes(WHOLE_READ_FORM)) {
+    failures.push(`${name}: the map_list permission still grants «${WHOLE_READ_FORM}» — the skill reads no section whole`);
+  }
+}
+const domainsRule = normalize(listItemOpenedBy(sectionOf(planText, /^## Rules$/m) ?? '', /^- DOMAINS —/m) ?? '');
+if (!domainsRule.includes(ANCHORS_FORM)) {
+  failures.push(`plan: the DOMAINS rule does not name «${ANCHORS_FORM}» — Rules would describe another map read than Step 2`);
+}
+if (domainsRule.includes(WHOLE_READ_FORM)) {
+  failures.push(`plan: the DOMAINS rule still names «${WHOLE_READ_FORM}» — Step 2 reads no candidate whole`);
+}
+
+// (x4) ANCHOR-LIST: map's norm and its replicas in dev and plan
+const anchorListNorm = paragraphOpenedBy(mapStepZero, /^ANCHOR-LIST —/m);
+if (anchorListNorm === null) {
+  failures.push('map: no ANCHOR-LIST paragraph at a line start in Step 0 — the anchor list has no norm for dev and plan to replicate');
+}
+const ANCHOR_LIST_HOLDERS = [
+  { name: 'map', area: 'ANCHOR-LIST', text: anchorListNorm },
+  { name: 'dev', area: "MAP-HANDOFF's ANCHOR-LIST replica", text: mapHandoff },
+  { name: 'plan', area: "DOMAINS-PICK's ANCHOR-LIST replica", text: domainsPick },
+];
+for (const { name, area, text } of ANCHOR_LIST_HOLDERS.filter((holder) => holder.text !== null)) {
+  for (const literal of ANCHOR_LIST_LITERALS.filter((anchor) => !normalize(text).includes(anchor))) {
+    failures.push(`${name}: ${area} does not say «${literal}» — an anchor whose path holds «, » would be read apart from map's rule`);
+  }
+}
+if (!/^- ANCHOR-LIST\b/m.test(sectionOf(mapText, /^## Rules$/m) ?? '')) {
+  failures.push('map: no `- ANCHOR-LIST` bullet in Rules');
+}
+
 if (failures.length > 0) {
   console.error('Handoff-finale sync check FAILED:');
   for (const failure of failures) console.error(`  - ${failure}`);
@@ -1067,5 +1165,5 @@ if (failures.length > 0) {
 }
 
 console.log(
-  'Handoff-finale sync check passed: finale classes declared, handoff menus in place, staging grants curated, contract replicas aligned, no stale markers, MENU-CONTEXT replicas aligned and unweakened, SPEC-REVIEW-MENU replicas aligned with self-endorsement barred, invoked bundle scripts present, allowed-tools grants matching their contracts, the handoff phrase shared by design and plan, resume free of event-log markers, RESOLVE-INDEX replicas aligned and never retried, the map contract anchored where it is consumed, the model-invocable registry pinned to exactly the diary and prompt skills, the diary contract anchored in dev\'s terminal and the diary skill with its skill-candidate rule, and every command the skills name and hand over resolved to the bundle\'s own — real names, route templates shaped like their targets\' arguments, handoff lines byte-identical across finales, prompt\'s triggers and self-check labels, every entry named in setup\'s finale, and the spec line shapes replicated in plan and fix, each checked in its review step, with the dep-edge marks in the phase title, and plan\'s evidence rules — a tool\'s self-test cases derived from its rules one to one and compared in Step 6, a sufficiency claim backed by a run in Step 3 or marked unverified, and dev\'s harvest evidence rules — an artifact claiming only what its phase observed, one mutation per spec run named against the check it broke — with the lines read before an accept recommendation in the dev and diary curations, and the dedup judge\'s contract — its card forms quoted, the supersede chip ruled and stamped in four curations, setup\'s consent and adopt anchors, and the tools they need — and the map handoff: dev\'s complete-run finale offering `/mneme:map run <run_id>` only over touched sections, map\'s run form with the run\'s spec and its code-grounded invariants, prompt never composing it, the diff rule counting the working tree in both skills, the commit before the hand-over and the clusters waiting for it — and plan\'s HEAD-LINT-RUN: lint criteria run against HEAD before the review menu under the third Bash carve-out, with their clauses, count and review line in place.',
+  'Handoff-finale sync check passed: finale classes declared, handoff menus in place, staging grants curated, contract replicas aligned, no stale markers, MENU-CONTEXT replicas aligned and unweakened, SPEC-REVIEW-MENU replicas aligned with self-endorsement barred, invoked bundle scripts present, allowed-tools grants matching their contracts, the handoff phrase shared by design and plan, resume free of event-log markers, RESOLVE-INDEX replicas aligned and never retried, the map contract anchored where it is consumed, the model-invocable registry pinned to exactly the diary and prompt skills, the diary contract anchored in dev\'s terminal and the diary skill with its skill-candidate rule, and every command the skills name and hand over resolved to the bundle\'s own — real names, route templates shaped like their targets\' arguments, handoff lines byte-identical across finales, prompt\'s triggers and self-check labels, every entry named in setup\'s finale, and the spec line shapes replicated in plan and fix, each checked in its review step, with the dep-edge marks in the phase title, and plan\'s evidence rules — a tool\'s self-test cases derived from its rules one to one and compared in Step 6, a sufficiency claim backed by a run in Step 3 or marked unverified, and dev\'s harvest evidence rules — an artifact claiming only what its phase observed, one mutation per spec run named against the check it broke — with the lines read before an accept recommendation in the dev and diary curations, and the dedup judge\'s contract — its card forms quoted, the supersede chip ruled and stamped in four curations, setup\'s consent and adopt anchors, and the tools they need — and the map handoff: dev\'s complete-run finale offering `/mneme:map run <run_id>` only over touched sections, map\'s run form with the run\'s spec and its code-grounded invariants, prompt never composing it, the diff rule counting the working tree in both skills, the commit before the hand-over and the clusters waiting for it — and plan\'s HEAD-LINT-RUN: lint criteria run against HEAD before the review menu under the third Bash carve-out, with their clauses, count and review line in place — and the map\'s anchors read in one call: dev\'s finale and plan\'s domain pick read no body, map reads whole only the section a cluster rewrites, and the anchor list is read whole-element in all three.',
 );
