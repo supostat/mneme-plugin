@@ -119,7 +119,9 @@
 //   (v) MAP-HANDOFF — a complete run offers the map refresh, and the map takes the run's spec.
 //       (v1) dev carries `### MAP-HANDOFF` at a line start, and the section reads the map
 //       (`map_list {}`, `map_list { id }`), replicates map's diff rule (`git diff --name-only
-//       <commit>..HEAD`, «covers everything inside it»), stays silent on an empty or untouched map
+//       <commit>`, `git ls-files --others --exclude-standard`, «covers everything inside it»),
+//       marks the uncommitted paths (`git diff --name-only HEAD`, «(не закоммичен)», «(новый)»),
+//       stays silent on an empty or untouched map
 //       («says nothing about the map»), closes with the two chips and never launches
 //       (`disable-model-invocation`); (v2) the `RUN COMPLETE` terminal and the HANDOFF-DECISION
 //       exemption name MAP-HANDOFF, and dev's Rules carry its bullet; (v3) map's `## Arguments`
@@ -127,8 +129,14 @@
 //       when complete, takes the folder holding ALL the phase ids, reads the corpus archive and
 //       degrades by name, Step 2 hands RUN-SPEC to the describers, and the `RUN-INVARIANTS`
 //       paragraph grounds invariants in code alone; (v4) prompt's ONE ROUTE TABLE names `map run`
-//       among the commands never composed. (j) pins dev's map_list and map's diary_facts, (q2)
-//       refuses a route that composes `map run`.
+//       among the commands never composed; (v5) MAP-HANDOFF carries the COMMIT-FIRST paragraph —
+//       the engine's HEAD stamp as the reason, the коммит-блок, one DECISION per message, `3 — сам`
+//       for edits beside the run, no base_commit — and HANDOFF-DECISION names it; (v6) map's
+//       Step 1 states the diff rule dev replicates (both literals and `uncommitted_files`), neither
+//       skill keeps the old `<commit>..HEAD`, and both Permissions grant the untracked listing;
+//       (v7) map's Step 1 carries the COMMIT-WAIT paragraph, the finale counts «ждёт коммита <W>»
+//       and Rules carry its bullet. (j) pins dev's map_list and map's diary_facts, (q2) refuses a
+//       route that composes `map run`.
 //   (w) HEAD-LINT-RUN — plan runs the draft's lint criteria against HEAD before the review menu.
 //       (w1) the `**HEAD-LINT-RUN` definition stands at a line start inside Step 6, and its
 //       paragraph carries every load-bearing clause: the lint class («carry no problems»), the
@@ -876,16 +884,30 @@ for (const { heading, section, anchors, repair } of SETUP_JUDGE_SECTIONS) {
 
 // (v) MAP-HANDOFF: a complete run offers the map refresh, and the map takes the run's spec
 const mapText = skillText('map');
+const DIFF_RULE_LITERALS = ['git diff --name-only <commit>', 'git ls-files --others --exclude-standard'];
+const STALE_DIFF_RULE = '<commit>..HEAD';
 const MAP_HANDOFF_ANCHORS = [
   'map_list {}',
   'map_list { id }',
-  'git diff --name-only <commit>',
+  ...DIFF_RULE_LITERALS,
+  'git diff --name-only HEAD',
+  '(не закоммичен)',
+  '(новый)',
   'covers everything inside it',
   'says nothing about the map',
   '`1 — выдать команду /mneme:map run <run_id>`',
   '`2 — пропустить`',
   'disable-model-invocation',
 ];
+const COMMIT_FIRST_ANCHORS = [
+  'stamps a map section with the project HEAD',
+  'коммит-блок',
+  'one DECISION per message',
+  '`3 — сам`',
+  'base_commit',
+];
+const COMMIT_WAIT_ANCHORS = ['reads the files from disk', 'stamps the section with the project HEAD', 'no spawn', 'ждёт коммита'];
+const COMMIT_WAIT_COUNT = 'ждёт коммита <W>';
 const MAP_RUN_FORM = '/mneme:map run <run_id>';
 const RUN_SPEC_ANCHORS = ['diary_facts { run_id }', 'status complete', 'contain ALL', '<corpus>/specs/<slug>.md', 'спека прогона не найдена'];
 const RUN_INVARIANTS_ANCHORS = ['executable done-when', 'never counts', 'the code wins', '## Открытые вопросы'];
@@ -938,6 +960,53 @@ if (runInvariants === null) {
 // (v4)
 if (!normalize(paragraphOpenedBy(promptText, /^- ONE ROUTE TABLE\b/m) ?? '').includes('`map run`')) {
   failures.push('prompt: ONE ROUTE TABLE does not name `map run` among the commands never composed');
+}
+
+// (v5)
+const commitFirst = mapHandoff === null ? null : paragraphOpenedBy(mapHandoff, /^COMMIT-FIRST\b/m);
+if (commitFirst === null) {
+  failures.push('dev: no COMMIT-FIRST paragraph in MAP-HANDOFF — a section described over uncommitted files would surface again after their commit');
+} else {
+  for (const anchor of COMMIT_FIRST_ANCHORS.filter((literal) => !normalize(commitFirst).includes(literal))) {
+    failures.push(`dev: COMMIT-FIRST does not say «${anchor}» — restore the clause in its paragraph`);
+  }
+}
+if (!(paragraphOpenedBy(devText, /^- HANDOFF-DECISION\b/m) ?? '').includes('COMMIT-FIRST')) {
+  failures.push("dev: HANDOFF-DECISION does not name COMMIT-FIRST — the terminal's commit block is an exception it does not know");
+}
+
+// (v6)
+const mapStepOne = normalize(sectionOf(mapText, /^### Step 1:/m) ?? '');
+for (const anchor of [...DIFF_RULE_LITERALS, '`uncommitted_files`'].filter((literal) => !mapStepOne.includes(literal))) {
+  failures.push(`map: Step 1 does not say «${anchor}» — dev's MAP-HANDOFF replicates a diff rule its norm no longer states`);
+}
+for (const [skill, text] of [['dev', devText], ['map', mapText]]) {
+  if (normalize(text).includes(STALE_DIFF_RULE)) {
+    failures.push(`${skill}: «${STALE_DIFF_RULE}» still stands — the diff rule counts the working tree now`);
+  }
+}
+const UNTRACKED_LISTING = DIFF_RULE_LITERALS[1];
+if (!normalize(paragraphOpenedBy(devText, /^- Edit \/ Write \/ Bash \/ Grep:/m) ?? '').includes(UNTRACKED_LISTING)) {
+  failures.push(`dev: Permissions do not grant «${UNTRACKED_LISTING}» — MAP-HANDOFF would run a Bash call outside its carve-out`);
+}
+if (!normalize(paragraphOpenedBy(mapText, /^- Bash: /m) ?? '').includes(UNTRACKED_LISTING)) {
+  failures.push(`map: Permissions do not grant «${UNTRACKED_LISTING}» — UPDATE would run a Bash call outside its carve-out`);
+}
+
+// (v7)
+const commitWait = paragraphOpenedBy(sectionOf(mapText, /^### Step 1:/m) ?? '', /^COMMIT-WAIT\b/m);
+if (commitWait === null) {
+  failures.push('map: no COMMIT-WAIT paragraph — a cluster with uncommitted files would be stamped with a HEAD that lacks them');
+} else {
+  for (const anchor of COMMIT_WAIT_ANCHORS.filter((literal) => !normalize(commitWait).includes(literal))) {
+    failures.push(`map: COMMIT-WAIT does not say «${anchor}» — restore the clause in its paragraph`);
+  }
+}
+if (!(sectionOf(mapText, /^## Output format\b/m) ?? '').includes(COMMIT_WAIT_COUNT)) {
+  failures.push(`map: the finale template does not count «${COMMIT_WAIT_COUNT}»`);
+}
+if (!/^- COMMIT-WAIT\b/m.test(sectionOf(mapText, /^## Rules$/m) ?? '')) {
+  failures.push('map: no `- COMMIT-WAIT` bullet in Rules');
 }
 
 // (w) HEAD-LINT-RUN: plan runs the draft's lint criteria against HEAD before the review menu
@@ -1000,5 +1069,5 @@ if (failures.length > 0) {
 }
 
 console.log(
-  'Handoff-finale sync check passed: finale classes declared, handoff menus in place, staging grants curated, contract replicas aligned, no stale markers, MENU-CONTEXT replicas aligned and unweakened, SPEC-REVIEW-MENU replicas aligned with self-endorsement barred, invoked bundle scripts present, allowed-tools grants matching their contracts, the handoff phrase shared by design and plan, resume free of event-log markers, RESOLVE-INDEX replicas aligned and never retried, the map contract anchored where it is consumed, the model-invocable registry pinned to exactly the diary and prompt skills, the diary contract anchored in dev\'s terminal and the diary skill with its skill-candidate rule, and every command the skills name and hand over resolved to the bundle\'s own — real names, route templates shaped like their targets\' arguments, handoff lines byte-identical across finales, prompt\'s triggers and self-check labels, every entry named in setup\'s finale, and the spec line shapes replicated in plan and fix, each checked in its review step, with the dep-edge marks in the phase title, and plan\'s evidence rules — a tool\'s self-test cases derived from its rules one to one and compared in Step 6, a sufficiency claim backed by a run in Step 3 or marked unverified, and dev\'s harvest evidence rules — an artifact claiming only what its phase observed, one mutation per spec run named against the check it broke — with the lines read before an accept recommendation in the dev and diary curations, and the dedup judge\'s contract — its card forms quoted, the supersede chip ruled and stamped in four curations, setup\'s consent and adopt anchors, and the tools they need — and the map handoff: dev\'s complete-run finale offering `/mneme:map run <run_id>` only over touched sections, map\'s run form with the run\'s spec and its code-grounded invariants, and prompt never composing it — and plan\'s HEAD-LINT-RUN: lint criteria run against HEAD before the review menu under the third Bash carve-out, with their clauses, count and review line in place.',
+  'Handoff-finale sync check passed: finale classes declared, handoff menus in place, staging grants curated, contract replicas aligned, no stale markers, MENU-CONTEXT replicas aligned and unweakened, SPEC-REVIEW-MENU replicas aligned with self-endorsement barred, invoked bundle scripts present, allowed-tools grants matching their contracts, the handoff phrase shared by design and plan, resume free of event-log markers, RESOLVE-INDEX replicas aligned and never retried, the map contract anchored where it is consumed, the model-invocable registry pinned to exactly the diary and prompt skills, the diary contract anchored in dev\'s terminal and the diary skill with its skill-candidate rule, and every command the skills name and hand over resolved to the bundle\'s own — real names, route templates shaped like their targets\' arguments, handoff lines byte-identical across finales, prompt\'s triggers and self-check labels, every entry named in setup\'s finale, and the spec line shapes replicated in plan and fix, each checked in its review step, with the dep-edge marks in the phase title, and plan\'s evidence rules — a tool\'s self-test cases derived from its rules one to one and compared in Step 6, a sufficiency claim backed by a run in Step 3 or marked unverified, and dev\'s harvest evidence rules — an artifact claiming only what its phase observed, one mutation per spec run named against the check it broke — with the lines read before an accept recommendation in the dev and diary curations, and the dedup judge\'s contract — its card forms quoted, the supersede chip ruled and stamped in four curations, setup\'s consent and adopt anchors, and the tools they need — and the map handoff: dev\'s complete-run finale offering `/mneme:map run <run_id>` only over touched sections, map\'s run form with the run\'s spec and its code-grounded invariants, prompt never composing it, the diff rule counting the working tree in both skills, the commit before the hand-over and the clusters waiting for it — and plan\'s HEAD-LINT-RUN: lint criteria run against HEAD before the review menu under the third Bash carve-out, with their clauses, count and review line in place.',
 );
