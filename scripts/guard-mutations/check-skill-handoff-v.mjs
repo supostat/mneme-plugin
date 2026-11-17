@@ -1,7 +1,6 @@
 const dev = 'plugin/skills/dev/SKILL.md';
 const map = 'plugin/skills/map/SKILL.md';
 const prompt = 'plugin/skills/prompt/SKILL.md';
-const mapHandoffList = /^1\. `map_list \{\}`/m;
 const runSpecList = /^1\. Call `mcp__plugin_mneme_memory__diary_facts/m;
 const runInvariants = /^RUN-INVARIANTS\b/m;
 
@@ -74,8 +73,6 @@ export const mutations = [
     replace: '### MAP HANDOFF — the map after',
     expect: 'dev: no `### MAP-HANDOFF` section',
   },
-  { ...mapHandoffAnchorBreak('map_list {}', '1. `map_list {}`.', '1. `map_list`.'), within: mapHandoffList },
-  mapHandoffAnchorBreak('map_list { id }', 'Otherwise `map_list { id }` for every', 'Otherwise `map_list` for every'),
   mapHandoffAnchorBreak(
     'git diff --name-only <commit>',
     '`git diff --name-only <commit>` — that commit',

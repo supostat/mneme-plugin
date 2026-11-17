@@ -117,8 +117,8 @@
 //       go to the provider, and its ADOPT mode retires nothing on its own; (u5) plan, fix and setup
 //       carry the tools that contract needs.
 //   (v) MAP-HANDOFF — a complete run offers the map refresh, and the map takes the run's spec.
-//       (v1) dev carries `### MAP-HANDOFF` at a line start, and the section reads the map
-//       (`map_list {}`, `map_list { id }`), replicates map's diff rule (`git diff --name-only
+//       (v1) dev carries `### MAP-HANDOFF` at a line start, and the section reads the map in
+//       one call (pinned by (x)), replicates map's diff rule (`git diff --name-only
 //       <commit>`, `git ls-files --others --exclude-standard`, «covers everything inside it»),
 //       marks the uncommitted paths (`git diff --name-only HEAD`, «(не закоммичен)», «(новый)»),
 //       stays silent on an empty or untouched map
@@ -887,8 +887,6 @@ const mapText = skillText('map');
 const DIFF_RULE_LITERALS = ['git diff --name-only <commit>', 'git ls-files --others --exclude-standard'];
 const STALE_DIFF_RULE = '<commit>..HEAD';
 const MAP_HANDOFF_ANCHORS = [
-  'map_list {}',
-  'map_list { id }',
   ...DIFF_RULE_LITERALS,
   'git diff --name-only HEAD',
   '(не закоммичен)',

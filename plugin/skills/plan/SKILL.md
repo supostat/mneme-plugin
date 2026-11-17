@@ -41,8 +41,9 @@ task.
 - Read / Grep the codebase: YES — this is the recon in Step 2.
 - `mcp__plugin_mneme_memory__recall`: YES — prior decisions and gotchas on the task's topic.
 - `mcp__plugin_mneme_memory__map_list`: YES — the project map, READ ONLY, in Step 2: `{}` for the
-  overview, `{ id }` for the candidate domains of the task. plan never writes the map —
-  `map_put` / `map_delete` are `/mneme:map`'s and FORBIDDEN here.
+  overview, `{ anchors: true }` once for the anchors DOMAINS-PICK checks; no section is read
+  whole. plan never writes the map — `map_put` / `map_delete` are `/mneme:map`'s and FORBIDDEN
+  here.
 - Write: YES, but ONLY to persist the FINAL approved spec into `docs/`, and ONLY after the Step 6
   approval. Writing anything before approval, or writing anywhere other than the spec file, is a
   VIOLATION.
@@ -126,9 +127,14 @@ choice, so nothing is stamped. The SPEC stop prints `/mneme:migrate <путь>` 
    is `/mneme:map`'s to build, never plan's.
 3. Grep + Read the relevant code (max ~15 files) to ground the options in real file paths.
 4. DOMAINS-PICK — when the map is not empty: the candidates are the domains whose `map_list` line
-   names the task's area; read ONLY the candidates whole (`map_list { id }`) and keep a domain
-   when one of its `anchors` is a file of the recon or a directory above one (a directory anchor
-   covers everything inside it). The kept ids are the task's DOMAINS: call `recall` again with
+   names the task's area; one `map_list { anchors: true }` gives every section's anchors and no
+   body, and a candidate is kept when one of its anchors covers a file of the recon by map's
+   ANCHOR-LIST: a path may itself contain `, `, so the list is never split; a file is covered when
+   the file itself or a directory above it stands in the candidate's list as a whole element —
+   right after `anchors: ` or `, `, right before `, ` or the line's end. An anchor that contains
+   `, ` is found whole, so the pick is never a miss; its one error is an excess — a file at or
+   under a part of such an anchor keeps the domain too. `anchors: (none)` covers nothing. The kept
+   ids are the task's DOMAINS: call `recall` again with
    `domains: [<ids>]` — the narrowed answer opens with the domains' MAP blocks (the frame: the
    responsibility, invariants and entry points of the area) and keeps only the notes linked to
    them; `no map domain "<id>"` means the map changed under the recon — drop that id and say so.
@@ -739,8 +745,9 @@ of the existing specs in that directory.
   deferred branches stay out of scope, and a missing protocol ends the turn with a named line.
 - RECALL IS VISIBLE — surface what memory contributed in the fan; an antipattern note forces every
   option to declare whether it triggers it.
-- DOMAINS — Step 2 reads the map (`map_list {}`, then `{ id }` for candidates only), keeps the
-  domains whose anchors meet the recon's files, recalls again with `domains`, names them in the
+- DOMAINS — Step 2 reads the map (`map_list {}`, then `{ anchors: true }` once, no body), keeps
+  the domains whose anchors meet the recon's files by map's ANCHOR-LIST, recalls again with
+  `domains`, names them in the
   fan's Context line and prints the `domains <a,b>` tail in BOTH ready commands of the finale;
   plan never writes the map.
 - RESOLVE-INDEX — a resolve answering `Index not rebuilt:` is a принятое решение, не ошибка:

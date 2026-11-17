@@ -32,7 +32,9 @@ finished run (`### RUN-SPEC`). dev's MAP-HANDOFF finale prints it after `RUN COM
 
 ## Permissions (VIOLATION = ABORT)
 
-- `mcp__plugin_mneme_memory__map_list`: YES — `{}` for the overview, `{ id }` for one section.
+- `mcp__plugin_mneme_memory__map_list`: YES — `{ anchors: true }` at Step 0 for every section's
+  commit and anchors; `{ id }` only for a section a cluster rewrites — the one COVERED-SKIP
+  re-describes or a stored domain a digit-chosen merge joins; `{}` for the finale.
 - `mcp__plugin_mneme_memory__map_put`: ONLY after the user's explicit DIGIT on THAT section
   (`1 — принять`, or the re-shown draft after `2 — переименовать` / `3 — слить с …`). A put
   without a digit is a VIOLATION. The call carries NO `menu` payload — the tool has no such field
@@ -68,18 +70,29 @@ finished run (`### RUN-SPEC`). dev's MAP-HANDOFF finale prints it after `RUN COM
 
 ## Procedure
 
-### Step 0: `map_list {}` — primary or update
+### Step 0: `map_list { anchors: true }` — primary or update
 
-Call `mcp__plugin_mneme_memory__map_list {}` FIRST. The answer decides the mode:
+Call `mcp__plugin_mneme_memory__map_list { anchors: true }` FIRST — one call: every section's
+commit and anchors, no body. The answer decides the mode:
 
 - `The project map is empty.` → PRIMARY analysis: every cluster of the graph is new.
-- otherwise → UPDATE: one line per section, `<id> [<kind>] anchors: N, dead: K, depends_on: …,
-  terms: M — <первая строка>`, possibly `warning: depends_on of "<id>" names unknown section
-  "<x>"` lines, and the closing `Bodies are not listed; call map_list with an id to read one
-  section in full.` Read EVERY section whole with `map_list { id }`: its `anchors:` decide which
-  clusters are already covered, its `commit:` is the project HEAD the section was written at.
+- otherwise → UPDATE: one line per section, `<id> [<kind>] commit <sha> anchors: <a>, <b>`, read
+  by ANCHOR-LIST below: the anchors decide which clusters are already covered (COVERED-SKIP), the
+  commit is the project HEAD the section was written at. No body is read at this step: a section
+  is read whole only when a cluster rewrites it (COVERED-SKIP, the merge chip of Step 4).
 - `run <run_id>` on an empty map → the stop line of `## Arguments`, nothing else runs; `run` on a
   stored map → UPDATE, and `### RUN-SPEC` runs right after the RUN-COST mark, before Step 1.
+
+ANCHOR-LIST — the engine joins a line's anchors with `, `, and a path may itself contain `, `, so
+the list is never split. A path lies under a section when the path itself or a directory above it
+stands in the list as a whole element: right after `anchors: ` or `, `, right before `, ` or the
+line's end. An anchor that contains `, ` is found whole that way, so the reading is never a miss;
+its one error is an excess — a path at or under a part of such an anchor reads as covered, and the
+digit of Step 4 is where a wrong «предыдущая версия» shows. `anchors: (none)` covers nothing.
+dev's `### MAP-HANDOFF` and plan's DOMAINS-PICK carry this rule's replica.
+
+The overview, `map_list {}`, is the finale's (Step 5): its `warning: depends_on …` lines reach the
+user there, verbatim, and no step before it reads them.
 
 Right after the answer, call the RUN-COST mark ONCE, silently (`### RUN-COST`):
 
@@ -152,11 +165,12 @@ skill STOPS: there is no graph to map. The JSON holds `clusters[]` with `id`, `d
 `changed_files` and `uncommitted_files` — the cluster's files that differ from HEAD or are
 untracked: the DIFF RULE with `HEAD` in place of `<commit>`.
 
-COVERED-SKIP: a cluster whose `dirs` ALL lie under the `anchors` of a stored domain (a directory
-anchor without a trailing slash covers everything inside it) is already in the map. In PRIMARY
-mode after an interruption it is reported as «принято ранее» and skipped; in UPDATE mode it is
-re-described ONLY when its `changed_files` intersect those anchors — then the stored section is the
-spawn's «предыдущая версия» and the put is a full replacement.
+COVERED-SKIP: a cluster whose `dirs` ALL lie under the anchors of a stored domain (ANCHOR-LIST; a
+directory anchor without a trailing slash covers everything inside it) is already in the map. In
+PRIMARY mode after an interruption it is reported as «принято ранее» and skipped; in UPDATE mode it
+is re-described ONLY when its `changed_files` intersect those anchors — then `map_list { id }` reads
+that section whole as the spawn's «предыдущая версия», and the put is a full replacement. A
+cluster that COMMIT-WAIT holds back gets no spawn, so its section is not read.
 
 COMMIT-WAIT — in UPDATE mode a cluster whose `uncommitted_files` is not empty is not described
 yet: the describer reads the files from disk, while the engine stamps the section with the project
@@ -244,7 +258,8 @@ TOKEN-LINE, then exactly these chips, answered by DIGIT ONLY:
 - `3 — слить с <соседний домен>` → a clarifying DECISION over the neighbours (clusters and stored
   domains this cluster has edges or seams with, by edge weight, at most 4 chips); the MERGED
   draft — the surviving id, bodies joined under their first lines, anchors united, terms united
-  and capped at 24 in that order — is shown AGAIN with the same five chips. On acceptance:
+  and capped at 24 in that order; a stored neighbour's body and terms come from `map_list { id }`,
+  its one whole read — is shown AGAIN with the same five chips. On acceptance:
   `map_put` of the survivor, then `map_delete` of the absorbed id when it was stored.
 - `4 — отклонить` → nothing is written; the cluster is listed in the finale as rejected, and its
   files stay unmapped (notes under them join no domain).
@@ -432,8 +447,11 @@ Print user-facing text in Russian; keep engine/protocol tokens (`map_list`, `map
   and done-when verbatim into every spawn. The invariants of such a pass follow RUN-INVARIANTS:
   the code is the only ground, an executable done-when is named beside it as a check anyone can
   run again, an agent-judged criterion never counts, and the code wins.
-- PROGRESS-IN-THE-MAP — an interrupted run loses nothing: `map_list {}` on the next start skips
-  the covered clusters, the graph is recomputed in seconds.
+- PROGRESS-IN-THE-MAP — an interrupted run loses nothing: `map_list { anchors: true }` on the next
+  start skips the covered clusters, the graph is recomputed in seconds.
+- ANCHOR-LIST — the anchors of a `map_list { anchors: true }` line are matched as whole entries,
+  never cut at `, `: a path with `, ` is found, the one error is an excess; dev's MAP-HANDOFF and
+  plan's DOMAINS-PICK carry the replica.
 - TOKEN-LINE — every DECISION block opens with the token-spend line (compact replica above).
 - RUN-COST — map is a bearer: `--mark map-<project-slug>` right after Step 0, `--delta
   map-<project-slug> --label карта` on the finale (`### RUN-COST`).

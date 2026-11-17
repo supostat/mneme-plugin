@@ -85,8 +85,8 @@ SINGLE-STEP-per-phase invariant (see `### Start path`), which is unchanged.
 - `mcp__plugin_mneme_memory__workflow_start` / `mcp__plugin_mneme_memory__workflow_step`: YES —
   the only two engine tools this skill drives.
 - `mcp__plugin_mneme_memory__map_list`: ONLY inside `### MAP-HANDOFF` on the `RUN COMPLETE`
-  terminal — `{}` once, then `{ id }` per listed section. It reads; `map_put` / `map_delete` are
-  `/mneme:map`'s and FORBIDDEN here.
+  terminal — `{ anchors: true }`, once: every section's commit and anchors, no body. It reads;
+  `map_put` / `map_delete` are `/mneme:map`'s and FORBIDDEN here.
 - `recall` / `remember`: FORBIDDEN — the engine runs recall itself and stages harvested artifacts
   itself; this skill never recalls or stages memory directly.
 - `staging_list` / `staging_resolve`: permitted ONLY inside `### BOUNDARY-CURATION` at a boundary
@@ -551,17 +551,24 @@ appeal.
 Runs ONLY on the `RUN COMPLETE` terminal, after the summary and the diary line — never at an
 `until` boundary and never on `RUN FAILED` / `RUN ESCALATED`.
 
-1. `map_list {}`. `The project map is empty.` → the finale says nothing about the map: no line,
-   no menu, no commit block.
-2. Otherwise `map_list { id }` for every listed section — its `anchors:` and its `commit:`.
+1. `map_list { anchors: true }` — the finale's one map call: no section is read whole.
+   `The project map is empty.` → the finale says nothing about the map: no line, no menu, no
+   commit block.
+2. Otherwise every line is `<id> [<kind>] commit <sha> anchors: <a>, <b>` — the kind for the list
+   below, the commit for step 3, the anchors for step 4, read by map's ANCHOR-LIST (`/mneme:map`
+   Step 0): a path may itself contain `, `, so the list is never split; a path lies under a section
+   when the path itself or a directory above it stands in the list as a whole element — right
+   after `anchors: ` or `, `, right before `, ` or the line's end. An anchor that contains `, ` is
+   found whole, so the reading is never a miss; its one error is an excess — a path at or under a
+   part of such an anchor lists the section too. `anchors: (none)` covers nothing.
 3. map's own diff rule (`/mneme:map` Step 1), replicated here so the finale names exactly the
    sections a map update would re-describe: for every distinct `commit:`,
    `git diff --name-only <commit>` — that commit against the working tree — and once
    `git ls-files --others --exclude-standard` — new files outside `.gitignore`; a section's changed
    paths are the diff of its commit together with those untracked files. A commit git no longer
    knows marks every section written at it as touched, with «commit раздела не найден в истории».
-4. A section is touched when a changed path equals one of its anchors or lies under one — a
-   directory anchor without a trailing slash covers everything inside it.
+4. A section is touched when a changed path lies under it by step 2's reading — a directory
+   anchor without a trailing slash covers everything inside it.
 5. The uncommitted paths are `git diff --name-only HEAD` together with the untracked files of
    step 3; a listed path among them carries `(не закоммичен)` when git tracks it and `(новый)`
    when it is untracked.
@@ -775,7 +782,7 @@ RUN_COST_BEARERS: **dev** (workflow runs), **grill-agent** (interrogations) and 
 maps) — `dev, grill-agent, map`. Each bearer drives the run-cost modes of the same session-tokens
 script under its OWN replica: dev's call points are defined below; grill-agent's (mark
 `grill-<slug>` before the dossier spawn, delta with `--label допрос` on its finale terminal) and
-map's (mark `map-<project-slug>` right after its opening `map_list {}`, delta with `--label карта`
+map's (mark `map-<project-slug>` right after its Step 0, delta with `--label карта`
 on its finale) live in their SKILL.md. `--mark` WRITES the
 script's cache, so the read-only carve-outs of NON-bearer menu skills stay true and they carry
 NO replica of this norm — the checker enforces both directions (a bearer must carry its
@@ -918,8 +925,9 @@ line is DATA of the block, not the menu header)
 - DOMAINS-TAIL — `domains a,b` (last tail, after `until`) becomes `recall_domains` keyed by EVERY
   phase id with the same list; the bare resume rejects it with a hint; a start refusal naming
   `recall_domains` is relayed verbatim with «исправить карту (`/mneme:map`), не run».
-- MAP-HANDOFF — on `RUN COMPLETE` only: the finale reads the map and intersects every section's
-  anchors with the files changed since that section's commit, the working tree and untracked files
+- MAP-HANDOFF — on `RUN COMPLETE` only: the finale reads every section's commit and anchors in
+  one map call, no body, and intersects the anchors (map's ANCHOR-LIST) with the files changed
+  since that section's commit, the working tree and untracked files
   included, by map's own diff rule; an empty map or no touched section leaves the finale silent
   about the map; touched sections are listed with their uncommitted paths marked; with uncommitted
   paths COMMIT-FIRST closes the terminal with the commit block and the two-chip menu — hand over

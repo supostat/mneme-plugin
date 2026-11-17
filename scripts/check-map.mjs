@@ -257,8 +257,8 @@ function codePoints(text) {
   const firstStep = skill.match(/^### Step[^\n]*\n([\s\S]*?)(?=^### )/m);
   if (firstStep === null) {
     failures.push('map: no ### Step heading');
-  } else if (!firstStep[1].includes('map_list {}')) {
-    failures.push('map: the first step is not map_list {}');
+  } else if (!firstStep[1].includes('map_list { anchors: true }')) {
+    failures.push('map: the first step is not map_list { anchors: true }');
   }
   if (!skill.includes('project-graph.mjs')) {
     failures.push('map: the graph script call is missing');
