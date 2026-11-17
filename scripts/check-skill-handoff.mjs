@@ -9,7 +9,7 @@
 // TEST, not the next live episode. The same argument covers every other fact a skill's text
 // states about itself — the finale class it claims, the bundle script it invokes, the tools it is
 // granted — and each of those facts is pinned by ONE map here, never by a second copy elsewhere.
-// Twenty-one checks:
+// Twenty-two checks:
 //
 //   (a) every non-dev skill declares its expected FINALE-CLASS token — and never both;
 //   (b) handoff finales (plan, fix, migrate) reference HANDOFF-DECISION and carry a closing
@@ -70,7 +70,7 @@
 //   (q) PROMPT — the commands a skill text names, and the command lines it hands over, are the
 //       bundle's real ones: every `/mneme:<id>` in every skill is a skill directory; every template
 //       of prompt's ROUTE-TABLE takes its argument the way the target's `## Arguments` does, no
-//       template composes dev or `diary run`, and every skill but dev and prompt has a row; each
+//       template composes dev, `diary run` or `map run`, and every skill but dev and prompt has a row; each
 //       handoff template is byte-identical in every text that carries it — prompt's route table,
 //       the finales that print it, diary's skill-candidate handoff; prompt's
 //       description carries its trigger phrases and its body the five self-check labels; setup's
@@ -116,6 +116,19 @@
 //       setup's Step 3 says where the key lives, that setup never asks for it and that note bodies
 //       go to the provider, and its ADOPT mode retires nothing on its own; (u5) plan, fix and setup
 //       carry the tools that contract needs.
+//   (v) MAP-HANDOFF — a complete run offers the map refresh, and the map takes the run's spec.
+//       (v1) dev carries `### MAP-HANDOFF` at a line start, and the section reads the map
+//       (`map_list {}`, `map_list { id }`), replicates map's diff rule (`git diff --name-only
+//       <commit>..HEAD`, «covers everything inside it»), stays silent on an empty or untouched map
+//       («says nothing about the map»), closes with the two chips and never launches
+//       (`disable-model-invocation`); (v2) the `RUN COMPLETE` terminal and the HANDOFF-DECISION
+//       exemption name MAP-HANDOFF, and dev's Rules carry its bullet; (v3) map's `## Arguments`
+//       declares `/mneme:map run <run_id>`, the `### RUN-SPEC` section reads the run once and only
+//       when complete, takes the folder holding ALL the phase ids, reads the corpus archive and
+//       degrades by name, Step 2 hands RUN-SPEC to the describers, and the `RUN-INVARIANTS`
+//       paragraph grounds invariants in code alone; (v4) prompt's ONE ROUTE TABLE names `map run`
+//       among the commands never composed. (j) pins dev's map_list and map's diary_facts, (q2)
+//       refuses a route that composes `map run`.
 //
 // Dev tooling: lives at the repo ROOT, never inside plugin/ (same rule as the other check-*).
 //
@@ -296,6 +309,7 @@ const TOOL_TOKEN_EXPECTATIONS = [
     tools: ['Read', 'Grep', 'mcp__plugin_mneme_memory__recall', 'mcp__plugin_mneme_memory__remember', 'mcp__plugin_mneme_memory__map_list'],
   },
   { skill: 'plan', rule: 'carries', tools: ['mcp__plugin_mneme_memory__map_list', 'mcp__plugin_mneme_memory__notes_list'] },
+  { skill: 'dev', rule: 'carries', tools: ['mcp__plugin_mneme_memory__map_list'] },
   { skill: 'fix', rule: 'carries', tools: ['mcp__plugin_mneme_memory__notes_list'] },
   {
     skill: 'setup',
@@ -482,7 +496,7 @@ for (const name of skillDirectories) {
 }
 
 // (q2) every route template takes its argument the way its target's ## Arguments does
-const NEVER_COMPOSED = [/^\/mneme:dev(?![a-z0-9-])/, /^\/mneme:diary run/];
+const NEVER_COMPOSED = [/^\/mneme:dev(?![a-z0-9-])/, /^\/mneme:diary run/, /^\/mneme:map run/];
 const UNROUTED_SKILLS = ['dev', 'prompt'];
 const promptText = skillText('prompt');
 const routeTable = sectionOf(promptText, /^## ROUTE-TABLE\b/m);
@@ -495,7 +509,7 @@ if (routeTable === null) {
     const name = leadingCommandOf(template);
     routedSkills.add(name);
     if (NEVER_COMPOSED.some((pattern) => pattern.test(template))) {
-      failures.push(`prompt: ROUTE-TABLE composes «${template}» — dev and diary run come only from a finale or resume's survey`);
+      failures.push(`prompt: ROUTE-TABLE composes «${template}» — dev, diary run and map run come only from a finale or resume's survey`);
       continue;
     }
     if (!skillDirectories.includes(name)) continue;
@@ -850,6 +864,72 @@ for (const { heading, section, anchors, repair } of SETUP_JUDGE_SECTIONS) {
   }
 }
 
+// (v) MAP-HANDOFF: a complete run offers the map refresh, and the map takes the run's spec
+const mapText = skillText('map');
+const MAP_HANDOFF_ANCHORS = [
+  'map_list {}',
+  'map_list { id }',
+  'git diff --name-only <commit>..HEAD',
+  'covers everything inside it',
+  'says nothing about the map',
+  '`1 — выдать команду /mneme:map run <run_id>`',
+  '`2 — пропустить`',
+  'disable-model-invocation',
+];
+const MAP_RUN_FORM = '/mneme:map run <run_id>';
+const RUN_SPEC_ANCHORS = ['diary_facts { run_id }', 'status complete', 'contain ALL', '<corpus>/specs/<slug>.md', 'спека прогона не найдена'];
+const RUN_INVARIANTS_ANCHORS = ['executable done-when', 'never counts', 'the code wins', '## Открытые вопросы'];
+
+// (v1)
+const mapHandoff = sectionOf(devText, /^### MAP-HANDOFF\b/m);
+if (mapHandoff === null) {
+  failures.push('dev: no `### MAP-HANDOFF` section — a complete run would never offer the map update');
+} else {
+  for (const anchor of MAP_HANDOFF_ANCHORS.filter((literal) => !normalize(mapHandoff).includes(literal))) {
+    failures.push(`dev: MAP-HANDOFF does not say «${anchor}» — restore the clause in its section`);
+  }
+}
+
+// (v2)
+if (!(paragraphOpenedBy(devText, /^- `RUN COMPLETE`/m) ?? '').includes('MAP-HANDOFF')) {
+  failures.push('dev: the RUN COMPLETE terminal does not hand over to MAP-HANDOFF');
+}
+if (!(paragraphOpenedBy(devText, /^- HANDOFF-DECISION\b/m) ?? '').includes('MAP-HANDOFF')) {
+  failures.push('dev: HANDOFF-DECISION exempts every terminal — the MAP-HANDOFF exception is missing');
+}
+if (!/^- MAP-HANDOFF\b/m.test(sectionOf(devText, /^## Rules$/m) ?? '')) {
+  failures.push('dev: no `- MAP-HANDOFF` bullet in Rules');
+}
+
+// (v3)
+if (!codeSpans(sectionOf(mapText, /^## Arguments\b/m) ?? '').includes(MAP_RUN_FORM)) {
+  failures.push(`map: ## Arguments lacks \`${MAP_RUN_FORM}\` — the command dev hands over is not the skill's own form`);
+}
+const runSpec = sectionOf(mapText, /^### RUN-SPEC\b/m);
+if (runSpec === null) {
+  failures.push('map: no `### RUN-SPEC` section — `run <run_id>` would update the map without the run\'s spec');
+} else {
+  for (const anchor of RUN_SPEC_ANCHORS.filter((literal) => !normalize(runSpec).includes(literal))) {
+    failures.push(`map: RUN-SPEC does not say «${anchor}» — restore the clause in its section`);
+  }
+}
+if (!(sectionOf(mapText, /^### Step 2:/m) ?? '').includes('RUN-SPEC')) {
+  failures.push('map: Step 2 does not hand RUN-SPEC to the describers');
+}
+const runInvariants = paragraphOpenedBy(mapText, /^RUN-INVARIANTS\b/m);
+if (runInvariants === null) {
+  failures.push('map: no RUN-INVARIANTS paragraph — the run\'s spec could write unconfirmed invariants');
+} else {
+  for (const anchor of RUN_INVARIANTS_ANCHORS.filter((literal) => !normalize(runInvariants).includes(literal))) {
+    failures.push(`map: RUN-INVARIANTS does not say «${anchor}» — restore the clause in its paragraph`);
+  }
+}
+
+// (v4)
+if (!normalize(paragraphOpenedBy(promptText, /^- ONE ROUTE TABLE\b/m) ?? '').includes('`map run`')) {
+  failures.push('prompt: ONE ROUTE TABLE does not name `map run` among the commands never composed');
+}
+
 if (failures.length > 0) {
   console.error('Handoff-finale sync check FAILED:');
   for (const failure of failures) console.error(`  - ${failure}`);
@@ -857,5 +937,5 @@ if (failures.length > 0) {
 }
 
 console.log(
-  'Handoff-finale sync check passed: finale classes declared, handoff menus in place, staging grants curated, contract replicas aligned, no stale markers, MENU-CONTEXT replicas aligned and unweakened, SPEC-REVIEW-MENU replicas aligned with self-endorsement barred, invoked bundle scripts present, allowed-tools grants matching their contracts, the handoff phrase shared by design and plan, resume free of event-log markers, RESOLVE-INDEX replicas aligned and never retried, the map contract anchored where it is consumed, the model-invocable registry pinned to exactly the diary and prompt skills, the diary contract anchored in dev\'s terminal and the diary skill with its skill-candidate rule, and every command the skills name and hand over resolved to the bundle\'s own — real names, route templates shaped like their targets\' arguments, handoff lines byte-identical across finales, prompt\'s triggers and self-check labels, every entry named in setup\'s finale, and the spec line shapes replicated in plan and fix, each checked in its review step, with the dep-edge marks in the phase title, and plan\'s evidence rules — a tool\'s self-test cases derived from its rules one to one and compared in Step 6, a sufficiency claim backed by a run in Step 3 or marked unverified, and dev\'s harvest evidence rules — an artifact claiming only what its phase observed, one mutation per spec run named against the check it broke — with the lines read before an accept recommendation in the dev and diary curations, and the dedup judge\'s contract — its card forms quoted, the supersede chip ruled and stamped in four curations, setup\'s consent and adopt anchors, and the tools they need.',
+  'Handoff-finale sync check passed: finale classes declared, handoff menus in place, staging grants curated, contract replicas aligned, no stale markers, MENU-CONTEXT replicas aligned and unweakened, SPEC-REVIEW-MENU replicas aligned with self-endorsement barred, invoked bundle scripts present, allowed-tools grants matching their contracts, the handoff phrase shared by design and plan, resume free of event-log markers, RESOLVE-INDEX replicas aligned and never retried, the map contract anchored where it is consumed, the model-invocable registry pinned to exactly the diary and prompt skills, the diary contract anchored in dev\'s terminal and the diary skill with its skill-candidate rule, and every command the skills name and hand over resolved to the bundle\'s own — real names, route templates shaped like their targets\' arguments, handoff lines byte-identical across finales, prompt\'s triggers and self-check labels, every entry named in setup\'s finale, and the spec line shapes replicated in plan and fix, each checked in its review step, with the dep-edge marks in the phase title, and plan\'s evidence rules — a tool\'s self-test cases derived from its rules one to one and compared in Step 6, a sufficiency claim backed by a run in Step 3 or marked unverified, and dev\'s harvest evidence rules — an artifact claiming only what its phase observed, one mutation per spec run named against the check it broke — with the lines read before an accept recommendation in the dev and diary curations, and the dedup judge\'s contract — its card forms quoted, the supersede chip ruled and stamped in four curations, setup\'s consent and adopt anchors, and the tools they need — and the map handoff: dev\'s complete-run finale offering `/mneme:map run <run_id>` only over touched sections, map\'s run form with the run\'s spec and its code-grounded invariants, and prompt never composing it.',
 );
