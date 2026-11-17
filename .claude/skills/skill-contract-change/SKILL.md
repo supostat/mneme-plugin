@@ -14,7 +14,10 @@ mutations prove the guard goes red on the break. The guard's rules live in
    check green), a20a8c3b (a check scoped to its paragraph) and af2e3efc (a prose copy of a parser
    is checked on probes of the real parser); recall any missing one by its words.
 2. **Owner and replicas.** The rule is defined once, in the skill that owns it. A sibling skill
-   that needs it carries a self-sufficient replica, and every replica says the same thing.
+   that needs it carries a self-sufficient replica, and every replica says the same thing. Before
+   changing a fact a skill states about itself — a grant, a finale class, a literal — grep
+   `scripts/` for the skill's name and that literal: every guard that pins it goes into the same
+   phase's tasks (map's grant is pinned by (j) and by `EXPECTED_GRANT` in `scripts/check-map.mjs`).
 3. **Check.** In `scripts/check-skill-handoff.mjs`: the check's letter in the header comment, the
    definition matched by a regex anchored at a line start, anchors scoped to their paragraph or to
    `sectionOf`, negative checks with word boundaries, a failure line that names the skill and the
