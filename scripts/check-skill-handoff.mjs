@@ -879,7 +879,7 @@ const mapText = skillText('map');
 const MAP_HANDOFF_ANCHORS = [
   'map_list {}',
   'map_list { id }',
-  'git diff --name-only <commit>..HEAD',
+  'git diff --name-only <commit>',
   'covers everything inside it',
   'says nothing about the map',
   '`1 — выдать команду /mneme:map run <run_id>`',
