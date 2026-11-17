@@ -1,7 +1,7 @@
 ---
 name: dev
 description: orchestrate a development workflow through phases
-allowed-tools: [mcp__plugin_mneme_memory__workflow_start, mcp__plugin_mneme_memory__workflow_step, Read, Edit, Write, Bash, Grep]
+allowed-tools: [mcp__plugin_mneme_memory__workflow_start, mcp__plugin_mneme_memory__workflow_step, mcp__plugin_mneme_memory__map_list, Read, Edit, Write, Bash, Grep]
 disable-model-invocation: true
 ---
 
@@ -75,9 +75,15 @@ SINGLE-STEP-per-phase invariant (see `### Start path`), which is unchanged.
   files, run tests, grep). NEVER to reconstruct a directive's instruction. Running a done-when
   command while working is phase work like any test run; what is FORBIDDEN is SUBSTITUTING the
   verdict — only the engine's `Gate verdict for …` decides PASS / FAIL, so never report your own
-  run as the gate's outcome.
+  run as the gate's outcome. Outside phase work Bash runs only the session-tokens calls
+  (`### TOKEN-LINE`, `### RUN-COST`), the commit block's git calls after the user's digit
+  (`### COMMIT-TURN-SPLIT`) and, inside `### MAP-HANDOFF`, the read-only `git diff --name-only`
+  per distinct section commit.
 - `mcp__plugin_mneme_memory__workflow_start` / `mcp__plugin_mneme_memory__workflow_step`: YES —
   the only two engine tools this skill drives.
+- `mcp__plugin_mneme_memory__map_list`: ONLY inside `### MAP-HANDOFF` on the `RUN COMPLETE`
+  terminal — `{}` once, then `{ id }` per listed section. It reads; `map_put` / `map_delete` are
+  `/mneme:map`'s and FORBIDDEN here.
 - `recall` / `remember`: FORBIDDEN — the engine runs recall itself and stages harvested artifacts
   itself; this skill never recalls or stages memory directly.
 - `staging_list` / `staging_resolve`: permitted ONLY inside `### BOUNDARY-CURATION` at a boundary
@@ -352,9 +358,9 @@ reasoned «← рекомендую», silence = pause).
   пишется». An outcome with no engine call writes nothing — never synthesize a call for coverage;
   a call stamped for a decision that did not happen would make agreement count phantom decisions.
 - Honestly UNCOVERED menus (an admission, not an omission): SPEC-REVIEW approve, the commit menu
-  (COMMIT-TURN-SPLIT), run-pause `1 — дальше / 2 — пауза` — no engine call exists at choice time
-  and the closed class registry offers no door (engine: commit/boundary classes are a future
-  extend). Request resolutions (retag / retire / reanchor): menu НЕ передавать — v1 stamps NOTE
+  (COMMIT-TURN-SPLIT), run-pause `1 — дальше / 2 — пауза`, the MAP-HANDOFF menu — no engine call
+  exists at choice time and the closed class registry offers no door (engine: commit/boundary
+  classes are a future extend). Request resolutions (retag / retire / reanchor): menu НЕ передавать — v1 stamps NOTE
   resolutions only, the engine silently drops it on requests, and passing it would fake
   instrumentation that does not exist.
 - NEUTRALITY: agreement-цифры, coverage и menu-контекст никогда не рендерятся в тексты, где
@@ -528,12 +534,48 @@ appeal.
   `<phase_id>: из бандла ничего не пригодилось`. A phase closed in a PAST session renders
   «(закрыта в прошлой сессии — декларация в логе)» — never invent evidence from memory of another
   session; the full history lives in `workflow_step_applied.used_notes`. AND the DATA line
-  «дневник прогона — `/mneme:diary run <run_id>`» — a suggested command is DATA, not a menu; the
-  terminal stays exempt from HANDOFF-DECISION.
+  «дневник прогона — `/mneme:diary run <run_id>`» — a suggested command is DATA, not a menu. Then
+  `### MAP-HANDOFF`: the terminal stays exempt from HANDOFF-DECISION unless MAP-HANDOFF finds
+  touched map sections, and then it closes with that menu.
 - `RUN FAILED: <r>` → stop; print the failure reason in Russian.
 - `RUN ESCALATED at <p>/<s>: <r>` → the retry budget is exhausted; SHOW phase / step / reason and
   ASK the user how to proceed (Russian, numbered options — e.g. `1. повторить вручную`,
   `2. отредактировать фазу`, `3. прервать`). Do NOT silently loop.
+
+### MAP-HANDOFF — the map after `RUN COMPLETE`
+
+Runs ONLY on the `RUN COMPLETE` terminal, after the summary and the diary line — never at an
+`until` boundary and never on `RUN FAILED` / `RUN ESCALATED`.
+
+1. `map_list {}`. `The project map is empty.` → the finale says nothing about the map: no line,
+   no menu.
+2. Otherwise `map_list { id }` for every listed section — its `anchors:` and its `commit:`.
+3. For every distinct `commit:`, `git diff --name-only <commit>..HEAD` — map's own UPDATE rule
+   (`/mneme:map` Step 1), replicated here so the finale names exactly the sections a map update
+   would re-describe. A commit git no longer knows marks every section written at it as touched,
+   with «commit раздела не найден в истории».
+4. A section is touched when a changed path equals one of its anchors or lies under one — a
+   directory anchor without a trailing slash covers everything inside it.
+5. No touched section → the same silence as an empty map. Touched sections → the DATA list and
+   the closing DECISION below; the TOKEN-LINE opens it as it opens every DECISION.
+
+```
+Карта отстала от кода — задеты секции (<N>):
+- `<id>` [<kind>] — <до трёх путей>[, +<K> ещё]
+- `<id>` [<kind>] — commit раздела не найден в истории
+
+<строка TOKEN-LINE>
+`1 — выдать команду /mneme:map run <run_id>`
+`2 — пропустить`
+```
+
+Exactly one chip MAY carry «← рекомендую: <причина одной строкой>» — `1` when a touched section's
+anchors hold files the run changed in substance, `2` when only incidental files (a version stamp,
+a lock file) touch it. Digit `1` → print the command as a fenced block and stop: `/mneme:map`
+carries `disable-model-invocation`, so dev never runs it — the user does, and every section is
+still accepted by digit there. Digit `2` → one line «карта не обновлялась; `/mneme:map` догонит её
+по diff от commit разделов» and stop. Silence = pause. No menu payload rides this choice: no engine
+call exists at it.
 
 ### Resume, detached HEAD, and stale runs
 
@@ -641,7 +683,8 @@ Every user-facing message of every mneme skill is assembled ONLY from these bloc
   script did and stops) and prompt (the composed command is DATA — the turn shows a line and
   stops), and terminal turns (`RUN COMPLETE` / `RUN FAILED` /
   `RUN ESCALATED` / abandoned) — there a suggested command is DATA, not a menu, and a finished
-  run has nothing to continue. Launch is ALWAYS manual: `/mneme:dev` carries
+  run has nothing to continue; the ONE exception is a `RUN COMPLETE` whose `### MAP-HANDOFF`
+  found touched map sections — it closes with that menu. Launch is ALWAYS manual: `/mneme:dev` carries
   `disable-model-invocation`, so a menu option about running promises only «выдать готовую
   команду» — on the digit the agent performs note ACCEPTANCE itself and prints the ready command
   as a fenced block for the user to run; wording that promises the agent will launch is a
@@ -843,6 +886,11 @@ line is DATA of the block, not the menu header)
 - DOMAINS-TAIL — `domains a,b` (last tail, after `until`) becomes `recall_domains` keyed by EVERY
   phase id with the same list; the bare resume rejects it with a hint; a start refusal naming
   `recall_domains` is relayed verbatim with «исправить карту (`/mneme:map`), не run».
+- MAP-HANDOFF — on `RUN COMPLETE` only: the finale reads the map and intersects every section's
+  anchors with the diff from that section's commit, by map's own UPDATE rule; an empty map or no
+  touched section leaves the finale silent about the map; touched sections are listed and the
+  terminal closes with the two-chip menu — hand over the map command or skip; dev prints the
+  command and never runs it; no menu payload rides the choice.
 - ALWAYS ECHO `{phase_id, step_id, attempt}` EXACTLY; treat a `NOTICE:` re-issue as a signal to fix
   the echo and resubmit.
 - EVERY SUBMITTING `workflow_step` call MUST carry `run_id` (the run_id captured at start); only a
@@ -892,8 +940,8 @@ line is DATA of the block, not the menu header)
 - OUTPUT-GRAMMAR — `## OUTPUT-GRAMMAR` here is the SINGLE source of truth for the five-block
   grammar of every mneme skill's output: at most one DECISION per message and nothing after it; a
   turn that leaves the user objects it just created closes with HANDOFF-DECISION (informational
-  finales and run terminals are exempt); sibling skills reference it and carry only their own
-  layer-3 templates.
+  finales and run terminals are exempt, the MAP-HANDOFF menu of `RUN COMPLETE` aside); sibling
+  skills reference it and carry only their own layer-3 templates.
 - The skill does NOT decide sequencing / gates / retry, does NOT run done-when commands, does NOT
   call recall / remember, does NOT encode step semantics (single-step), and does NOT create
   agent-role definitions — see `## NEVER-DELEGATE-EXECUTE-STEP` for why `execute_step` work stays in

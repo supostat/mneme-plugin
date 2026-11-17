@@ -57,9 +57,10 @@ template is filled, never re-shaped.
 - **A failure** — an error text, a red test, «работало — сломалось», behaviour that diverges from
   what the code should already do → `/mneme:fix "<симптом: что делал, что ожидал, что получил; текст ошибки дословно>"`
   — the symptom only: a hypothesis or a ready fix stays out, fix builds its own hypothesis fan.
-- **Continue, «где я», run the phases** → `/mneme:resume` — dev and `diary run` are never composed
-  here: their command is printed by the finale of plan, fix or migrate, or by resume's survey, and
-  a slug is never guessed.
+- **Continue, «где я», run the phases** → `/mneme:resume` — dev, `diary run` and `map run` are
+  never composed here: dev's command is printed by the finale of plan, fix or migrate or by
+  resume's survey, `diary run` and `map run` by dev's run terminal, and a slug or a run id is never
+  guessed.
 - **An interrogation protocol `docs/GRILL-<slug>.md` exists for the topic** →
   `/mneme:plan "<задача> по протоколу docs/GRILL-<slug>.md"`
 - **An etalon exists in `design/pages/<slug>/` and the task is to implement it** →
@@ -173,8 +174,8 @@ literal.
 
 - PRINT, NEVER RUN — prompt composes and prints one line per task; it never runs the line, never
   invokes another skill, never writes a file. VIOLATION = ABORT.
-- ONE ROUTE TABLE — the command comes from ROUTE-TABLE, first matching row; dev and `diary run`
-  are never composed, a slug is never guessed.
+- ONE ROUTE TABLE — the command comes from ROUTE-TABLE, first matching row; dev, `diary run` and
+  `map run` are never composed, a slug or a run id is never guessed.
 - TEMPLATE, NOT INVENTION — the line fills its row's template; the templates are the same literals
   the finales of grill, grill-agent, arch, design and plan carry, pinned by `check-skill-handoff`.
 - SELF-CHECK BEFORE PRINT — одна задача, только принятые решения, нет фаз и шагов, контекст
