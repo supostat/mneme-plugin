@@ -48,10 +48,14 @@ task.
   VIOLATION.
 - Edit files / Bash / any code change: FORBIDDEN — plan plans, it never implements. It does not
   write code and does not call `/mneme:dev`. Its artifact ENDS at the migrated phases plus the map.
-  TWO carve-outs, Bash ТОЛЬКО for: (1) the read-only session-tokens call before rendering a
+  THREE carve-outs, Bash ТОЛЬКО for: (1) the read-only session-tokens call before rendering a
   DECISION block (the TOKEN-LINE replica in Output format); (2) the SUFFICIENCY-RUN-RULE run of
   Step 3 — an existing mechanism of the project run as it is on the goal's real input, its entry
-  point read first, with no flag or step that writes and no network; any other Bash stays FORBIDDEN.
+  point read first, with no flag or step that writes and no network; (3) the HEAD-LINT-RUN of
+  Step 6 — `git status --porcelain`, `git cat-file -e HEAD:<path>` and a lint criterion of the
+  draft run exactly as the gate will run it, on paths clean in the working tree, with no flag that
+  rewrites files and the working tree's status unchanged before and after;
+  any other Bash stays FORBIDDEN.
 - `mcp__plugin_mneme_memory__workflow_migrate`: YES, but ONLY in Step 7 (PLAN-AUTOMIGRATE), AFTER
   the Step 6 approval and Write — never on a draft. The TOOL writes the phase files; the skill
   itself writes nothing outside the approved spec (and its Step 7 format repairs).
@@ -233,6 +237,26 @@ approves must migrate on the first call. When a phase requires a self-test or a 
 compare the two Knowledge lists of SELF-TEST-CASES-RULE (Output format) — every rule of the tool
 has a case, every case names its rule — and repair a rule left uncovered before the menu with a
 case for it; only a rule no case can exercise becomes a named limit.
+
+**HEAD-LINT-RUN — a lint criterion is run against HEAD before the menu:** every executable
+criterion of the draft that is a LINT criterion and names a path that exists at HEAD is run once,
+read only, before the menu. A criterion is a LINT criterion when it checks that the files it names
+carry no problems, by their text alone — a linter, a type or style checker, a formatter in check
+mode; red at HEAD then means old problems. A presence check (a grep for something the phase adds)
+and a test are red at HEAD by design or execute the project's code, and are never run here. The
+class is the agent's judgement by that property, never a list of tools, and the review shows it
+beside every executable criterion. The run takes the command exactly as the gate will run it, only
+when the paths it names are clean in the working tree (`git status --porcelain -- <paths>` prints
+nothing, so the tree equals HEAD for them) and the command carries no flag that rewrites files;
+`git status --porcelain` is taken before and after, and any difference stops the skill with a
+named line and no menu — plan cannot undo a write. A red file the phase does not change leaves the
+criterion, which keeps only the new and changed files; a red file the phase changes anyway stays,
+and the phase gains the task «исправить старые замечания в <файл>»; the first lines of the HEAD
+output go into Knowledge and onto the review. A criterion that cannot run here — its tool is
+missing, its container is missing or not running, a service is needed, a path is dirty — is
+marked «не проверено на HEAD: <причина>» in Knowledge, is never counted green, and the review's
+recommendation rides «правки» naming it. Live episodes: corpus boss, run c109ae89 escalated on a rubocop gate over `db/migrate`
+(1346 old offenses); run d8c0077a met a gated spec file red at HEAD only inside the phase.
 
 Show the DRAFT spec in the chat and CLOSE THE TURN with the `### SPEC-REVIEW-MENU` block (Output
 format) — that numbered menu IS the stop, and the turn ends there. `Write` into `docs/` fires ONLY
@@ -484,6 +508,9 @@ Where a bump phase IS legitimate, two constraints follow:
 
 The layer-3 template of the SPEC-REVIEW-HARD-STOP. Composition per layer 1: PROSE — what the draft
 is and where it departs from the option the user picked at Step 4; DATA — the draft spec itself;
+and one HEAD-LINT-RUN line per executable criterion — `<command> — lint: зелёный на HEAD | красный
+→ <how the draft answered> | не проверено на HEAD: <причина> | только новые пути: на HEAD нечего
+проверять` or `<command> — наличие: не запускается` / `<command> — поведение: не запускается`;
 DECISION — the menu below, with NOTHING after it. The TOKEN-LINE replica opens this DECISION block
 exactly as it opens every other one. Literal shape (fill the placeholder, never re-lay it out):
 
@@ -692,6 +719,12 @@ of the existing specs in that directory.
   already handles the goal» carries that mechanism's run on the goal's real input (the second Bash
   carve-out); without a run the
   claim is «не проверено», never a reason to reject, and keeps its mark in the spec and the note.
+- HEAD-LINT-RUN — before the menu Step 6 runs every lint criterion of the draft (a check that the
+  named files carry no problems) that names a path existing at HEAD, by the third Bash carve-out:
+  the gate's command as is, on clean paths, with no rewriting flag and the tree's status equal
+  before and after, or the skill stops; a red file leaves the criterion or its phase gains
+  «исправить старые замечания»; a run impossible here is «не проверено на HEAD» and never green;
+  presence checks and tests are never run.
 - ETALON-READ — an implement-by-etalon `.json` task reads the etalon file at Step 2, before the
   fan: proposal nodes become tasks, the registry components it uses are brought to the etalon in
   the same task list, the design book's proposals build the base kit first, before any page, and
