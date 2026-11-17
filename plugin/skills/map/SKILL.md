@@ -42,12 +42,13 @@ finished run (`### RUN-SPEC`). dev's MAP-HANDOFF finale prints it after `RUN COM
 - `mcp__plugin_mneme_memory__diary_facts`: ONLY in `run` mode, ONCE, `{ run_id }`
   (`### RUN-SPEC`) — read-only by construction: it reads the event log and writes nothing.
 - Bash: THREE carve-outs and nothing else — (1) the graph script,
-  `node <base-dir-скилла>/../../scripts/project-graph.mjs …`; (2) `git diff --name-only
-  <commit>..HEAD` in UPDATE mode, to intersect stored anchors with the files changed since a
-  section was written; (3) the session-tokens script: the read-only TOKEN-LINE call before every
-  DECISION block and this skill's own RUN-COST bearer calls (`--mark map-…` right after Step 0,
-  `--delta map-… --label карта` on the finale). Any other Bash — tests, installs, git writes — is
-  FORBIDDEN.
+  `node <base-dir-скилла>/../../scripts/project-graph.mjs …`; (2) in UPDATE mode the read-only
+  calls of Step 1's DIFF RULE, `git diff --name-only <commit>` and
+  `git ls-files --others --exclude-standard`, to intersect stored anchors with the files changed
+  since a section was written, the working tree included; (3) the session-tokens script: the
+  read-only TOKEN-LINE call before every DECISION block and this skill's own RUN-COST bearer calls
+  (`--mark map-…` right after Step 0, `--delta map-… --label карта` on the finale). Any other
+  Bash — tests, installs, git writes — is FORBIDDEN.
 - Task: YES, but ONLY to spawn a cluster describer per `### CLUSTER-SPAWN` — a FRESH spawn per
   cluster, at most 4 running at once, and each one answers from the files alone: a spawn never
   calls an engine tool and never writes anything.
@@ -126,11 +127,18 @@ PRIMARY:
 node <base-dir-скилла>/../../scripts/project-graph.mjs --root <корень-проекта> --out <scratchpad>/project-graph.json
 ```
 
-UPDATE — the graph is narrowed to what changed since the map was written:
+UPDATE — the graph is narrowed to what changed since the map was written, the working tree
+included. The DIFF RULE, stated here and replicated in dev's `### MAP-HANDOFF`: the files changed
+since a section's `commit:` are `git diff --name-only <commit>` — that commit against the working
+tree: the commits after it, staged and unstaged edits, deletions — together with
+`git ls-files --others --exclude-standard` — new files outside `.gitignore`. A file written and not
+yet committed counts at once.
 
-- every stored section shares ONE `commit:` → `--since <commit>` on the same call;
-- several distinct commits → one `git diff --name-only <commit>..HEAD` per distinct commit, the
-  UNION of the paths, and `--changed <path,…>` on the same call;
+- every stored section shares ONE `commit:` → `--since <commit>` on the same call — the script
+  applies the DIFF RULE itself;
+- several distinct commits → `git diff --name-only <commit>` per distinct commit and
+  `git ls-files --others --exclude-standard` once, the UNION of the paths, and
+  `--changed <path,…>` on the same call;
 - a `commit:` git no longer knows (history rewritten) → the full graph, as PRIMARY, with a PROSE
   line naming the section whose commit was lost.
 
@@ -141,7 +149,8 @@ own line. Exit 2 (`is not inside a git repository`, a bad argument) is relayed v
 skill STOPS: there is no graph to map. The JSON holds `clusters[]` with `id`, `dirs`, `files`,
 `symbols`, `edges_out`, `seams` and `draft { id, anchors, terms }`, and `seams[]` with `from`,
 `to`, `kind`, `route`, `evidence`; in UPDATE mode only the touched clusters, each with
-`changed_files`.
+`changed_files` and `uncommitted_files` — the cluster's files that differ from HEAD or are
+untracked: the DIFF RULE with `HEAD` in place of `<commit>`.
 
 COVERED-SKIP: a cluster whose `dirs` ALL lie under the `anchors` of a stored domain (a directory
 anchor without a trailing slash covers everything inside it) is already in the map. In PRIMARY
@@ -149,10 +158,19 @@ mode after an interruption it is reported as «принято ранее» and s
 re-described ONLY when its `changed_files` intersect those anchors — then the stored section is the
 spawn's «предыдущая версия» and the put is a full replacement.
 
+COMMIT-WAIT — in UPDATE mode a cluster whose `uncommitted_files` is not empty is not described
+yet: the describer reads the files from disk, while the engine stamps the section with the project
+HEAD at `map_put`, so a section written over uncommitted files would read as touched again once
+they are committed. Such a cluster gets no spawn and no menu: the PROSE line «ждёт коммита:
+`<cluster id>` — <uncommitted_files>» names it, the finale counts it, and the next `/mneme:map`
+after the commit describes it. `run` mode is no exception — dev's `### MAP-HANDOFF` offers the
+commit before it hands the command over.
+
 ### Step 2: domains — `### CLUSTER-SPAWN`, one fresh spawn per cluster
 
-For every cluster that is not covered, spawn ONE describer (Task) — fresh per cluster, at most 4
-at once, the rest queued. The prompt is assembled in this FIXED order:
+For every cluster that is neither covered nor waiting for a commit (COMMIT-WAIT), spawn ONE
+describer (Task) — fresh per cluster, at most 4 at once, the rest queued. The prompt is assembled
+in this FIXED order:
 
 1. ROLE (literal): «описатель домена для карты проекта: читаешь только файлы своего кластера,
    пишешь раздел для агента, не для человека; каждый факт несёт путь файла; чего не знаешь — пишешь
@@ -249,9 +267,9 @@ id, body, anchors, depends_on }` — its anchors are the files of its hops.
 When the last section has its digit:
 
 1. `mcp__plugin_mneme_memory__map_list {}` — pasted VERBATIM: that IS the map now.
-2. The counts: принято / переименовано / слито / отклонено, and the clusters skipped as
-   «принято ранее» or «черновик не уложился в лимит». In `run` mode one more line — `спека
-   прогона: <slug>`, or the RUN-SPEC degradation line.
+2. The counts: принято / переименовано / слито / отклонено / ждёт коммита, and the clusters
+   skipped as «принято ранее» or «черновик не уложился в лимит». In `run` mode one more line —
+   `спека прогона: <slug>`, or the RUN-SPEC degradation line.
 3. The RUN-COST line — the output of `--delta map-<project-slug> --label карта`, verbatim
    (`### RUN-COST`); empty output → no line. Under it, when any put answered
    `Index not rebuilt:`, the single line «индекс не пересобран: <reason>; догонит при следующем
@@ -345,7 +363,7 @@ numbered DECISION in the next message, never prose)
 ```
 <вывод map_list {} дословно>
 
-принято <A> · переименовано <R> · слито <M> · отклонено <D> · принято ранее <S>
+принято <A> · переименовано <R> · слито <M> · отклонено <D> · принято ранее <S> · ждёт коммита <W>
 спека прогона: <slug> | <строка деградации RUN-SPEC>   (only in run mode)
 <строка RUN-COST — вывод `--delta map-<project-slug> --label карта` дословно; пусто — строки нет>
 индекс не пересобран: <reason>; догонит при следующем чтении   (only when a put said so)
@@ -368,10 +386,20 @@ every note under it, so a domain with a too-wide anchor (`app`) swallows the cor
 anchors are the cluster's seed directories for that reason.
 
 In `run` mode the clusters are the UPDATE diff since the sections' commits, not strictly the run's
-files: work beside the run since the map was written is re-described too, and the run's spec
-reaches those clusters as well — that is why the spec is context and the code wins. A spec
-re-migrated after the run overwrites its archive, so the archive is the last migrated text of that
-slug. A run built from inline phase documents has no folder and updates without its spec.
+files, the working tree included: edits beside the run, committed or not, count too — without a
+base commit of the run nothing tells them apart. Work beside the run since the map was written is
+re-described too, and the run's spec reaches those clusters as well — that is why the spec is
+context and the code wins. A spec re-migrated after the run overwrites its archive, so the archive
+is the last migrated text of that slug. A run built from inline phase documents has no folder and
+updates without its spec.
+
+PRIMARY mode describes the disk as well and is never narrowed: a primary pass over uncommitted
+files stamps HEAD over them, and the next UPDATE re-describes those clusters once the files are
+committed.
+
+The graph's nodes are code files: a stored section touched only through a non-code anchor
+(`package.json`, a workflow file) is named by dev's finale but selects no cluster here, so it is
+re-described only when a code file under it changes.
 
 ### Language
 
@@ -389,8 +417,12 @@ Print user-facing text in Russian; keep engine/protocol tokens (`map_list`, `map
   stored, the reason is relayed verbatim, the call is not repeated (не повторять), the finale
   carries the one-line summary.
 - GRAPH-BY-SCRIPT — the clusters come from `project-graph.mjs` (PRIMARY: the whole repository;
-  UPDATE: `--since <commit>` or the `--changed` union); the summary line is pasted verbatim; LSP
-  is a spawn's tool inside ONE cluster, ≤20 symbols, never the graph's.
+  UPDATE: `--since <commit>` or the `--changed` union by the DIFF RULE, the working tree
+  included); the summary line is pasted verbatim; LSP is a spawn's tool inside ONE cluster, ≤20
+  symbols, never the graph's.
+- COMMIT-WAIT — a cluster with `uncommitted_files` is not described: no spawn, no menu, «ждёт
+  коммита» and a count in the finale; a section is written only over committed files, so the
+  engine's HEAD stamp stays true.
 - FRESH-SPAWN — one describer per cluster, at most 4 at once, the fixed preamble order, no engine
   tools inside a spawn; a draft outside the engine limits (3000 code points, 24 terms of 32) is
   re-spawned once, then skipped — never hand-trimmed.
