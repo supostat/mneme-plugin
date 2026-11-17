@@ -35,6 +35,7 @@ const EXPECTED_GRANT = [
   'Bash',
   'Task',
   'mcp__plugin_mneme_memory__map_list',
+  'mcp__plugin_mneme_memory__diary_facts',
   'mcp__plugin_mneme_memory__map_put',
   'mcp__plugin_mneme_memory__map_delete',
 ];
@@ -160,8 +161,8 @@ function codePoints(text) {
     const granted = declaration[1].split(',').map((token) => token.trim()).filter((token) => token !== '');
     const extra = granted.filter((token) => !EXPECTED_GRANT.includes(token));
     const missing = EXPECTED_GRANT.filter((token) => !granted.includes(token));
-    if (extra.length > 0) failures.push(`map: allowed-tools grants ${extra.join(', ')} beyond the seven-token contract`);
-    if (missing.length > 0) failures.push(`map: allowed-tools lacks ${missing.join(', ')} of the seven-token contract`);
+    if (extra.length > 0) failures.push(`map: allowed-tools grants ${extra.join(', ')} beyond the eight-token contract`);
+    if (missing.length > 0) failures.push(`map: allowed-tools lacks ${missing.join(', ')} of the eight-token contract`);
   }
   for (const anchor of SKILL_ANCHORS) {
     if (!skill.includes(anchor)) failures.push(`map: anchor «${anchor}» missing`);

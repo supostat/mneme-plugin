@@ -285,7 +285,11 @@ const TOOL_TOKEN_EXPECTATIONS = [
   { skill: 'design-server', rule: 'exactly', tools: ['Read', 'Bash'] },
   { skill: 'design', rule: 'carries', tools: ['Edit'] },
   { skill: 'resume', rule: 'exactly', tools: ['Read', 'Grep', 'mcp__plugin_mneme_memory__workflow_survey'] },
-  { skill: 'map', rule: 'exactly', tools: ['Read', 'Grep', 'Bash', 'Task', 'mcp__plugin_mneme_memory__map_list', ...MAP_WRITE_TOOLS] },
+  {
+    skill: 'map',
+    rule: 'exactly',
+    tools: ['Read', 'Grep', 'Bash', 'Task', 'mcp__plugin_mneme_memory__map_list', 'mcp__plugin_mneme_memory__diary_facts', ...MAP_WRITE_TOOLS],
+  },
   {
     skill: 'arch',
     rule: 'exactly',
