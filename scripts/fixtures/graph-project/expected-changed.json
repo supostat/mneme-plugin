@@ -77,7 +77,8 @@
       },
       "changed_files": [
         "app/models/invoice.rb"
-      ]
+      ],
+      "uncommitted_files": []
     }
   ],
   "seams": [

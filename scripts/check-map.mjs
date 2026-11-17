@@ -2,8 +2,9 @@
 //
 // Gate of the project map's plugin side (spec-map-plugin, phase map-skill): the real
 // plugin/scripts/project-graph.mjs against its two fixtures (Ruby and TypeScript in graph-project,
-// Dart in graph-dart), a temporary git history, a non-git directory and this repository itself,
-// plus the load-bearing anchors of plugin/skills/map/SKILL.md.
+// Dart in graph-dart), a temporary git history, a dirty working tree over a stamp commit, a
+// repository without commits, a non-git directory and this repository itself, plus the
+// load-bearing anchors of plugin/skills/map/SKILL.md.
 //
 // Usage: node scripts/check-map.mjs   (also runs as part of npm test)
 
@@ -126,6 +127,115 @@ function codePoints(text) {
   }
 }
 
+// (b2) the working tree counts: a stamp commit, a later commit, then unstaged, staged, untracked,
+// ignored and deleted files on top — each kind is expected in (or out of) changed_files and
+// uncommitted_files by its own named line
+{
+  const worktreeRepo = join(scratch, 'worktree-repo');
+  cpSync(fixtureRoot, worktreeRepo, { recursive: true });
+  git(worktreeRepo, 'init', '-q');
+  git(worktreeRepo, 'add', '-A');
+  git(worktreeRepo, '-c', 'commit.gpgsign=false', 'commit', '-q', '-m', 'stamp');
+  const stamp = git(worktreeRepo, 'rev-parse', 'HEAD').trim();
+  appendFileSync(join(worktreeRepo, 'app', 'models', 'invoice.rb'), '\n# committed in the later commit\n');
+  git(worktreeRepo, 'add', '-A');
+  git(worktreeRepo, '-c', 'commit.gpgsign=false', 'commit', '-q', '-m', 'later commit');
+  const laterCommit = git(worktreeRepo, 'rev-parse', 'HEAD').trim();
+  appendFileSync(join(worktreeRepo, 'app', 'services', 'billing', 'ledger.rb'), '\n# unstaged edit\n');
+  appendFileSync(join(worktreeRepo, 'app', 'models', 'user.rb'), '\n# staged edit\n');
+  git(worktreeRepo, 'add', 'app/models/user.rb');
+  writeFileSync(join(worktreeRepo, 'app', 'services', 'billing', 'refund.rb'), 'module Billing\n  class Refund\n  end\nend\n');
+  writeFileSync(join(worktreeRepo, '.gitignore'), 'app/services/billing/scratch.rb\n');
+  writeFileSync(join(worktreeRepo, 'app', 'services', 'billing', 'scratch.rb'), 'module Billing\n  class Scratch\n  end\nend\n');
+  rmSync(join(worktreeRepo, 'frontend', 'apps', 'Billing', 'store.ts'));
+
+  const kindOf = new Map([
+    ['app/models/invoice.rb', 'committed in the later commit'],
+    ['app/services/billing/ledger.rb', 'unstaged edit'],
+    ['app/models/user.rb', 'staged edit'],
+    ['app/services/billing/refund.rb', 'untracked file'],
+    ['app/services/billing/scratch.rb', 'ignored file'],
+    ['frontend/apps/Billing/store.ts', 'deleted file'],
+  ]);
+  const described = (file) => `${file} (${kindOf.get(file) ?? 'untouched file'})`;
+  const compareFiles = (caseName, cluster, field, expected) => {
+    const actual = cluster[field] ?? [];
+    for (const file of expected.filter((path) => !actual.includes(path))) {
+      failures.push(`${caseName}: ${described(file)} missing from ${field} of ${cluster.id}`);
+    }
+    for (const file of actual.filter((path) => !expected.includes(path))) {
+      failures.push(`${caseName}: ${described(file)} wrongly in ${field} of ${cluster.id}`);
+    }
+  };
+  const compareClusters = (caseName, graph, expectations) => {
+    const selectedIds = new Set(graph.clusters.map((cluster) => cluster.id));
+    const unselected = Object.keys(expectations)
+      .filter((id) => !selectedIds.has(id))
+      .map((id) => ({ id, changed_files: [], uncommitted_files: [] }));
+    for (const cluster of [...graph.clusters, ...unselected]) {
+      const expected = expectations[cluster.id] ?? { changed: [], uncommitted: [] };
+      compareFiles(caseName, cluster, 'changed_files', expected.changed);
+      compareFiles(caseName, cluster, 'uncommitted_files', expected.uncommitted);
+    }
+  };
+
+  const sinceOut = join(scratch, 'worktree-since.json');
+  if (expectExit('since-worktree', runGraph('--root', worktreeRepo, '--since', stamp, '--out', sinceOut), 0)) {
+    compareClusters('since-worktree', readGraph(sinceOut), {
+      access: { changed: ['app/models/user.rb'], uncommitted: ['app/models/user.rb'] },
+      billing: {
+        changed: ['app/models/invoice.rb', 'app/services/billing/ledger.rb', 'app/services/billing/refund.rb'],
+        uncommitted: ['app/services/billing/ledger.rb', 'app/services/billing/refund.rb'],
+      },
+    });
+  }
+
+  const afterStampOut = join(scratch, 'worktree-after-stamp.json');
+  if (expectExit('since-after-stamp', runGraph('--root', worktreeRepo, '--since', laterCommit, '--out', afterStampOut), 0)) {
+    compareClusters('since-after-stamp', readGraph(afterStampOut), {
+      access: { changed: ['app/models/user.rb'], uncommitted: ['app/models/user.rb'] },
+      billing: {
+        changed: ['app/services/billing/ledger.rb', 'app/services/billing/refund.rb'],
+        uncommitted: ['app/services/billing/ledger.rb', 'app/services/billing/refund.rb'],
+      },
+    });
+  }
+
+  const changedOut = join(scratch, 'worktree-changed.json');
+  if (expectExit('changed-worktree', runGraph('--root', worktreeRepo, '--changed', 'app/models/invoice.rb', '--out', changedOut), 0)) {
+    compareClusters('changed-worktree', readGraph(changedOut), {
+      billing: {
+        changed: ['app/models/invoice.rb'],
+        uncommitted: ['app/services/billing/ledger.rb', 'app/services/billing/refund.rb'],
+      },
+    });
+  }
+
+  const primaryOut = join(scratch, 'worktree-primary.json');
+  if (expectExit('primary-worktree', runGraph('--root', worktreeRepo, '--out', primaryOut), 0)) {
+    for (const cluster of readGraph(primaryOut).clusters) {
+      for (const field of ['changed_files', 'uncommitted_files'].filter((name) => name in cluster)) {
+        failures.push(`primary-worktree: cluster ${cluster.id} carries ${field} — a primary graph is never narrowed`);
+      }
+    }
+  }
+
+  const badCommit = runGraph('--root', worktreeRepo, '--since', 'no-such-commit');
+  const badCommitCause = 'cannot diff no-such-commit against the working tree';
+  if (expectExit('since-bad-commit', badCommit, EXIT_USAGE) && !badCommit.stderr.includes(badCommitCause)) {
+    failures.push(`since-bad-commit: the error does not say «${badCommitCause}» (stderr: ${badCommit.stderr.trim()})`);
+  }
+
+  const headlessRepo = join(scratch, 'headless-repo');
+  cpSync(fixtureRoot, headlessRepo, { recursive: true });
+  git(headlessRepo, 'init', '-q');
+  const headless = runGraph('--root', headlessRepo, '--changed', 'app/models/invoice.rb');
+  const headlessCause = 'cannot diff HEAD against the working tree';
+  if (expectExit('headless-changed', headless, EXIT_USAGE) && !headless.stderr.includes(headlessCause)) {
+    failures.push(`headless-changed: the error does not say «${headlessCause}» (stderr: ${headless.stderr.trim()})`);
+  }
+}
+
 // (c) a directory outside any git repository is refused with a named error
 {
   const nonGit = join(scratch, 'non-git');
@@ -196,21 +306,30 @@ function codePoints(text) {
       if (expectExit('repo-since', runGraph('--root', repoRoot, '--since', 'HEAD~1', '--out', sinceOut), 0)) {
         const since = readGraph(sinceOut);
         const fullIds = new Set(graph.clusters.map((cluster) => cluster.id));
-        const diffNodes = new Set(
-          git(repoRoot, 'diff', '--name-only', 'HEAD~1..HEAD')
-            .split('\n')
-            .filter((file) => trackedNodes.includes(file)),
-        );
+        const graphNodes = new Set(graph.clusters.flatMap((cluster) => cluster.files));
+        const untracked = git(repoRoot, 'ls-files', '--others', '--exclude-standard').split('\n');
+        const nodesChangedSince = (commit) =>
+          new Set([...git(repoRoot, 'diff', '--name-only', commit, '--').split('\n'), ...untracked].filter((file) => graphNodes.has(file)));
+        const diffNodes = nodesChangedSince('HEAD~1');
+        const uncommittedNodes = nodesChangedSince('HEAD');
         const changed = new Set();
         for (const cluster of since.clusters) {
           if (!fullIds.has(cluster.id)) failures.push(`repo-since: cluster ${cluster.id} is not in the full graph`);
           for (const file of cluster.changed_files ?? []) {
             changed.add(file);
-            if (!diffNodes.has(file)) failures.push(`repo-since: ${file} is reported as changed but HEAD~1..HEAD does not touch it`);
+            if (!diffNodes.has(file)) failures.push(`repo-since: ${file} is reported as changed but HEAD~1 and the working tree agree on it`);
+          }
+          for (const file of cluster.uncommitted_files ?? []) {
+            if (!uncommittedNodes.has(file)) failures.push(`repo-since: ${file} is reported as uncommitted but HEAD and the working tree agree on it`);
+          }
+          for (const file of cluster.files.filter((path) => uncommittedNodes.has(path))) {
+            if (!(cluster.uncommitted_files ?? []).includes(file)) {
+              failures.push(`repo-since: ${file} differs from HEAD but ${cluster.id} does not report it as uncommitted`);
+            }
           }
         }
         for (const file of diffNodes) {
-          if (!changed.has(file)) failures.push(`repo-since: ${file} changed in HEAD~1..HEAD but no cluster reports it`);
+          if (!changed.has(file)) failures.push(`repo-since: ${file} changed since HEAD~1 but no cluster reports it`);
         }
       }
     }
@@ -224,4 +343,4 @@ if (failures.length > 0) {
   for (const failure of failures) console.error(`  - ${failure}`);
   process.exit(1);
 }
-console.log('check-map OK (Ruby/TypeScript and Dart fixture expectations, --since on a temporary history, non-git refusal, skill anchors, the real repository)');
+console.log('check-map OK (Ruby/TypeScript and Dart fixture expectations, --since on a temporary history, the working tree in --since and uncommitted_files, git refusals, non-git refusal, skill anchors, the real repository)');

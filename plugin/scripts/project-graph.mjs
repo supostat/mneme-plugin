@@ -6,6 +6,8 @@
 // No language server and no network: metaprogramming stays invisible by design.
 //
 // Usage: node project-graph.mjs --root <dir> [--out <json>] [--changed <path,...> | --since <commit>] [--expect <json>]
+// --since <commit> counts the files changed since that commit, the working tree and untracked files outside
+// .gitignore included; in UPDATE mode (--since or --changed) every selected cluster also carries uncommitted_files.
 
 import { execFileSync } from 'node:child_process';
 import { existsSync, readFileSync, writeFileSync } from 'node:fs';
@@ -84,15 +86,29 @@ function listVisibleFiles(root) {
   } catch (error) {
     fail(EXIT_USAGE, `project-graph: ${root} is not inside a git repository (${gitErrorText(error)})`);
   }
-  return [...new Set(output.split('\0').filter((path) => path !== ''))].sort();
+  return [...new Set(splitNul(output))].sort();
 }
 
-function changedFilesSince(root, commit) {
+function splitNul(output) {
+  return output.split('\0').filter((path) => path !== '');
+}
+
+function untrackedFiles(root) {
   try {
-    return git(root, ['diff', '--name-only', '--relative', `${commit}..HEAD`]).split('\n').filter((path) => path !== '');
+    return splitNul(git(root, ['ls-files', '-z', '--others', '--exclude-standard']));
   } catch (error) {
-    fail(EXIT_USAGE, `project-graph: cannot diff ${commit}..HEAD in ${root} (${gitErrorText(error)})`);
+    fail(EXIT_USAGE, `project-graph: cannot list the untracked files of ${root} (${gitErrorText(error)})`);
   }
+}
+
+function filesChangedSince(root, commit, untracked) {
+  let output;
+  try {
+    output = git(root, ['diff', '--name-only', '-z', '--relative', commit, '--']);
+  } catch (error) {
+    fail(EXIT_USAGE, `project-graph: cannot diff ${commit} against the working tree in ${root} (${gitErrorText(error)})`);
+  }
+  return new Set([...splitNul(output), ...untracked]);
 }
 
 function languageOf(file) {
@@ -655,12 +671,16 @@ function buildGraph(root, options) {
     })
     .sort((a, b) => a.id.localeCompare(b.id));
 
-  const changed = changedFilesOf(root, options);
-  const selected = changed === null
+  const scope = updateScopeOf(root, options);
+  const selected = scope === null
     ? clusters
     : clusters
-        .filter((cluster) => cluster.files.some((file) => changed.has(file)))
-        .map((cluster) => ({ ...cluster, changed_files: cluster.files.filter((file) => changed.has(file)) }));
+        .filter((cluster) => cluster.files.some((file) => scope.changed.has(file)))
+        .map((cluster) => ({
+          ...cluster,
+          changed_files: cluster.files.filter((file) => scope.changed.has(file)),
+          uncommitted_files: cluster.files.filter((file) => scope.uncommitted.has(file)),
+        }));
 
   return {
     root,
@@ -673,10 +693,13 @@ function buildGraph(root, options) {
   };
 }
 
-function changedFilesOf(root, options) {
-  if (options.changed !== null) return new Set(options.changed.split(',').map((path) => path.trim()).filter((path) => path !== ''));
-  if (options.since !== null) return new Set(changedFilesSince(root, options.since));
-  return null;
+function updateScopeOf(root, options) {
+  if (options.changed === null && options.since === null) return null;
+  const untracked = untrackedFiles(root);
+  const changed = options.changed !== null
+    ? new Set(options.changed.split(',').map((path) => path.trim()).filter((path) => path !== ''))
+    : filesChangedSince(root, options.since, untracked);
+  return { changed, uncommitted: filesChangedSince(root, 'HEAD', untracked) };
 }
 
 function comparable(graph) {
