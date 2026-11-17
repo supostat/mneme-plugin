@@ -255,8 +255,9 @@ and the phase gains the task «исправить старые замечани�
 output go into Knowledge and onto the review. A criterion that cannot run here — its tool is
 missing, its container is missing or not running, a service is needed, a path is dirty — is
 marked «не проверено на HEAD: <причина>» in Knowledge, is never counted green, and the review's
-recommendation rides «правки» naming it. Live episodes: corpus boss, run c109ae89 escalated on a rubocop gate over `db/migrate`
-(1346 old offenses); run d8c0077a met a gated spec file red at HEAD only inside the phase.
+recommendation rides «правки» naming it. Live episodes: corpus boss, run c109ae89 escalated on a
+rubocop gate over `db/migrate` (1346 old offenses); run d8c0077a met a gated spec file red at HEAD
+only inside the phase.
 
 Show the DRAFT spec in the chat and CLOSE THE TURN with the `### SPEC-REVIEW-MENU` block (Output
 format) — that numbered menu IS the stop, and the turn ends there. `Write` into `docs/` fires ONLY
