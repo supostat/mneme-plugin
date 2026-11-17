@@ -8,7 +8,7 @@
 // Usage: node scripts/check-map.mjs   (also runs as part of npm test)
 
 import { spawnSync } from 'node:child_process';
-import { cpSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync, appendFileSync } from 'node:fs';
+import { cpSync, mkdtempSync, readFileSync, rmSync, writeFileSync, appendFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -18,7 +18,6 @@ const graphScript = join(repoRoot, 'plugin', 'scripts', 'project-graph.mjs');
 const fixtureRoot = join(repoRoot, 'scripts', 'fixtures', 'graph-project');
 const dartFixtureRoot = join(repoRoot, 'scripts', 'fixtures', 'graph-dart');
 const skillPath = join(repoRoot, 'plugin', 'skills', 'map', 'SKILL.md');
-const bundleScripts = new Set(readdirSync(join(repoRoot, 'plugin', 'scripts')));
 const scratch = mkdtempSync(join(tmpdir(), 'mneme-check-map-'));
 
 const EXIT_MISMATCH = 1;
@@ -29,18 +28,7 @@ const MAX_TERMS = 24;
 const MAX_TERM_LENGTH = 32;
 const PLUGIN_CODE_DIRECTORY = 'plugin/scripts';
 const REPO_TOOLING_DIRECTORY = 'scripts';
-const EXPECTED_GRANT = [
-  'Read',
-  'Grep',
-  'Bash',
-  'Task',
-  'mcp__plugin_mneme_memory__map_list',
-  'mcp__plugin_mneme_memory__diary_facts',
-  'mcp__plugin_mneme_memory__map_put',
-  'mcp__plugin_mneme_memory__map_delete',
-];
 const SKILL_ANCHORS = [
-  'disable-model-invocation: true',
   'The project map is empty.',
   '`1 — принять`',
   '`2 — переименовать`',
@@ -57,10 +45,7 @@ const SKILL_ANCHORS = [
   '32',
   'Index not rebuilt:',
   'не повторять',
-  '--mark map-',
-  '--delta map-',
 ];
-const SCRIPT_INVOCATION = /(?:<base-dir-скилла>\/\.\.\/\.\.|\$CLAUDE_PLUGIN_ROOT)\/scripts\/([A-Za-z0-9._-]+)/g;
 const ISOLATED_GIT_ENV = {
   ...process.env,
   GIT_CONFIG_GLOBAL: '/dev/null',
@@ -151,19 +136,11 @@ function codePoints(text) {
   }
 }
 
-// (d) the skill text: grant, first step, menus, limits, forbidden files, bearer calls, scripts shipped
+// (d) the skill text: first step, menus, limits, forbidden files, the graph script call. Its grant,
+// model-invocation key, shipped scripts and bearer calls are pinned once, by check-skill-handoff
+// (j), (o), (i) and check-session-tokens.
 {
   const skill = readFileSync(skillPath, 'utf8');
-  const declaration = skill.match(/^allowed-tools:\s*\[([^\]]*)\]/m);
-  if (declaration === null) {
-    failures.push('map: no allowed-tools list in the frontmatter');
-  } else {
-    const granted = declaration[1].split(',').map((token) => token.trim()).filter((token) => token !== '');
-    const extra = granted.filter((token) => !EXPECTED_GRANT.includes(token));
-    const missing = EXPECTED_GRANT.filter((token) => !granted.includes(token));
-    if (extra.length > 0) failures.push(`map: allowed-tools grants ${extra.join(', ')} beyond the eight-token contract`);
-    if (missing.length > 0) failures.push(`map: allowed-tools lacks ${missing.join(', ')} of the eight-token contract`);
-  }
   for (const anchor of SKILL_ANCHORS) {
     if (!skill.includes(anchor)) failures.push(`map: anchor «${anchor}» missing`);
   }
@@ -173,11 +150,8 @@ function codePoints(text) {
   } else if (!firstStep[1].includes('map_list {}')) {
     failures.push('map: the first step is not map_list {}');
   }
-  for (const [, script] of skill.matchAll(SCRIPT_INVOCATION)) {
-    if (!bundleScripts.has(script)) failures.push(`map: invokes plugin/scripts/${script}, which is not in the bundle`);
-  }
-  if (!/--mark map-[^\n]*\n/.test(skill) || !skill.includes('project-graph.mjs')) {
-    failures.push('map: the graph script call or the --mark call is missing');
+  if (!skill.includes('project-graph.mjs')) {
+    failures.push('map: the graph script call is missing');
   }
 }
 

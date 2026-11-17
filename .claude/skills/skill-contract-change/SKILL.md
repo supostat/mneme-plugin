@@ -17,7 +17,7 @@ mutations prove the guard goes red on the break. The guard's rules live in
    that needs it carries a self-sufficient replica, and every replica says the same thing. Before
    changing a fact a skill states about itself — a grant, a finale class, a literal — grep
    `scripts/` for the skill's name and that literal: every guard that pins it goes into the same
-   phase's tasks (map's grant is pinned by (j) and by `EXPECTED_GRANT` in `scripts/check-map.mjs`).
+   phase's tasks, and a second guard pinning the same fact is a duplicate to remove, not to edit.
 3. **Check.** In `scripts/check-skill-handoff.mjs`: the check's letter in the header comment, the
    definition matched by a regex anchored at a line start, anchors scoped to their paragraph or to
    `sectionOf`, negative checks with word boundaries, a failure line that names the skill and the
