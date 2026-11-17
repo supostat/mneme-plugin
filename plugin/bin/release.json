@@ -1,11 +1,11 @@
 {
-  "engine_version": "0.1.20",
-  "plugin_version": "0.2.63",
-  "base_url": "https://github.com/supostat/mneme-plugin/releases/download/engine-v0.1.20",
+  "engine_version": "0.1.21",
+  "plugin_version": "0.2.64",
+  "base_url": "https://github.com/supostat/mneme-plugin/releases/download/engine-v0.1.21",
   "sha256": {
-    "darwin-arm64": "4b10db6d7a67f82f286caa3292e7d3871f03173cf7269c5b705363af69f237de",
-    "darwin-x64": "15df9188cb06d991078be3568612111a7e53dde9a5204fdad2740c62cdab6fdd",
-    "linux-arm64": "acfb4cfdc6283397ce32e4e0ee02f836ef723946adeb7f891aa76433043c6336",
-    "linux-x64": "a3ae22949f824ac8be79050633055a9a22f4cb09c22c6a5c38a7ba99447bde95"
+    "darwin-arm64": "4673f95f8b9032c6209985db7d098a4c102ea7b3fafdf9d6f4b14aa5c9feedf0",
+    "darwin-x64": "8ff0d129a8fa77dc7bc4ad43868126c95ca60c14233cc2a4e4547d30cbf63750",
+    "linux-arm64": "91c6b183b170233a52ab1f2fb38f9990b8b5cff8d284935ca4966a289940cb9e",
+    "linux-x64": "689cae6e069a5047e3282f6384d6845f3a1ead8eaa7219ced0b6047518a45875"
   }
 }
