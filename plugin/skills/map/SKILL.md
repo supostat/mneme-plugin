@@ -196,7 +196,7 @@ in this FIXED order:
    `edges_out`, `seams`, `draft` — and in UPDATE mode the stored section body as «предыдущая
    версия» with the `changed_files` list; in `run` mode also the RUN-SPEC block, headed «спека
    прогона <slug> — контекст, не факт: факт раздела берётся только из файлов кластера», with the
-   engine's degradation line verbatim in place of `<slug>` whenever `### RUN-SPEC` degraded.
+   engine's degradation line verbatim in place of `<slug>` whenever the run's spec degraded.
 3. SHAPE — the etalon is the `domain-identity` skill of the boss plugin in STRUCTURE, never in
    text: the first line is the cluster's responsibility in ONE sentence (it becomes the section's
    line in `map_list`); then `## Сущности` (the classes and modules that matter, with paths),

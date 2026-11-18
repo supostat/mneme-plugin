@@ -9,7 +9,7 @@
 // TEST, not the next live episode. The same argument covers every other fact a skill's text
 // states about itself — the finale class it claims, the bundle script it invokes, the tools it is
 // granted — and each of those facts is pinned by ONE map here, never by a second copy elsewhere.
-// Twenty-four checks:
+// Twenty-five checks:
 //
 //   (a) every non-dev skill declares its expected FINALE-CLASS token — and never both;
 //   (b) handoff finales (plan, fix, migrate) reference HANDOFF-DECISION and carry a closing
@@ -162,6 +162,20 @@
 //       opens a line in Step 0, Rules carry its bullet, and the norm and its replicas in MAP-HANDOFF
 //       and DOMAINS-PICK say «never split», «whole element» and «never a miss». A list item ends at
 //       the next item or a blank line, so a `notes_list { id }` beside a permission is not its text.
+//   (y) RUN-SPEC-HANDOFF — the run's spec and phases come from the engine, never from the corpus
+//       files. (y1) dev carries `### SPEC-FRAME` at a line start, the section reads
+//       `workflow_spec { run_id }` before the work of EVERY `execute_step`, takes the
+//       `knowledge:` block, relays `knowledge: not recorded` and names the engine debt; the
+//       execute_step branch names SPEC-FRAME and Rules carry its bullet; (y2) SLUG-RESOLVE reads
+//       `workflow_spec { spec_slug }` and `workflow_spec {}` and names `spec none` for paths, and
+//       Start path relays the engine's both-sources refusal and its EXISTING-RUN notice; (y3)
+//       dev's Permissions carry the `workflow_spec` bullet, and its Bash item grants COMMIT-FIRST's
+//       `git diff --name-only <base> HEAD`; (y4) resume's Step 4 reads `workflow_spec { run_id }`
+//       and the `deps none` phase lines, and the phase-folder degradation line is gone; (y5) dev,
+//       map, resume and diary name none of the corpus markers (`<corpus>`, `~/.mneme`,
+//       `.mneme.json`, `MNEME_CORPUS_NAME`); (y6) diary's Step 1 shows the spec line
+//       `spec <slug>|none|not recorded`, and «Зачем» names the run's spec by its spec line. The
+//       grants are (j)'s, the RUN-SPEC anchors (v3)'s, the COMMIT-FIRST base (v5)'s.
 //
 // Dev tooling: lives at the repo ROOT, never inside plugin/ (same rule as the other check-*).
 //
@@ -1173,6 +1187,82 @@ if (!/^- ANCHOR-LIST\b/m.test(sectionOf(mapText, /^## Rules$/m) ?? '')) {
   failures.push('map: no `- ANCHOR-LIST` bullet in Rules');
 }
 
+// (y) RUN-SPEC-HANDOFF: the run's spec and phases come from the engine, never from the corpus files
+const SPEC_FRAME_ANCHORS = ['workflow_spec { run_id }', 'EVERY `execute_step`', 'the `knowledge:` block', '`knowledge: not recorded', 'engine debt'];
+const RUN_SOURCE_AREAS = [
+  { area: 'SLUG-RESOLVE', heading: /^### SLUG-RESOLVE\b/m, anchors: ['workflow_spec { spec_slug }', 'workflow_spec {}', 'spec none'] },
+  { area: 'Start path', heading: /^### Start path\b/m, anchors: ['pass phases or spec_slug, not both', 'NOTICE: an unfinished workflow run already exists'] },
+];
+const WORKFLOW_SPEC_PERMISSION = /^- `mcp__plugin_mneme_memory__workflow_spec`:/m;
+const RUN_BASE_DIFF = 'git diff --name-only <base> HEAD';
+const RESUME_SPEC_ANCHORS = ['workflow_spec { run_id }', 'deps none'];
+const RETIRED_FOLDER_LINE = 'папка фаз не определена';
+const CORPUS_MARKERS = ['<corpus>', '~/.mneme', '.mneme.json', 'MNEME_CORPUS_NAME'];
+const ENGINE_SPEC_READERS = [
+  { name: 'dev', text: devText },
+  { name: 'map', text: mapText },
+  { name: 'resume', text: resumeText },
+  { name: 'diary', text: diaryText },
+];
+const SPEC_LINE_SHAPE = 'spec <slug>|none|not recorded';
+const SPEC_LINE_NAME = 'spec line';
+const missingAnchors = (text, anchors) => anchors.filter((anchor) => !normalize(text ?? '').includes(anchor));
+
+// (y1) SPEC-FRAME
+const specFrame = sectionOf(devText, /^### SPEC-FRAME\b/m);
+if (specFrame === null) {
+  failures.push("dev: no `### SPEC-FRAME` section — the run's Knowledge would reach no phase");
+} else {
+  for (const anchor of missingAnchors(specFrame, SPEC_FRAME_ANCHORS)) {
+    failures.push(`dev: SPEC-FRAME does not say «${anchor}» — restore the clause in its section`);
+  }
+}
+if (!(sectionOf(devText, /^### execute_step branch\b/m) ?? '').includes('SPEC-FRAME')) {
+  failures.push('dev: the execute_step branch does not name SPEC-FRAME — the work would start without the frame');
+}
+if (!/^- SPEC-FRAME\b/m.test(sectionOf(devText, /^## Rules$/m) ?? '')) {
+  failures.push('dev: no `- SPEC-FRAME` bullet in Rules');
+}
+
+// (y2) the run's source: a slug read through the engine, its refusals relayed
+for (const { area, heading, anchors } of RUN_SOURCE_AREAS) {
+  for (const anchor of missingAnchors(sectionOf(devText, heading), anchors)) {
+    failures.push(`dev: ${area} does not say «${anchor}» — the run's source would no longer come from the engine`);
+  }
+}
+
+// (y3) dev's grants of the spec reads
+const devPermissions = sectionOf(devText, /^## Permissions\b/m) ?? '';
+if (!WORKFLOW_SPEC_PERMISSION.test(devPermissions)) {
+  failures.push('dev: Permissions carry no `mcp__plugin_mneme_memory__workflow_spec` bullet — the grant would have no place and form');
+}
+if (!normalize(listItemOpenedBy(devPermissions, /^- Edit \/ Write \/ Bash \/ Grep:/m) ?? '').includes(RUN_BASE_DIFF)) {
+  failures.push(`dev: the Bash permission does not grant «${RUN_BASE_DIFF}» — COMMIT-FIRST would run a call its grant does not describe`);
+}
+
+// (y4) resume's graph from the run's spec
+for (const anchor of missingAnchors(sectionOf(resumeText, /^### Step 4\b/m), RESUME_SPEC_ANCHORS)) {
+  failures.push(`resume: Step 4 does not say «${anchor}» — the graph would not come from the run's spec`);
+}
+if (resumeText.includes(RETIRED_FOLDER_LINE)) {
+  failures.push(`resume: text still says «${RETIRED_FOLDER_LINE}» — the graph comes from the run's spec, never from a phase folder`);
+}
+
+// (y5) no corpus path in the skills that read the run's spec
+for (const { name, text } of ENGINE_SPEC_READERS) {
+  for (const marker of CORPUS_MARKERS.filter((candidate) => text.includes(candidate))) {
+    failures.push(`${name}: text names «${marker}» — the engine owns the corpus, and no skill computes its path`);
+  }
+}
+
+// (y6) diary names the run's spec
+if (!normalize(sectionOf(diaryText, /^### Step 1\b/m) ?? '').includes(SPEC_LINE_SHAPE)) {
+  failures.push(`diary: Step 1 does not show the spec line «${SPEC_LINE_SHAPE}» — the run form's facts would miss the run's spec`);
+}
+if (!normalize(listItemOpenedBy(diaryText, /^- \*\*Зачем:\*\*/m) ?? '').includes(SPEC_LINE_NAME)) {
+  failures.push(`diary: «Зачем» does not name the run's spec by its «${SPEC_LINE_NAME}»`);
+}
+
 if (failures.length > 0) {
   console.error('Handoff-finale sync check FAILED:');
   for (const failure of failures) console.error(`  - ${failure}`);
@@ -1180,5 +1270,5 @@ if (failures.length > 0) {
 }
 
 console.log(
-  'Handoff-finale sync check passed: finale classes declared, handoff menus in place, staging grants curated, contract replicas aligned, no stale markers, MENU-CONTEXT replicas aligned and unweakened, SPEC-REVIEW-MENU replicas aligned with self-endorsement barred, invoked bundle scripts present, allowed-tools grants matching their contracts, the handoff phrase shared by design and plan, resume free of event-log markers, RESOLVE-INDEX replicas aligned and never retried, the map contract anchored where it is consumed, the model-invocable registry pinned to exactly the diary and prompt skills, the diary contract anchored in dev\'s terminal and the diary skill with its skill-candidate rule, and every command the skills name and hand over resolved to the bundle\'s own — real names, route templates shaped like their targets\' arguments, handoff lines byte-identical across finales, prompt\'s triggers and self-check labels, every entry named in setup\'s finale, and the spec line shapes replicated in plan and fix, each checked in its review step, with the dep-edge marks in the phase title, and plan\'s evidence rules — a tool\'s self-test cases derived from its rules one to one and compared in Step 6, a sufficiency claim backed by a run in Step 3 or marked unverified, and dev\'s harvest evidence rules — an artifact claiming only what its phase observed, one mutation per spec run named against the check it broke — with the lines read before an accept recommendation in the dev and diary curations, and the dedup judge\'s contract — its card forms quoted, the supersede chip ruled and stamped in four curations, setup\'s consent and adopt anchors, and the tools they need — and the map handoff: dev\'s complete-run finale offering `/mneme:map run <run_id>` only over touched sections, map\'s run form with the run\'s spec and its code-grounded invariants, prompt never composing it, the diff rule counting the working tree in both skills, the commit before the hand-over and the clusters waiting for it — and plan\'s HEAD-LINT-RUN: lint criteria run against HEAD before the review menu under the third Bash carve-out, with their clauses, count and review line in place — and the map\'s anchors read in one call: dev\'s finale and plan\'s domain pick read no body, map reads whole only the section a cluster rewrites, and the anchor list is read whole-element in all three.',
+  'Handoff-finale sync check passed: finale classes declared, handoff menus in place, staging grants curated, contract replicas aligned, no stale markers, MENU-CONTEXT replicas aligned and unweakened, SPEC-REVIEW-MENU replicas aligned with self-endorsement barred, invoked bundle scripts present, allowed-tools grants matching their contracts, the handoff phrase shared by design and plan, resume free of event-log markers, RESOLVE-INDEX replicas aligned and never retried, the map contract anchored where it is consumed, the model-invocable registry pinned to exactly the diary and prompt skills, the diary contract anchored in dev\'s terminal and the diary skill with its skill-candidate rule, and every command the skills name and hand over resolved to the bundle\'s own — real names, route templates shaped like their targets\' arguments, handoff lines byte-identical across finales, prompt\'s triggers and self-check labels, every entry named in setup\'s finale, and the spec line shapes replicated in plan and fix, each checked in its review step, with the dep-edge marks in the phase title, and plan\'s evidence rules — a tool\'s self-test cases derived from its rules one to one and compared in Step 6, a sufficiency claim backed by a run in Step 3 or marked unverified, and dev\'s harvest evidence rules — an artifact claiming only what its phase observed, one mutation per spec run named against the check it broke — with the lines read before an accept recommendation in the dev and diary curations, and the dedup judge\'s contract — its card forms quoted, the supersede chip ruled and stamped in four curations, setup\'s consent and adopt anchors, and the tools they need — and the map handoff: dev\'s complete-run finale offering `/mneme:map run <run_id>` only over touched sections, map\'s run form with the run\'s spec and its code-grounded invariants, prompt never composing it, the diff rule counting the working tree in both skills, the commit before the hand-over and the clusters waiting for it — and plan\'s HEAD-LINT-RUN: lint criteria run against HEAD before the review menu under the third Bash carve-out, with their clauses, count and review line in place — and the map\'s anchors read in one call: dev\'s finale and plan\'s domain pick read no body, map reads whole only the section a cluster rewrites, and the anchor list is read whole-element in all three — and the run\'s spec taken from the engine: dev frames every phase with it and starts by slug, map and resume read it in one call, diary names it, and no skill computes the corpus path.',
 );
