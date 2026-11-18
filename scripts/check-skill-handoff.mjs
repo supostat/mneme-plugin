@@ -9,7 +9,7 @@
 // TEST, not the next live episode. The same argument covers every other fact a skill's text
 // states about itself — the finale class it claims, the bundle script it invokes, the tools it is
 // granted — and each of those facts is pinned by ONE map here, never by a second copy elsewhere.
-// Twenty-three checks:
+// Twenty-four checks:
 //
 //   (a) every non-dev skill declares its expected FINALE-CLASS token — and never both;
 //   (b) handoff finales (plan, fix, migrate) reference HANDOFF-DECISION and carry a closing
