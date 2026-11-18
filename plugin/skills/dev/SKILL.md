@@ -1,7 +1,7 @@
 ---
 name: dev
 description: orchestrate a development workflow through phases
-allowed-tools: [mcp__plugin_mneme_memory__workflow_start, mcp__plugin_mneme_memory__workflow_step, mcp__plugin_mneme_memory__map_list, Read, Edit, Write, Bash, Grep]
+allowed-tools: [mcp__plugin_mneme_memory__workflow_start, mcp__plugin_mneme_memory__workflow_step, mcp__plugin_mneme_memory__map_list, Read, Edit, Write, Bash, Grep, mcp__plugin_mneme_memory__workflow_spec]
 disable-model-invocation: true
 ---
 
@@ -19,27 +19,35 @@ markdown.
 
 ## Arguments — MULTI-PHASE-INPUT
 
-The run needs `phases: string[]` — ONE OR MORE markdown phase-document texts. The skill assembles
-that array from the argument, which takes one of the forms below, plus two OPTIONAL tails in this
-order: an `until <phase-id>` boundary, then a `domains <id>[,<id>…]` list.
+The run takes EXACTLY ONE source of phases: the slug of a migrated spec (`spec_slug` — the engine
+reads the spec's phases and Knowledge itself) or `phases: string[]` — ONE OR MORE markdown
+phase-document texts. The skill picks the source from the argument, which takes one of the forms
+below, plus two OPTIONAL tails in this order: an `until <phase-id>` boundary, then a
+`domains <id>[,<id>…]` list.
 
-### SLUG-RESOLVE — how the argument becomes a phase folder
+### SLUG-RESOLVE — how the argument becomes the run's source
 
-The project's CORPUS is derived from the cwd: the repo root's absolute path with every `/` replaced
-by `-` (leading `-` included) names `~/.mneme/<project-slug>/`, and TASK directories live under its
-`workflow/` subdirectory — one `<spec-slug>/` folder of `phase-*.md` files per task (what migrate
-emits). Resolve the argument in this order:
+The engine owns the corpus: it reads a migrated spec by its slug, lists the migrated specs and
+starts a run from a slug. This skill never computes where the corpus lies and never reads its
+files. Resolve the argument in this order:
 
 - **slug** (the preferred form): `/mneme:dev <slug> [until <id>] [domains <id>[,<id>…]]` — a bare
-  name that is neither an existing path nor quoted text resolves to `<corpus>/workflow/<slug>/`; read
-  EVERY `phase-*.md` in it. Example: `/mneme:dev spec-plugin-sweep until migrate-skill domains
-  billing,access`.
-- **no path at all**: `/mneme:dev until <id>` (an `until` with no source): look at
-  `<corpus>/workflow/` — exactly ONE task directory → take it silently; SEVERAL → list them
-  (numbered, Russian) and ASK which one; NONE → say so and stop. Never guess among several.
+  name that is neither an existing path nor quoted text. Call `workflow_spec { spec_slug }` ONCE:
+  the answer `Migrated spec "<slug>" as it is in this corpus now. …` lists every phase as
+  `phase <id> · deps …`, and those ids are the ones `until` is validated against and
+  `recall_domains` is keyed by. A non-answer — `no migrated spec "<slug>" in this corpus; migrated
+  specs: …`, a slug outside the grammar, a phase file or a Knowledge that does not parse, phases
+  that do not form a graph — is relayed VERBATIM and the skill STOPS before any start. The start
+  then passes the slug, never the texts (`### Start path`). Example: `/mneme:dev spec-plugin-sweep
+  until migrate-skill domains billing,access`.
+- **no path at all**: `/mneme:dev until <id>` (an `until` with no source): call `workflow_spec {}` —
+  `No spec is migrated in this corpus. Nothing was written.` → say so and stop; exactly ONE
+  `- <slug> · N phase(s)` line → take that slug silently and go on as the slug form; SEVERAL → list
+  them (numbered, Russian) and ASK which one. Never guess among several.
 - **full paths stay VALID** (compatibility): a directory (read every `phase-*.md` in it), several
-  explicit file paths, a single file, or an INLINE phase-document body in quotes — all exactly as
-  before.
+  explicit file paths, a single file, or an INLINE phase-document body in quotes — read and passed
+  as `phases` exactly as before. The engine records such a run's spec line as `spec none`, and its
+  frame on a resume is the line `knowledge: none — phases were passed as text`.
 - `/mneme:dev` — NO argument: RESUME an existing run on the current branch (unchanged) — see
   `### Resume, detached HEAD, and stale runs`.
 
@@ -61,12 +69,13 @@ domains принимается только при старте run'а — `/mne
 него» — and STOP. The domain ids come from the project map (`/mneme:plan` prints the tail in its
 ready command from `map_list`); this skill never looks them up.
 
-Assembly rule: ALL read documents go into ONE `workflow_start` call as a single `phases[]`. The skill
-does NOT sort the phases and does NOT choose which one runs next — the engine's reducer decides
+Assembly rule: a path or inline form puts ALL read documents into ONE `workflow_start` call as a
+single `phases[]`; the slug form passes the slug alone and reads no file. Either way the skill does
+NOT sort the phases and does NOT choose which one runs next — the engine's reducer decides
 execution order by ready-semantics (dependencies). The skill does NOT scan the repo beyond the
-resolved directory / named paths, and does NOT guess a fixed file layout. "One or more" here is
-literal: multi-phase input (many phase DOCUMENTS in `phases[]`) is orthogonal to the
-SINGLE-STEP-per-phase invariant (see `### Start path`), which is unchanged.
+named paths, and does NOT guess a fixed file layout. "One or more" here is literal: multi-phase
+input (many phases in one start) is orthogonal to the SINGLE-STEP-per-phase invariant (see
+`### Start path`), which is unchanged.
 
 ## Permissions (VIOLATION = ABORT)
 
@@ -79,11 +88,15 @@ SINGLE-STEP-per-phase invariant (see `### Start path`), which is unchanged.
   (`### TOKEN-LINE`, `### RUN-COST`), the commit block's git calls after the user's digit
   (`### COMMIT-TURN-SPLIT`) and, inside `### MAP-HANDOFF`, the read-only calls of map's diff rule
   — `git diff --name-only <commit>` per distinct section commit, `git diff --name-only HEAD` and
-  `git ls-files --others --exclude-standard` — and COMMIT-FIRST's commit block: its read-only
-  diff-stat (`git diff --stat HEAD`) when it renders, `git add` / `git commit` after the user's
-  digit.
+  `git ls-files --others --exclude-standard` — and COMMIT-FIRST's read-only base diff
+  `git diff --name-only <base> HEAD` and its commit block: its read-only diff-stat
+  (`git diff --stat HEAD`) when it renders, `git add` / `git commit` after the user's digit.
 - `mcp__plugin_mneme_memory__workflow_start` / `mcp__plugin_mneme_memory__workflow_step`: YES —
-  the only two engine tools this skill drives.
+  the only two engine tools that advance the run.
+- `mcp__plugin_mneme_memory__workflow_spec`: YES — read-only by construction: it writes nothing
+  (no event, no file) and answers every non-answer as text. `{ spec_slug }` and `{}` ONLY in
+  `### SLUG-RESOLVE`, before the start; `{ run_id }` ONLY in `### SPEC-FRAME`, in the EXISTING-RUN
+  check of `### Start path` and in MAP-HANDOFF's COMMIT-FIRST.
 - `mcp__plugin_mneme_memory__map_list`: ONLY inside `### MAP-HANDOFF` on the `RUN COMPLETE`
   terminal — `{ anchors: true }`, once: every section's commit and anchors, no body. It reads;
   `map_put` / `map_delete` are `/mneme:map`'s and FORBIDDEN here.
@@ -174,13 +187,20 @@ the actionable directive.
 
 ### Start path
 
-1. Assemble `phases` (see `## Arguments — MULTI-PHASE-INPUT`) — ONE array holding one OR MORE
-   phase-document texts, in the order read. If an `until <phase-id>` boundary was given, VALIDATE it
-   here first (see `### UNTIL-BOUNDARY`): the id must be among the assembled phases, else stop before
-   starting.
+1. Resolve the source (see `## Arguments — MULTI-PHASE-INPUT`) and its phase ids: the slug form
+   takes them from the `phase <id> · deps …` lines of its `### SLUG-RESOLVE` answer; a path or
+   inline form assembles `phases` — ONE array holding one OR MORE phase-document texts, in the order
+   read — and takes the `id:` of each document's frontmatter. If an `until <phase-id>` boundary was
+   given, VALIDATE it here first (see `### UNTIL-BOUNDARY`): the id must be among those phase ids,
+   else stop before starting.
 2. Call `workflow_start` ONCE with:
-   - `phases: [<all assembled phase-document texts>]` — one OR MORE documents in a SINGLE start call;
-     the reducer runs them in ready-order (by dependencies), the skill never sorts or picks the next.
+   - EXACTLY ONE source — `spec_slug: "<slug>"` for the slug form, the engine reading the spec's
+     phases and Knowledge itself; or `phases: [<all assembled phase-document texts>]` for a path or
+     inline form, one OR MORE documents in a SINGLE start call. The reducer runs the phases in
+     ready-order (by dependencies), the skill never sorts or picks the next. The engine refuses both
+     and neither before reading anything (`pass phases or spec_slug, not both`,
+     `pass phases or spec_slug: neither was given`) and refuses an unknown slug, or a phase file or
+     a Knowledge that does not parse, without writing an event: relay the line VERBATIM and STOP.
    - `steps: [{ id: "implement", max_attempts: 2, on_fail: { action: "escalate" } }]` — SINGLE-STEP
      PER PHASE is mandatory, and is ORTHOGONAL to multi-phase input: `phases[]` may hold many phase
      documents, but EVERY phase runs as exactly ONE step. A multi-step phase would emit identical
@@ -189,13 +209,17 @@ the actionable directive.
    - `max_iterations: 20`
    - `recall_anchors?` — include ONLY if the user supplies anchor hints; otherwise omit.
    - `recall_domains?` — include ONLY when the DOMAINS-TAIL was given: an object keyed by EVERY
-     phase id of `phases[]` (the `id:` of each document's frontmatter), each key carrying the SAME
-     list — `{ "<phase-id>": ["billing", "access"], … }`. One list for the whole run; a phase with
-     no key would recall without the narrowing, so no phase is left out. Otherwise omit.
+     phase id of the source (step 1), each key carrying the SAME list —
+     `{ "<phase-id>": ["billing", "access"], … }`. One list for the whole run; a phase with no key
+     would recall without the narrowing, so no phase is left out. Otherwise omit.
 3. The run binds to the CURRENT git branch:
-   - EXISTING-RUN guard: if the branch already has an UNFINISHED run, `workflow_start` returns that
-     run_id and IGNORES the passed definition. Do NOT re-issue start — capture the returned run_id
-     and continue via `workflow_step` (this is the resume path).
+   - EXISTING-RUN guard: if the branch already has an UNFINISHED run, the answer is
+     `NOTICE: an unfinished workflow run already exists on this branch: <id>.` — that run_id is
+     returned and the passed definition, the slug included, is IGNORED. Do NOT re-issue start —
+     capture the returned run_id and continue via `workflow_step` (this is the resume path). An
+     `until` given with the start is checked again, right after the notice, against the phases of
+     THAT run — `workflow_spec { run_id }`, one call; when the id is not among them, stop before the
+     loop with «until <id>: в идущем прогоне <run_id> такой фазы нет».
    - DETACHED-HEAD / GIT-ERROR: `workflow_start` ITSELF throws on a detached HEAD or a git error.
      Recognize it, tell the user (Russian) to `git checkout` a real branch first, then re-run. Do
      not proceed.
@@ -205,7 +229,8 @@ the actionable directive.
      `recall_domains for phase "<id>": no map domain "<x>"`. The run did NOT start and no event
      exists. Relay the engine's line VERBATIM and add (Russian): «исправить карту (`/mneme:map`),
      не run» — the fix is a map section, never a retry with the list trimmed by guesswork. STOP.
-4. Capture run_id from the `Started workflow run <id> on branch "<b>"` header. From the
+4. Capture run_id from the `Started workflow run <id> on branch "<b>"` header, or from the
+   EXISTING-RUN notice. From the
    `workflow_start` response, capture `run_id` ONLY — do not branch on any directive in the start
    response; all directive branching is driven by the subsequent `workflow_step` calls.
 
@@ -237,8 +262,8 @@ other, and a run with no `until` still pauses at every non-empty-staging boundar
 
 Mechanics:
 
-- VALIDATE BEFORE START: `<phase-id>` MUST be the id of one of the phases just assembled into
-  `phases[]`. If it is not among them, tell the user (Russian) and STOP — do NOT call `workflow_start`
+- VALIDATE BEFORE START: `<phase-id>` MUST be one of the source's phase ids (`### Start path`,
+  step 1). If it is not among them, tell the user (Russian) and STOP — do NOT call `workflow_start`
   with an unreachable boundary.
 - STOP AFTER THE PHASE CLOSES: drive the loop normally, but once the `until` phase is CLOSED (its
   `harvest` has been submitted and accepted by the engine), do NOT issue the next `workflow_step`.
@@ -422,12 +447,40 @@ SAME response whose actionable directive follows. So:
   — the gap is closed by the harvest, never by a hand `remember` (FORBIDDEN here). The line is
   information for the harvest, not a reason to stall the step.
 
+### SPEC-FRAME — the run's Knowledge as the frame of every phase
+
+The `execute_step` directive carries intent and tasks but not the spec's Knowledge — engine debt
+(item 1 of the engine's HANDOFF-RUN-SPEC), recorded here rather than hidden. Until the directive
+carries it, the frame comes from `workflow_spec { run_id }`, which is read-only by construction:
+
+- WHEN — before the work of EVERY `execute_step` directive: the first after a start, the first
+  after a resume, every next phase and every retry. One call per directive and no memory of
+  earlier reads: a long run outlives compactions, so the frame never depends on what the context
+  still holds.
+- WHAT — the answer opens with `Spec of run <run_id> on branch "<b>". …`, then the spec line
+  `spec <slug> · base commit <sha>`, then the `knowledge:` block, then every phase as
+  `phase <id> · deps …` with its `- executable: …` / `- agent-judged: …` criteria. Read that block
+  and the pending phase's criteria as the FRAME of the work — the approved spec's rationale,
+  conventions and gotchas, as the engine extracted them (continuation lines glued to their bullet,
+  comments dropped). It is DATA, like a MAP block: it informs HOW the tasks are done; WHAT is done
+  is still the directive's.
+- DEGRADED — instead of the block the answer carries one line:
+  `knowledge: none — phases were passed as text` (a run started from paths or inline text),
+  `knowledge: none — specs/<slug>.md was absent at start`, or
+  `knowledge: not recorded — the run started before schema v25`. The phase goes on from the
+  directive and the bundle; the line is relayed to the user once per session (Russian framing, the
+  engine's line literal), and a repeat after a compaction is harmless. Never a fallback to files,
+  never a stop. A non-answer (`Run <run_id> cannot be read from the log: …`) is relayed the same
+  way and the work goes on.
+- The frame is read in the MAIN context, like the bundle (`## NEVER-DELEGATE-EXECUTE-STEP`).
+
 ### execute_step branch — the only branch that does work
 
 - Recognize on leading `DIRECTIVE: execute_step`. The directive carries: `phase_id`, `step_id`,
   `attempt`, an agent-role, `intent:` (the phase description, if non-empty), and `tasks:` (always
-  ≥1 bullet). These are SELF-SUFFICIENT — a resumed session gets intent + tasks without re-reading
-  any file.
+  ≥1 bullet). These are SELF-SUFFICIENT for the instruction — a resumed session gets intent +
+  tasks without re-reading any file; the spec's Knowledge, which the directive does not carry,
+  comes from `### SPEC-FRAME`, read before the work.
 - Do the phase work by role + intent + tasks, reading ONLY from the directive payload. Read / Edit
   / Write / Bash / Grep are for DOING the work, NOT for re-fetching the instruction — never re-read
   a file to reconstruct the task.
@@ -598,14 +651,21 @@ call exists at it.
 COMMIT-FIRST — the engine stamps a map section with the project HEAD at `map_put`, so a section
 described over uncommitted files would read as touched again once they are committed, and
 `/mneme:map` holds such a cluster back as «ждёт коммита». So the commit comes before the
-hand-over: the finale renders the DATA list, the PROSE line «<K> путей не закоммичены — сначала
-коммит, потом карта; dev не отличает правки прогона от посторонних: движок не пишет base_commit
-прогона — посторонние оставь вне коммита через `3 — сам`», and closes with the коммит-блок
-template — its diff-stat lists every uncommitted path, the untracked ones by name — while the
-two-chip menu waits for the next response: one DECISION per message. Exactly one chip of the block
-carries «← рекомендую: <причина одной строкой>» — `1` when the diff-stat holds the run's work only,
-`3` when it holds paths no phase of the run touched, the reason naming them, and `3` as well when
-phases closed in a past session leave the run's paths unknown. Digit `1` →
+hand-over. The finale first reads the run's base — the `base commit` segment of the spec line of
+`workflow_spec { run_id }`, one call. With a sha, the run's paths are the files its phases changed
+in this session together with `git diff --name-only <base> HEAD`: what the run committed at its
+boundaries, past sessions included; without one, they are this session's phase edits alone. The
+base against the working tree would not do — it lists
+every uncommitted tracked path, the ones dirty before the start too. The finale renders the DATA
+list, the PROSE line «<K> путей не закоммичены — сначала коммит, потом карта; база прогона <sha7>:
+его пути — правки этой сессии и закоммиченное с базы; грязные до старта база не отделяет — их
+оставь вне коммита через `3 — сам`» (with `base commit none` or `not recorded` instead: «база
+прогона не записана (<строка движка>): правки прогона от посторонних не отделить»), and closes with
+the коммит-блок template — its diff-stat lists every uncommitted path, the untracked ones by name —
+while the two-chip menu waits for the next response: one DECISION per message. Exactly one chip of
+the block carries «← рекомендую: <причина одной строкой>» — `1` when every uncommitted path is one
+of the run's paths, `3` when a path is not, the reason naming it, and, without a base, `3` as well
+when phases closed in a past session leave the run's paths unknown. Digit `1` →
 `git add -- <the uncommitted paths of step 5>` and `git commit` with the shown message, then
 steps 3-6 again: the recount lists the same sections, now committed, and closes with the two-chip menu; a
 refused commit is relayed verbatim and the turn stops, nothing is retried. Digit `2` → the message
@@ -619,7 +679,9 @@ payload rides the commit choice — the commit menu is honestly uncovered (`### 
 - RESUME (fresh session, no start): call `workflow_step {}` (NO `workflow_start`). The engine
   rebuilds the run from its event log, reads the current git branch, and re-issues the pending
   directive WITH intent + tasks (self-sufficient — that is why `execute_step` carries the task
-  text). Then continue the loop.
+  text). The spec's Knowledge reaches the resumed run through `### SPEC-FRAME` before the work of
+  its first directive — a session that never read the phase files gets it too. Then continue the
+  loop.
 - DETACHED-HEAD / GIT-ERROR on resume: a no-arg sync returns info, but a SUBMIT throws. If the user
   is on a detached HEAD, tell them (Russian) to `git checkout` the run's branch before submitting.
 - STALE RUN: a run whose branch was DELETED is marked stale and is NOT resumed. It appears in the
@@ -925,12 +987,20 @@ line is DATA of the block, not the menu header)
 - DOMAINS-TAIL — `domains a,b` (last tail, after `until`) becomes `recall_domains` keyed by EVERY
   phase id with the same list; the bare resume rejects it with a hint; a start refusal naming
   `recall_domains` is relayed verbatim with «исправить карту (`/mneme:map`), не run».
+- SLUG-RESOLVE — the engine owns the corpus: a slug is read through `workflow_spec` (the phase ids
+  for `until` and `domains`) and started as `spec_slug`, a bare `until` lists the migrated specs,
+  paths and inline text start as `phases`; the skill never computes where the corpus lies and
+  never reads its files.
+- SPEC-FRAME — before the work of every `execute_step` directive the run's spec is read once and
+  its Knowledge frames the phase as DATA; a degraded or missing Knowledge is relayed once per
+  session and never stops the work; the directive's missing Knowledge is recorded as engine debt.
 - MAP-HANDOFF — on `RUN COMPLETE` only: the finale reads every section's commit and anchors in
   one map call, no body, and intersects the anchors (map's ANCHOR-LIST) with the files changed
   since that section's commit, the working tree and untracked files
   included, by map's own diff rule; an empty map or no touched section leaves the finale silent
   about the map; touched sections are listed with their uncommitted paths marked; with uncommitted
-  paths COMMIT-FIRST closes the terminal with the commit block and the two-chip menu — hand over
+  paths COMMIT-FIRST names the run's paths by its base and closes the terminal with the commit
+  block, and the two-chip menu — hand over
   the map command or skip — follows in the next response; dev prints the command and never runs
   it; no menu payload rides either choice.
 - ALWAYS ECHO `{phase_id, step_id, attempt}` EXACTLY; treat a `NOTICE:` re-issue as a signal to fix

@@ -131,7 +131,9 @@
 //       paragraph grounds invariants in code alone; (v4) prompt's ONE ROUTE TABLE names `map run`
 //       among the commands never composed; (v5) MAP-HANDOFF carries the COMMIT-FIRST paragraph —
 //       the engine's HEAD stamp as the reason, the коммит-блок, one DECISION per message, `3 — сам`
-//       for edits beside the run, no base_commit — and HANDOFF-DECISION names it; (v6) map's
+//       for edits beside the run, the run's base from `workflow_spec { run_id }` with its committed
+//       paths `git diff --name-only <base> HEAD`, the paths dirty before the start left to the
+//       human — and HANDOFF-DECISION names it; (v6) map's
 //       Step 1 states the diff rule dev replicates (both literals and `uncommitted_files`), neither
 //       skill keeps the old `<commit>..HEAD`, and both Permissions grant the untracked listing;
 //       (v7) map's Step 1 carries the COMMIT-WAIT paragraph, the finale counts «ждёт коммита <W>»
@@ -338,7 +340,7 @@ const TOOL_TOKEN_EXPECTATIONS = [
     tools: ['Read', 'Grep', 'mcp__plugin_mneme_memory__recall', 'mcp__plugin_mneme_memory__remember', 'mcp__plugin_mneme_memory__map_list'],
   },
   { skill: 'plan', rule: 'carries', tools: ['mcp__plugin_mneme_memory__map_list', 'mcp__plugin_mneme_memory__notes_list'] },
-  { skill: 'dev', rule: 'carries', tools: ['mcp__plugin_mneme_memory__map_list'] },
+  { skill: 'dev', rule: 'carries', tools: ['mcp__plugin_mneme_memory__map_list', 'mcp__plugin_mneme_memory__workflow_spec'] },
   { skill: 'fix', rule: 'carries', tools: ['mcp__plugin_mneme_memory__notes_list'] },
   {
     skill: 'setup',
@@ -913,7 +915,9 @@ const COMMIT_FIRST_ANCHORS = [
   'коммит-блок',
   'one DECISION per message',
   '`3 — сам`',
-  'base_commit',
+  'workflow_spec { run_id }',
+  'git diff --name-only <base> HEAD',
+  'грязные до старта',
 ];
 const COMMIT_WAIT_ANCHORS = ['reads the files from disk', 'stamps the section with the project HEAD', 'no spawn', 'ждёт коммита'];
 const COMMIT_WAIT_COUNT = 'ждёт коммита <W>';
