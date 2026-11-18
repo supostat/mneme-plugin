@@ -107,7 +107,7 @@ export const mutations = [
   {
     label: 'Permissions counts one carve-out again',
     file: plan,
-    find: 'TWO carve-outs',
+    find: 'THREE carve-outs',
     replace: 'ONE carve-out',
     expect: 'Permissions still counts «ONE carve-out»',
   },
