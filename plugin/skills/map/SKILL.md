@@ -1,7 +1,7 @@
 ---
 name: map
 description: build or refresh the project map section by section — a static graph script clusters the files, a fresh subagent describes each cluster, and every domain or flow is written to the engine only on the user's digit
-allowed-tools: [Read, Grep, Bash, Task, mcp__plugin_mneme_memory__map_list, mcp__plugin_mneme_memory__diary_facts, mcp__plugin_mneme_memory__map_put, mcp__plugin_mneme_memory__map_delete]
+allowed-tools: [Read, Grep, Bash, Task, mcp__plugin_mneme_memory__map_list, mcp__plugin_mneme_memory__diary_facts, mcp__plugin_mneme_memory__map_put, mcp__plugin_mneme_memory__map_delete, mcp__plugin_mneme_memory__workflow_spec]
 disable-model-invocation: true
 ---
 
@@ -43,6 +43,9 @@ finished run (`### RUN-SPEC`). dev's MAP-HANDOFF finale prints it after `RUN COM
   absorbed, and only when that section was already stored. Never as a cleanup.
 - `mcp__plugin_mneme_memory__diary_facts`: ONLY in `run` mode, ONCE, `{ run_id }`
   (`### RUN-SPEC`) — read-only by construction: it reads the event log and writes nothing.
+- `mcp__plugin_mneme_memory__workflow_spec`: ONLY in `run` mode, ONCE, `{ run_id }`, after
+  `diary_facts` answered `status complete` (`### RUN-SPEC`) — read-only by construction: it
+  renders the spec the run's start recorded and writes nothing.
 - Bash: THREE carve-outs and nothing else — (1) the graph script,
   `node <base-dir-скилла>/../../scripts/project-graph.mjs …`; (2) in UPDATE mode the read-only
   calls of Step 1's DIFF RULE, `git diff --name-only <commit>` and
@@ -57,16 +60,13 @@ finished run (`### RUN-SPEC`). dev's MAP-HANDOFF finale prints it after `RUN COM
 - Read / Grep: YES — the main agent reads a cluster's files only to judge a draft (does the claimed
   entry point exist, which neighbour is the right merge target) and the project's `docs/` specs for
   flows. Reading to REWRITE a draft by hand is not this skill's job: a draft the main agent
-  disagrees with is re-spawned with the objection, or rejected. In `run` mode, and only there,
-  also `.mneme.json` in the project root (the corpus name), `<corpus>/workflow/*/phase-*.md` (Grep
-  for the run's phase ids) and `<corpus>/specs/<slug>.md` (Read) — read, never written:
-  ENGINE-OWNED FILES stand.
+  disagrees with is re-spawned with the objection, or rejected.
 - Write / Edit: FORBIDDEN — the map lives in the corpus, and the project tree is never touched.
   The corpus files `map/`, `INDEX.md`, `glossary.md` are the ENGINE's: `INDEX.md` and
   `glossary.md` are derived and rewritten on every put, and `map/` is written only through
   `map_put`. Touching any of them on disk is a VIOLATION.
-- `recall` / `remember` / staging tools / workflow tools: FORBIDDEN — the map is produced from
-  the code, and curation here is by digit, not by staging.
+- `recall` / `remember` / staging tools / every workflow tool but `workflow_spec`: FORBIDDEN —
+  the map is produced from the code, and curation here is by digit, not by staging.
 
 ## Procedure
 
@@ -106,31 +106,33 @@ snapshot, which is the semantics «стоимость ТЕКУЩЕЙ карты�
 
 ### RUN-SPEC — the finished run's spec (`run` mode only)
 
+The engine owns the run's spec: its start recorded the spec, and the engine renders it back. The
+skill computes no corpus path and reads no corpus file.
+
 1. Call `mcp__plugin_mneme_memory__diary_facts { run_id }` ONCE. Go on only when the answer opens
    with `Diary facts for run <run_id>` and its second line starts with `status complete`; any
    other answer (`No workflow run …`, `… is still running …`, `run_id is not a ULID or UUID.`,
    `… cannot be read from the log …`, a status other than complete) is relayed verbatim with
    «обновление по прогону — только после RUN COMPLETE», and the skill STOPS before the graph.
-2. The run's phase ids are the `<id>` of every `phase <id>:` line of that answer.
-3. `<corpus>` is `~/.mneme/<name>/`: `corpus.name` from `.mneme.json` in the project root when the
-   file exists, otherwise the real path of the project root with every `/` replaced by `-`, the
-   leading dash kept; the `MNEME_CORPUS_NAME` override is invisible here. Grep `^id: "<id>"`
-   across `<corpus>/workflow/*/phase-*.md` for every phase id; the candidates are the folders that
-   contain ALL of them. Exactly one → its name is the spec slug. Zero or several → the PROSE line
-   «спека прогона не найдена однозначно — кандидаты: <slugs>» (or «— кандидатов нет»), and the
-   pass goes on as a plain UPDATE. Picking the most recent folder is FORBIDDEN: Read and Grep see
-   no timestamps.
-4. Read `<corpus>/specs/<slug>.md` — the archive migrate wrote byte for byte when it applied the
-   phases. A missing archive → «спека прогона не найдена: нет архива <slug>», a plain UPDATE.
-   `docs/SPEC-<slug>.md` is never the source: `docs/` may be gitignored and edited after
-   migration, the archive is the text the run's phases came from.
-5. From the archive take, verbatim, the whole `# Knowledge` section and every done-when of
-   `# Gameplan` under its phase heading — each executable criterion as its command and its
-   description line, each `**Done when (AGENT-JUDGED):**` line as it stands. Nothing else: the
-   Baseline, the Stack and the tasks describe the plan, the map describes the code.
+2. Call `mcp__plugin_mneme_memory__workflow_spec { run_id }` ONCE. The answer opens with
+   `Spec of run <run_id> on branch "<b>". Nothing was written: …`, then the spec line
+   `spec <slug>|none|not recorded · base commit <sha>|none|not recorded`, then `knowledge:` with
+   its bullets, then every phase after its deps — `phase <id> · deps <a>, <b>` or `deps none` —
+   with its criteria `- executable: <command> — <description>` and `- agent-judged: <text>`.
+3. The RUN-SPEC block is the slug of the spec line, the `knowledge:` block and every phase line
+   with its criteria, verbatim as the engine extracted them: continuation lines already glued to
+   their bullet, HTML comments already dropped. Nothing else enters it — the plan's Baseline,
+   Stack and tasks describe the plan, the map describes the code — and nothing is re-read from a
+   file.
+4. Degradations are the engine's lines, relayed verbatim. `spec none` (the run started from
+   phase texts), `knowledge: none — specs/<slug>.md was absent at start` and
+   `knowledge: not recorded — the run started before schema v25` give a block of the phases'
+   done-when without Knowledge, headed by that engine line in place of the slug. A non-answer
+   (`Run <id> cannot be read from the log: …`, `No workflow run <id> in this corpus. …`) is
+   relayed verbatim, and the pass goes on as a plain UPDATE without RUN-SPEC.
 
 That block is this pass's RUN-SPEC: `### CLUSTER-SPAWN` hands it to every describer it spawns,
-and the finale names its slug.
+and the finale names its slug, or the engine's degradation line verbatim.
 
 ### Step 1: the graph — one script call, its summary verbatim
 
@@ -193,7 +195,8 @@ in this FIXED order:
 2. INPUT: the cluster object from the JSON, verbatim — `id`, `dirs`, `files`, `symbols`,
    `edges_out`, `seams`, `draft` — and in UPDATE mode the stored section body as «предыдущая
    версия» with the `changed_files` list; in `run` mode also the RUN-SPEC block, headed «спека
-   прогона <slug> — контекст, не факт: факт раздела берётся только из файлов кластера».
+   прогона <slug> — контекст, не факт: факт раздела берётся только из файлов кластера», with the
+   engine's degradation line verbatim in place of `<slug>` whenever `### RUN-SPEC` degraded.
 3. SHAPE — the etalon is the `domain-identity` skill of the boss plugin in STRUCTURE, never in
    text: the first line is the cluster's responsibility in ONE sentence (it becomes the section's
    line in `map_list`); then `## Сущности` (the classes and modules that matter, with paths),
@@ -284,7 +287,7 @@ When the last section has its digit:
 1. `mcp__plugin_mneme_memory__map_list {}` — pasted VERBATIM: that IS the map now.
 2. The counts: принято / переименовано / слито / отклонено / ждёт коммита, and the clusters
    skipped as «принято ранее» or «черновик не уложился в лимит». In `run` mode one more line —
-   `спека прогона: <slug>`, or the RUN-SPEC degradation line.
+   `спека прогона: <slug>`, or the engine's degradation line or non-answer verbatim.
 3. The RUN-COST line — the output of `--delta map-<project-slug> --label карта`, verbatim
    (`### RUN-COST`); empty output → no line. Under it, when any put answered
    `Index not rebuilt:`, the single line «индекс не пересобран: <reason>; догонит при следующем
@@ -379,7 +382,7 @@ numbered DECISION in the next message, never prose)
 <вывод map_list {} дословно>
 
 принято <A> · переименовано <R> · слито <M> · отклонено <D> · принято ранее <S> · ждёт коммита <W>
-спека прогона: <slug> | <строка деградации RUN-SPEC>   (only in run mode)
+спека прогона: <slug> | <строка движка дословно>   (only in run mode)
 <строка RUN-COST — вывод `--delta map-<project-slug> --label карта` дословно; пусто — строки нет>
 индекс не пересобран: <reason>; догонит при следующем чтении   (only when a put said so)
 
@@ -401,12 +404,12 @@ every note under it, so a domain with a too-wide anchor (`app`) swallows the cor
 anchors are the cluster's seed directories for that reason.
 
 In `run` mode the clusters are the UPDATE diff since the sections' commits, not strictly the run's
-files, the working tree included: edits beside the run, committed or not, count too — without a
-base commit of the run nothing tells them apart. Work beside the run since the map was written is
-re-described too, and the run's spec reaches those clusters as well — that is why the spec is
-context and the code wins. A spec re-migrated after the run overwrites its archive, so the archive
-is the last migrated text of that slug. A run built from inline phase documents has no folder and
-updates without its spec.
+files, the working tree included: edits beside the run, committed or not, count too. The run's
+base commit is not an input of the diff rule — the UPDATE starts from the sections' commits, so
+work beside the run since the map was written is re-described too, and the run's spec reaches
+those clusters as well — that is why the spec is context and the code wins. The run's spec is the
+text its start read: a re-migration after the run does not change it. A run started from phase
+texts hands over its done-when without Knowledge.
 
 PRIMARY mode describes the disk as well and is never narrowed: a primary pass over uncommitted
 files stamps HEAD over them, and the next UPDATE re-describes those clusters once the files are
@@ -442,9 +445,10 @@ Print user-facing text in Russian; keep engine/protocol tokens (`map_list`, `map
   tools inside a spawn; a draft outside the engine limits (3000 code points, 24 terms of 32) is
   re-spawned once, then skipped — never hand-trimmed.
 - RUN-SPEC — `run <run_id>` is an UPDATE plus the finished run's spec: `diary_facts` once, and
-  anything but `status complete` stops the skill; the phase folder that holds ALL the run's phase
-  ids, never the most recent one; the archive in the corpus `specs/`, never `docs/`; its Knowledge
-  and done-when verbatim into every spawn. The invariants of such a pass follow RUN-INVARIANTS:
+  anything but `status complete` stops the skill; then one `workflow_spec { run_id }`, its
+  Knowledge and done-when into every spawn as the engine extracted them; a degradation or a
+  non-answer is the engine's line, relayed verbatim — no corpus path, no corpus file, never
+  `docs/`. The invariants of such a pass follow RUN-INVARIANTS:
   the code is the only ground, an executable done-when is named beside it as a check anyone can
   run again, an agent-judged criterion never counts, and the code wins.
 - PROGRESS-IN-THE-MAP — an interrupted run loses nothing: `map_list { anchors: true }` on the next

@@ -126,8 +126,9 @@
 //       (`disable-model-invocation`); (v2) the `RUN COMPLETE` terminal and the HANDOFF-DECISION
 //       exemption name MAP-HANDOFF, and dev's Rules carry its bullet; (v3) map's `## Arguments`
 //       declares `/mneme:map run <run_id>`, the `### RUN-SPEC` section reads the run once and only
-//       when complete, takes the folder holding ALL the phase ids, reads the corpus archive and
-//       degrades by name, Step 2 hands RUN-SPEC to the describers, and the `RUN-INVARIANTS`
+//       when complete, takes the run's spec from one `workflow_spec { run_id }` — the
+//       `knowledge:` block and the done-when as the engine extracted them, `spec none` degrading
+//       by the engine's line — Step 2 hands RUN-SPEC to the describers, and the `RUN-INVARIANTS`
 //       paragraph grounds invariants in code alone; (v4) prompt's ONE ROUTE TABLE names `map run`
 //       among the commands never composed; (v5) MAP-HANDOFF carries the COMMIT-FIRST paragraph —
 //       the engine's HEAD stamp as the reason, the коммит-блок, one DECISION per message, `3 — сам`
@@ -137,8 +138,9 @@
 //       Step 1 states the diff rule dev replicates (both literals and `uncommitted_files`), neither
 //       skill keeps the old `<commit>..HEAD`, and both Permissions grant the untracked listing;
 //       (v7) map's Step 1 carries the COMMIT-WAIT paragraph, the finale counts «ждёт коммита <W>»
-//       and Rules carry its bullet. (j) pins dev's map_list and map's diary_facts, (q2) refuses a
-//       route that composes `map run`.
+//       and Rules carry its bullet. (j) pins dev's map_list and workflow_spec, map's diary_facts
+//       and workflow_spec, and resume's two read-only engine tools; (q2) refuses a route that
+//       composes `map run`.
 //   (w) HEAD-LINT-RUN — plan runs the draft's lint criteria against HEAD before the review menu.
 //       (w1) the `**HEAD-LINT-RUN` definition stands at a line start inside Step 6, and its
 //       paragraph carries every load-bearing clause: the lint class («carry no problems»), the
@@ -328,11 +330,20 @@ const MAP_WRITE_TOOLS = ['mcp__plugin_mneme_memory__map_put', 'mcp__plugin_mneme
 const TOOL_TOKEN_EXPECTATIONS = [
   { skill: 'design-server', rule: 'exactly', tools: ['Read', 'Bash'] },
   { skill: 'design', rule: 'carries', tools: ['Edit'] },
-  { skill: 'resume', rule: 'exactly', tools: ['Read', 'Grep', 'mcp__plugin_mneme_memory__workflow_survey'] },
+  { skill: 'resume', rule: 'exactly', tools: ['mcp__plugin_mneme_memory__workflow_survey', 'mcp__plugin_mneme_memory__workflow_spec'] },
   {
     skill: 'map',
     rule: 'exactly',
-    tools: ['Read', 'Grep', 'Bash', 'Task', 'mcp__plugin_mneme_memory__map_list', 'mcp__plugin_mneme_memory__diary_facts', ...MAP_WRITE_TOOLS],
+    tools: [
+      'Read',
+      'Grep',
+      'Bash',
+      'Task',
+      'mcp__plugin_mneme_memory__map_list',
+      'mcp__plugin_mneme_memory__diary_facts',
+      ...MAP_WRITE_TOOLS,
+      'mcp__plugin_mneme_memory__workflow_spec',
+    ],
   },
   {
     skill: 'arch',
@@ -922,7 +933,7 @@ const COMMIT_FIRST_ANCHORS = [
 const COMMIT_WAIT_ANCHORS = ['reads the files from disk', 'stamps the section with the project HEAD', 'no spawn', 'ждёт коммита'];
 const COMMIT_WAIT_COUNT = 'ждёт коммита <W>';
 const MAP_RUN_FORM = '/mneme:map run <run_id>';
-const RUN_SPEC_ANCHORS = ['diary_facts { run_id }', 'status complete', 'contain ALL', '<corpus>/specs/<slug>.md', 'спека прогона не найдена'];
+const RUN_SPEC_ANCHORS = ['diary_facts { run_id }', 'status complete', 'workflow_spec { run_id }', 'the `knowledge:` block', 'spec none'];
 const RUN_INVARIANTS_ANCHORS = ['executable done-when', 'never counts', 'the code wins', '## Открытые вопросы'];
 
 // (v1)

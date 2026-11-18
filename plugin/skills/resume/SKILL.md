@@ -1,7 +1,7 @@
 ---
 name: resume
-description: orient on the current branch's run and stop — one read-only workflow_survey call plus the phase folder, rendered as a closed/ready/blocked map with the command to continue, without acting
-allowed-tools: [Read, Grep, mcp__plugin_mneme_memory__workflow_survey]
+description: orient on the current branch's run and stop — one read-only workflow_survey call plus the run's spec from workflow_spec, rendered as a closed/ready/blocked map with the command to continue, without acting
+allowed-tools: [mcp__plugin_mneme_memory__workflow_survey, mcp__plugin_mneme_memory__workflow_spec]
 disable-model-invocation: true
 ---
 
@@ -9,10 +9,10 @@ disable-model-invocation: true
 
 Read-only ORIENTATION. One call to the engine's read-only survey tool answers "where am I" for the
 CURRENT git branch: the unfinished run, its pending directive, the staged-note count, live runs on
-other branches, anomalies, the last terminal run. The phase folder of that run (its `phase-*.md`
-files in the corpus) supplies the graph, from which the skill renders the closed / ready / blocked
-map and the `until` boundary candidates, and SUGGESTS the `/mneme:dev` continuation in REAL syntax.
-It never continues and never writes anything.
+other branches, anomalies, the last terminal run. The run's spec, read back from the engine with
+one `workflow_spec` call, supplies the graph, from which the skill renders the closed / ready /
+blocked map and the `until` boundary candidates, and SUGGESTS the `/mneme:dev` continuation in REAL
+syntax. It never continues and never writes anything.
 
 The difference from `/mneme:dev` with no argument is the whole point: dev CONTINUES (it calls
 `workflow_step` and drives the loop); resume ORIENTS and STOPS. See `### RESUME-VS-DEV`.
@@ -25,21 +25,22 @@ there is nothing to pass.
 ## Permissions (VIOLATION = ABORT) — ORIENT-ONLY
 
 ORIENT-ONLY means WRITES NOTHING: no event, no file, no stale mark. The guarantee is not "never
-touches the engine" — it is "nothing is written", and the one engine tool granted here satisfies it
-by construction.
+touches the engine" — it is "nothing is written", and the two engine tools granted here satisfy it
+by construction, both read-only.
 
-- `mcp__plugin_mneme_memory__workflow_survey`: YES — the ONLY engine tool. Read-only by
-  construction: it reads the engine's own state and git, and writes nothing (the engine's e2e suite
-  proves the corpus tree is byte-identical before and after the call, brief and map alike, detached
-  HEAD included). Calling it drains nothing and advances nothing. Verify the name against the
-  session's tool registry after a reconnect.
-- Read / Grep: YES, and ONLY for two targets — `.mneme.json` in the project root (the corpus name)
-  and `<corpus>/workflow/*/phase-*.md` (the phase folders). Nothing else: not the engine's log, not
-  git's internals, not staging.
+- `mcp__plugin_mneme_memory__workflow_survey`: YES — read-only by construction: it reads the
+  engine's own state and git, and writes nothing (the engine's e2e suite proves the corpus tree is
+  byte-identical before and after the call, brief and map alike, detached HEAD included). Calling
+  it drains nothing and advances nothing.
+- `mcp__plugin_mneme_memory__workflow_spec`: YES — ONLY `{ run_id }` of the branch's unfinished
+  run, ONCE, in Step 4. Read-only by construction: it renders the spec the run's start recorded
+  and writes nothing.
+- Verify both names against the session's tool registry after a reconnect.
 - `workflow_start` / `workflow_step` / `workflow_abandon` / `workflow_migrate` / any submission:
   FORBIDDEN — resume never starts, syncs, advances, retries, or submits anything.
 - `recall` / `remember` / `staging_list` / `staging_resolve` / any other memory tool: FORBIDDEN.
-- Edit / Write / Bash / any change on disk: FORBIDDEN.
+- Read / Grep / Edit / Write / Bash / any change on disk: FORBIDDEN — every map line comes from
+  the two engine answers, never from a file.
 
 resume builds a map and STOPS. Acting on the map is `/mneme:dev`'s job, on the user's next move.
 
@@ -48,7 +49,8 @@ resume builds a map and STOPS. Acting on the map is `/mneme:dev`'s job, on the u
 ### Step 1: survey
 
 Call `mcp__plugin_mneme_memory__workflow_survey {}` — the map form, not `brief`. The answer is
-plain text; every map line below comes from it or from the phase folder, never from anywhere else.
+plain text; every map line below comes from it or from the run's spec (Step 4), never from
+anywhere else.
 
 ### Step 2: off-branch answers — relay and stop
 
@@ -84,35 +86,30 @@ The engine renders fixed line shapes (pinned by its own tests). Take from them:
 A line that is absent produces no map line; a line of an unfamiliar shape is relayed verbatim with
 a note, never interpreted.
 
-### Step 4: the corpus and the phase folder — lookup by id, honest degradation
+### Step 4: the run's spec — `workflow_spec { run_id }`
 
-`<corpus>` is `~/.mneme/<name>/`. `<name>` is `corpus.name` from `.mneme.json` in the project root
-(Read it if the file exists; the key is nested; pattern `^[a-z0-9][a-z0-9_-]{0,63}$`), otherwise
-the real path of the project root with every `/` replaced by `-`, leading dash kept (a root
-`…/Projects/example` becomes `-…-Projects-example`). The `MNEME_CORPUS_NAME` environment variable
-overrides the name but is invisible to the skill — a miss then degrades honestly, below. Phase
-folders are `<corpus>/workflow/<spec-slug>/phase-<id>.md`; the frontmatter holds one-line JSON
-literals `id: "keep"`, `deps: ["pictures"]` (or `deps: []`), and no other identifying field.
+Only when Step 3 found an unfinished run: call `mcp__plugin_mneme_memory__workflow_spec { run_id }`
+ONCE, with the id of the `Active run <id>` line. The engine renders the spec the run's start
+recorded; resume computes no corpus path and reads no file. Take from the answer:
 
-The survey names no spec slug, so the folder is found by the phase ids it DID name:
+- the spec line `spec <slug>|none|not recorded · base commit <sha>|none|not recorded` — its
+  `<slug>` heads the map; `spec none` or `spec not recorded` heads it with the branch instead;
+- the graph — every phase line, `phase <id> · deps <a>, <b>` or `phase <id> · deps none`, which
+  the engine prints after the phases it depends on; the phase ids and their deps are all Step 5
+  needs. The criteria under each phase and the `knowledge:` block are dev's frame: resume prints
+  neither;
+- a NON-ANSWER (`Run <id> cannot be read from the log: …`, `No workflow run <id> in this corpus.
+  …`, `run_id is not a ULID or UUID. …`) → no graph: the map carries the line
+  `граф: <ответ workflow_spec дословно>` in place of the closed / ready / blocked lines, no `until`
+  candidates are printed, and the continuation hint is the bare `/mneme:dev` and
+  `/mneme:dev until <pending-id>`.
 
-- known ids = the pending phase from `phase <id> · pending: …`, plus the ids of the `ready:` line
-  when it is present;
-- Grep `^id: "<id>"` across `<corpus>/workflow/*/phase-*.md` for each known id; the candidates are
-  the folders that contain ALL known ids;
-- EXACTLY ONE candidate → spec-slug = the folder name; Grep `^(id|deps): ` across its `phase-*.md`
-  for the graph;
-- ZERO or SEVERAL candidates → no graph: the map carries the line
-  `граф: папка фаз не определена однозначно — кандидаты: <slugs>` (or `— кандидатов нет`), the
-  closed / blocked lines and the `until` candidates are not printed, and the continuation hint is
-  the bare `/mneme:dev` and `/mneme:dev until <pending-id>`. Picking "the most recent" folder is
-  FORBIDDEN: Read and Grep see no timestamps, and ids such as `wire` or `docs` live in most folders
-  of a corpus — a guess would be a lie in the map.
-
-Without an unfinished run there are no phase ids, so no lookup happens: a terminal run is reported
-by its `Last terminal run` line alone.
+Without an unfinished run there is no run id, so no call happens: a terminal run is reported by its
+`Last terminal run` line alone.
 
 ### Step 5: the table from the ready set and the deps
+
+The phases and their deps are the phase lines of Step 4.
 
 - ready = the ids of the `ready:` line, otherwise exactly {the pending phase} — a phase pending
   `harvest` or `recall` is still open, so it is ready, not closed;
@@ -144,8 +141,8 @@ Then STOP. Do NOT run the command, do NOT call the engine again, do NOT submit a
 
 Both look at the same branch run through the same engine, with OPPOSITE intents:
 
-- `/mneme:resume` = "where am I" — one read-only survey, a map, and a full stop. It never touches
-  `workflow_step`.
+- `/mneme:resume` = "where am I" — one read-only survey, at most one read-only spec call, a map,
+  and a full stop. It never touches `workflow_step`.
 - `/mneme:dev` (no argument) = "carry on" — it calls `workflow_step`, drives the loop, and ACTS on
   the pending directive until a terminal.
 
@@ -171,8 +168,7 @@ activity <ts>
 - ✅ closed: `<ids>`
 - ▶ ready: `<ids>` · pending: `<директива движка дословно>`
 - ⛔ blocked: `<ids>` (ждёт: `<dep ids>`)
-- `граф: папка фаз не определена однозначно — кандидаты: <slugs>` (only on degradation, instead
-  of the three lines above)
+- `граф: <ответ workflow_spec дословно>` (only on a non-answer, instead of the three lines above)
 - 🗃 staged: `<N>`
 - 🌐 другие ветки / сироты / предупреждения / аномалии: the survey's lines, one each, relayed —
   never acted on
@@ -188,10 +184,10 @@ count and the other-branch lines, and suggest the entry path `/mneme:plan` → m
 
 ### Honest limit
 
-The coupling to the engine's log format is gone. What remains is a coupling to the SHAPE of the
-survey's rendered lines (pinned by the engine's own tests) and to the phase-folder layout (pinned by
-the engine's phase-document writer). A drift shows up as an odd map line or a degraded graph, never
-as a wrong action — resume does nothing. Staged-note essences are not printed here: the count is the
+The coupling to the engine's log format and to the corpus layout is gone. What remains is a
+coupling to the SHAPE of the survey's rendered lines and of `workflow_spec`'s spec and phase lines
+(HANDOFF-RUN-SPEC-SHAPE), both pinned by the engine's own tests. A drift shows up as an odd map
+line or a degraded graph, never as a wrong action — resume does nothing. Staged-note essences are not printed here: the count is the
 engine's, the notes themselves belong to curation (the digit menus of plan / fix / dev).
 
 ### Language
@@ -201,15 +197,17 @@ Print user-facing text in Russian; keep engine/protocol tokens (`workflow_survey
 
 ## Rules
 
-- ORIENT-ONLY = WRITES NOTHING — one read-only survey call, a map, and a STOP. `workflow_start` /
-  `workflow_step` / `workflow_abandon` / `workflow_migrate` / submit, `recall` / `remember` /
-  staging tools, Edit / Write / Bash are ALL forbidden. VIOLATION = ABORT.
-- ONE ENGINE TOOL — `mcp__plugin_mneme_memory__workflow_survey` is the only engine call; Read /
-  Grep touch only `.mneme.json` and `<corpus>/workflow/*/phase-*.md`.
+- ORIENT-ONLY = WRITES NOTHING — one read-only survey call, at most one read-only spec call, a
+  map, and a STOP. `workflow_start` / `workflow_step` / `workflow_abandon` / `workflow_migrate` /
+  submit, `recall` / `remember` / staging tools, Read / Grep / Edit / Write / Bash are ALL
+  forbidden. VIOLATION = ABORT.
+- TWO READ-ONLY ENGINE TOOLS — `mcp__plugin_mneme_memory__workflow_survey {}` once, and
+  `mcp__plugin_mneme_memory__workflow_spec { run_id }` once for the branch's unfinished run; no
+  file is read, no corpus path is computed.
 - RESUME-VS-DEV — resume answers "where am I" and STOPS; `/mneme:dev` answers "carry on" and ACTS.
   resume SUGGESTS the command, it never runs it.
 - REAL SYNTAX — the suggested continuation is a runnable `/mneme:dev` command, never pseudocode,
   and never a guessed slug.
-- EVIDENCE-BASED — every map line comes from the survey or the resolved phase folder; an ambiguous
-  folder degrades to a named line, never to a guess.
+- EVIDENCE-BASED — every map line comes from the survey or the run's spec; a non-answer of
+  `workflow_spec` degrades to the named `граф:` line, never to a guess.
 - LANGUAGE: English body + Russian runtime user-facing output.

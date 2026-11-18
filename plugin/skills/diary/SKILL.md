@@ -87,7 +87,8 @@ Call `diary_facts` per the argument (`{ run_id }` or `{}`). Render the answer as
 in a fenced block — it is the retro's evidence base. The engine's fixed line shapes:
 
 - run form: `Diary facts for run <id> on branch "<b>". Nothing was written: …` · `status <s> ·
-  started <ts> · ended <ts> · iterations <u>/<m>` · `diary entry: present|none` · `escalation:
+  started <ts> · ended <ts> · iterations <u>/<m>` · `spec <slug>|none|not recorded · base commit
+  <sha>|none|not recorded` · `diary entry: present|none` · `escalation:
   <p>/<s> — <reason>` (when any) · `curation: staged <n> · accepted <n> · rejected <n> ·
   superseded <n>` · per phase `phase <id>: not reached` or `phase <id>: attempts <n> · bundle gap
   yes|no|not instrumented · harvest <kinds>|none|not run · used notes <n>|not instrumented|not
@@ -124,7 +125,9 @@ Answer four questions from the facts of Step 1 and the memory of Step 2, each wi
 
 - **Что произошло:** the engine's facts, the run id, the `file:line` of what was touched —
   verified with Read / Grep (the file exists, the line says it). No claim without a place.
-- **Зачем:** the reason — from the spec, the phase's intent, the user's request.
+- **Зачем:** the reason. For a run — the run's spec, named by the slug of the spec line of Step 1
+  (`spec none` — the phases were passed as text; `spec not recorded` — the run started before
+  schema v25), then the phase's intent and the user's request; for a session — the user's request.
 - **Правильно ли:** the gates (`gate fail` lines, attempt counts), the curation numbers
   (staged / accepted / rejected / superseded), the retries, the rejected notes, an escalation.
   A rejected note is a verdict on the harvest's judgement, not noise.
